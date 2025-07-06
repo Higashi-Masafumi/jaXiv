@@ -17,7 +17,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
     A repository for fetching the latex source of a paper from arXiv.
     """
 
-    def __init__(self, arxiv_src_url: str = "https://arxiv.org/src/"):
+    def __init__(self, arxiv_src_url: str = "https://arxiv.org/src"):
         self._arxiv_src_url: Final[str] = arxiv_src_url
         self._logger = getLogger(__name__)
 

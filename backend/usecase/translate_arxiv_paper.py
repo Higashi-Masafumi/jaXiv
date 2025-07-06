@@ -1,7 +1,7 @@
 from domain.repositories import IArxivSourceFetcher, ILatexCompiler, ILatexTranslator
 from domain.entities import CompileSetting, ArxivPaperId, LatexFile, TargetLanguage
 from logging import getLogger
-import os
+import asyncio
 from pathlib import Path
 
 
@@ -48,12 +48,14 @@ class TranslateArxivPaper:
                 latex_files.append(latex_file)
         # 3. 翻訳
         translated_latex_files: list[LatexFile] = []
-        for latex_file in latex_files:
-            translated_latex_file = await self._latex_translator.translate(
+        tasks = [
+            self._latex_translator.translate(
                 latex_file=latex_file, target_language=target_language
             )
-            translated_latex_files.append(translated_latex_file)
-            self._logger.info(f"Translated {latex_file.path}")
+            for latex_file in latex_files
+        ]
+        translated_latex_files = await asyncio.gather(*tasks)
+        self._logger.info(f"Translated {len(translated_latex_files)} tex files")
         # 4. 翻訳後のtex contentをtex fileに書き込む
         for translated_latex_file in translated_latex_files:
             with open(translated_latex_file.path, "w") as f:
