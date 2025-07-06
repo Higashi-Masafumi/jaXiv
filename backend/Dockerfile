@@ -5,7 +5,6 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     texlive-full \
     latexmk ghostscript \
-    && tlmgr install microtype xetex hyperref \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python package manager
