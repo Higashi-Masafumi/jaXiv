@@ -4,6 +4,7 @@ from domain.entities.latex_file import LatexFile
 from logging import getLogger
 from google import genai
 from google.genai import types
+from utils import optimize_latex_content
 import re
 import time
 
@@ -23,7 +24,7 @@ class GeminiLatexTranslator(ILatexTranslator):
     ) -> LatexFile:
         sections = self._split_section(latex_file.content)
         system_prompt = (
-            "あなたは、Latexの文法を熟知しているLatexの翻訳家です。与えられたLaTeXのソースコードの一部を、指定された言語に翻訳してください。\n"
+            "あなたは、Latexの文法を熟知しているLatexの翻訳家です。与えられたLaTeXのソースコードのテキスト部分を、指定された言語に翻訳してください。\n"
             "# 依頼事項\n"
             "1. コマンドはそのままにしてください。(`\\section`, `\\cite`, `\\begin{}`, `\\ `, math expressions like `$...$`, environments, labels, \\begin{document}, \\end{document}, etc.)\n"
             "2. 自然言語の部分のみを翻訳してください。(section titles, paragraph text, abstract, captions, keywords, etc.)\n"
@@ -31,18 +32,19 @@ class GeminiLatexTranslator(ILatexTranslator):
             "4. 出力は、LaTeXのソースコードのみです。特に、```latex ... ``` や <latex> ... </latex> のタグは除去してください。\n"
             "5. 与えられるLatexのソースコードは一部のみであるので、\\begin{document}と\\end{document}を補完したり、削除したりしてはいけません。\n"
             "6. カスタムコマンドなど、一般的でないコマンドに関連するものは翻訳せず、そのままにしてください。\n"
-            "7. `\\ `はスペースコマンドであり、スペースを保持したまま翻訳してください。\n"
+            "7. 数式中の記号 `\\(` `\\)` `$` `&` `\\` `{` `}` は **絶対に削除・全角化しない**。\n"
+            "8. `\\label{}` `\\ref{}` `\\cite{}` で括られたキー名は **一文字も変更しない**。\n"
             "# 例\n"
             "入力\n"
             "\\documentclass{article}\n"
             "\\begin{document}\n"
             "\\section{Introduction}\n"
-            "This paper studies turbulence in galaxy clusters $\\approx100$,km,s$^{-1}$."
+            "This paper studies turbulence in galaxy clusters $\\approx100$,km,s$^{-1}$. \\ This is a test."
             "出力\n"
             "\\documentclass{article}\n"
             "\\begin{document}\n"
             "\\section{はじめに}\n"
-            "本論文では銀河団の乱流（$\approx100$,km,s$^{-1}$）を研究します。"
+            "本論文では銀河団の乱流（$\approx100$,km,s$^{-1}$）を研究します。\\ これはテストです。"
             "# 注意事項\n"
             "[# 翻訳対象のlatexコード]で翻訳対象のlatexコードを与えます。\n"
             "[# 翻訳先言語]で翻訳先の言語を指定します。\n"
@@ -51,6 +53,8 @@ class GeminiLatexTranslator(ILatexTranslator):
         self._logger.info("Begin translating %d sections", len(sections))
         for i, section in enumerate(sections):
             self._logger.info("Translating section %d", i)
+            # 前処理
+            section = optimize_latex_content(section)
             start_time = time.time()
             user_prompt = (
                 f"[# 翻訳先言語]\n{target_language}\n"
