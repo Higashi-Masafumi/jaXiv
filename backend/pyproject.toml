@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "arxiv>=2.2.0",
     "fastapi>=0.115.14",
+    "feedparser>=6.0.11",
     "google-genai>=1.24.0",
     "pydantic>=2.11.7",
     "pylatex>=1.4.2",
@@ -14,5 +16,6 @@ dependencies = [
     "pyyaml>=6.0.2",
     "requests>=2.32.4",
     "sqlmodel>=0.0.24",
+    "supabase>=2.16.0",
     "uvicorn>=0.35.0",
 ]
