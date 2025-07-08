@@ -1,4 +1,3 @@
-from turtle import st
 from sqlmodel import create_engine, Session, select
 from .models import ArxivPaperMetadataWithTranslatedUrlModel
 from domain.repositories import ITranslatedArxivRepository
@@ -30,7 +29,7 @@ class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
         """
         with Session(self._engine) as session:
             statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
-                ArxivPaperMetadataWithTranslatedUrlModel.paper_id == paper_id
+                ArxivPaperMetadataWithTranslatedUrlModel.paper_id == paper_id.root
             )
             result = session.exec(statement).first()
             if result is None:

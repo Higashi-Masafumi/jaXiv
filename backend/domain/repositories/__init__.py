@@ -4,6 +4,7 @@ from .i_latex_translator import ILatexTranslator
 from .i_translated_arxiv_repository import ITranslatedArxivRepository
 from .i_storage_repository import IFileStorageRepository
 from .i_translated_arxiv_repository import ITranslatedArxivRepository
+from .i_event_streamer import IEventStreamer
 
 __all__ = [
     "IArxivSourceFetcher",
@@ -12,4 +13,5 @@ __all__ = [
     "ITranslatedArxivRepository",
     "IFileStorageRepository",
     "ITranslatedArxivRepository",
+    "IEventStreamer",
 ]

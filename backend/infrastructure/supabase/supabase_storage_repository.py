@@ -1,4 +1,3 @@
-from sqlalchemy.engine import create
 from domain.repositories import IFileStorageRepository
 from domain.entities.latex_file import TranslatedLatexFile
 from supabase import create_async_client
@@ -30,10 +29,13 @@ class SupabaseStorageRepository(IFileStorageRepository):
         # 1. クライアントの初期化
         supabase = await create_async_client(self._supabase_url, self._supabase_key)
         # 2. ファイルのアップロード
-        with open(translated_latex_file.path, "r") as f:
+        with open(translated_latex_file.path, "rb") as f:
             response = await supabase.storage.from_(self._bucket_name).upload(
                 translated_latex_file.storage_path,
-                f.read(),
+                file=f,
+                file_options={
+                    "content-type": "application/pdf",
+                }
             )
         # 3. ファイルのURLの取得
         self._logger.info(

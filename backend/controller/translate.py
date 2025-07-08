@@ -1,15 +1,31 @@
-from fastapi import APIRouter, Depends, Form
-from usecase.translate_arxiv_paper import TranslateArxivPaper
+from fastapi import APIRouter, Depends, Body
+from sse_starlette.sse import EventSourceResponse
+from usecase import TranslateArxivPaper, SaveTranslatedArxivUsecase
 from domain.entities import ArxivPaperId, TargetLanguage
 from infrastructure.arxiv_source_fetcher import ArxivSourceFetcher
 from infrastructure.latex_compiler import LatexCompiler
 from infrastructure.gemini_latex_translator import GeminiLatexTranslator
+from infrastructure.postgres import PostgresTranslatedArxivRepository
+from infrastructure.supabase import SupabaseStorageRepository
+from controller.event_streamer import TranslateArxivEventStreamer
 import os
+import asyncio
 
 router = APIRouter(prefix="/api/v1/translate")
 
 
-def get_translate_arxiv_paper() -> TranslateArxivPaper:
+# ------------------------------------------------------------
+# 依存関係の取得
+# ------------------------------------------------------------
+# イベントストリーマーを取得
+def get_event_streamer() -> TranslateArxivEventStreamer:
+    return TranslateArxivEventStreamer()
+
+
+# 翻訳用usecaseを取得
+def get_translate_arxiv_paper(
+    event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
+) -> TranslateArxivPaper:
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     if gemini_api_key is None:
         raise ValueError("GEMINI_API_KEY is not set")
@@ -20,20 +36,77 @@ def get_translate_arxiv_paper() -> TranslateArxivPaper:
     )
 
 
+# 翻訳済み論文の保存用usecaseを取得
+def get_save_translated_arxiv(
+    event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
+) -> SaveTranslatedArxivUsecase:
+    postgres_url = os.getenv("POSTGRES_URL")
+    if postgres_url is None:
+        raise ValueError("POSTGRES_URL is not set")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+    bucket_name = os.getenv("BUCKET_NAME")
+    if supabase_url is None:
+        raise ValueError("SUPABASE_URL is not set")
+    if supabase_key is None:
+        raise ValueError("SUPABASE_KEY is not set")
+    if bucket_name is None:
+        raise ValueError("BUCKET_NAME is not set")
+
+    print("-----------------env----------------")
+    print(f"postgres_url: {postgres_url} type: {type(postgres_url)}")
+    print(f"supabase_url: {supabase_url} type: {type(supabase_url)}")
+    print(f"supabase_key: {supabase_key} type: {type(supabase_key)}")
+    print(f"bucket_name: {bucket_name} type: {type(bucket_name)}")
+    print("-----------------env----------------")
+    return SaveTranslatedArxivUsecase(
+        translated_arxiv_repository=PostgresTranslatedArxivRepository(
+            postgres_url=postgres_url,
+        ),
+        file_storage_repository=SupabaseStorageRepository(
+            supabase_url=supabase_url,
+            supabase_key=supabase_key,
+            bucket_name=bucket_name,
+        ),
+        arxiv_source_fetcher=ArxivSourceFetcher(),
+    )
+
+
+# ------------------------------------------------------------
+# ルーティング
+# ------------------------------------------------------------
 @router.post("/arxiv")
 async def translate(
-    arxiv_paper_id: ArxivPaperId = Form(...),
-    target_language: TargetLanguage = Form(...),
+    arxiv_paper_id: ArxivPaperId = Body(..., description="The ID of the paper"),
+    target_language: TargetLanguage = Body(..., description="The target language"),
+    event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
     translate_arxiv_paper: TranslateArxivPaper = Depends(get_translate_arxiv_paper),
-) -> str:
+    save_translated_arxiv: SaveTranslatedArxivUsecase = Depends(
+        get_save_translated_arxiv
+    ),
+) -> EventSourceResponse:
     output_dir = os.getenv("OUTPUT_DIR")
     if output_dir is None:
         output_dir = "./output"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    pdf_file_path = await translate_arxiv_paper.translate(
-        arxiv_paper_id=arxiv_paper_id,
-        target_language=target_language,
-        output_dir=output_dir,
-    )
-    return pdf_file_path
+
+    async def run_workflow():
+        pdf_file_path = await translate_arxiv_paper.translate(
+            arxiv_paper_id=arxiv_paper_id,
+            target_language=target_language,
+            output_dir=output_dir,
+            event_streamer=event_streamer,
+        )
+        arxiv_paper_metadata_with_translated_url = (
+            await save_translated_arxiv.save_translated_arxiv(
+                arxiv_paper_id=arxiv_paper_id,
+                translated_arxiv_pdf_path=pdf_file_path,
+                event_streamer=event_streamer,
+            )
+        )
+        return arxiv_paper_metadata_with_translated_url
+
+    asyncio.create_task(run_workflow())
+
+    return EventSourceResponse(event_streamer.stream_events(), ping=10)

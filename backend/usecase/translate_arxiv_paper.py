@@ -1,5 +1,10 @@
-from domain.repositories import IArxivSourceFetcher, ILatexCompiler, ILatexTranslator
-from domain.entities import CompileSetting, ArxivPaperId, LatexFile, TargetLanguage
+from domain.repositories import (
+    IArxivSourceFetcher,
+    ILatexCompiler,
+    ILatexTranslator,
+    IEventStreamer,
+)
+from domain.entities import ArxivPaperId, LatexFile, TargetLanguage
 from logging import getLogger
 import asyncio
 from pathlib import Path
@@ -26,6 +31,7 @@ class TranslateArxivPaper:
         arxiv_paper_id: ArxivPaperId,
         target_language: TargetLanguage,
         output_dir: str,
+        event_streamer: IEventStreamer,
     ) -> str:
         """
         Translate an arxiv paper.
@@ -34,6 +40,7 @@ class TranslateArxivPaper:
             arxiv_paper_id (ArxivPaperId): The ID of the paper to translate.
             target_language (TargetLanguage): The language to translate the paper to.
             output_dir (str): The directory to save the translated paper to.
+            event_streamer (IEventStreamer): The event streamer to stream events to.
 
         Raises:
             FileNotFoundError: If no tex file is found in the source directory.
@@ -54,11 +61,23 @@ class TranslateArxivPaper:
         compile_setting = self._arxiv_source_fetcher.fetch_tex_source(
             paper_id=arxiv_paper_id, output_dir=output_dir
         )
-        
+        # 進捗をストリーミング
+        await event_streamer.stream_event(
+            event_type="progress",
+            message=f"Arxiv {arxiv_paper_id} のtexソースコードの取得を完了しました。",
+            arxiv_paper_id=arxiv_paper_id.root,
+        )
+
         # 2. ソースフォルダ内でtex fileをリストアップする
         # 再帰的に*.texファイルを検索する
         tex_file_paths = list(Path(compile_setting.source_directory).rglob("*.tex"))
         if len(tex_file_paths) == 0:
+            # エラーをストリーミング
+            await event_streamer.stream_event(
+                event_type="failed",
+                message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが見つかりませんでした。",
+                arxiv_paper_id=arxiv_paper_id.root,
+            )
             raise FileNotFoundError("No tex file found in the source directory")
         else:
             self._logger.info(
@@ -73,6 +92,12 @@ class TranslateArxivPaper:
                 latex_files.append(latex_file)
 
         # 3. 翻訳
+        # 進捗をストリーミング
+        await event_streamer.stream_event(
+            event_type="progress",
+            message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが{len(tex_file_paths)}個見つかりました。翻訳を開始します。",
+            arxiv_paper_id=arxiv_paper_id.root,
+        )
         translated_latex_files: list[LatexFile] = []
         tasks = [
             self._latex_translator.translate(
@@ -89,8 +114,31 @@ class TranslateArxivPaper:
                 f.write(translated_latex_file.content)
 
         # 5. 翻訳後のtex fileをコンパイル
-        compiled_pdf_file_path = self._latex_compiler.compile(
-            compile_setting=compile_setting
+        # 進捗をストリーミング
+        await event_streamer.stream_event(
+            event_type="progress",
+            message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルの翻訳を完了しました。コンパイルを開始します",
+            arxiv_paper_id=arxiv_paper_id.root,
         )
+        # コンパイルは失敗する可能性があるので、try-exceptで囲う
+        try:
+            compiled_pdf_file_path = self._latex_compiler.compile(
+                compile_setting=compile_setting
+            )
+            # 進捗をストリーミング
+            await event_streamer.stream_event(
+                event_type="progress",
+                message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルのコンパイルを完了しました。",
+                arxiv_paper_id=arxiv_paper_id.root,
+            )
+        except Exception as e:
+            self._logger.error(f"Error compiling {arxiv_paper_id}: {e}")
+            await event_streamer.stream_event(
+                event_type="failed",
+                message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルのコンパイルに失敗しました。",
+                arxiv_paper_id=arxiv_paper_id.root,
+            )
+            await event_streamer.finish()
+            raise e
         # 6. 翻訳後のpdf fileを保存
         return compiled_pdf_file_path

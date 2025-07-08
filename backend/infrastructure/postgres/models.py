@@ -1,15 +1,19 @@
-from sqlmodel import SQLModel, Field, UUID
+from sqlmodel import SQLModel, Field, Column, ARRAY, String
 import uuid
 from datetime import datetime
+from typing import List
 
 
 class ArxivPaperMetadataWithTranslatedUrlModel(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     paper_id: str = Field(index=True, unique=True)
     title: str = Field(description="The title of the paper")
     summary: str = Field(description="The summary of the paper")
     published_date: datetime = Field(description="The date the paper was published")
-    authors: list[str] = Field(description="The authors of the paper")
+    authors: List[str] = Field(
+        sa_column=Column(ARRAY(String)),
+        description="The authors of the paper",
+    )
     source_url: str = Field(description="The URL of the paper")
     translated_file_storage_path: str = Field(
         description="The path of the translated file in the storage"
