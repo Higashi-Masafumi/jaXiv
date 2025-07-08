@@ -1,6 +1,6 @@
 from domain.repositories import IArxivSourceFetcher
 from typing import Final
-from domain.entities.arxiv import ArxivPaperId
+from domain.entities.arxiv import ArxivPaperAuthor, ArxivPaperId, ArxivPaperMetadata
 from domain.entities.compile_setting import CompileSetting
 from logging import getLogger
 import json
@@ -10,6 +10,8 @@ import yaml
 from io import BytesIO
 import os
 from pathlib import Path
+import arxiv
+from pydantic import HttpUrl
 
 
 class ArxivSourceFetcher(IArxivSourceFetcher):
@@ -20,6 +22,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
     def __init__(self, arxiv_src_url: str = "https://arxiv.org/src"):
         self._arxiv_src_url: Final[str] = arxiv_src_url
         self._logger = getLogger(__name__)
+        self._arxiv_client: arxiv.Client = arxiv.Client()
 
     def fetch_tex_source(
         self, paper_id: ArxivPaperId, output_dir: str
@@ -39,7 +42,9 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
         # 2. find 00README.json or 00README.yaml in the output directory
         readme_file_candidates = list(source_dir.glob("00README.*"))
         if len(readme_file_candidates) == 0:
-            self._logger.warning("No 00README.json or 00README.yaml found in the source directory")
+            self._logger.warning(
+                "No 00README.json or 00README.yaml found in the source directory"
+            )
             # この場合は、source_dirの中にあるtexファイルを探して、それをtarget_file_nameとして使う
             tex_file_candidates = list(source_dir.rglob("*.tex"))
             if len(tex_file_candidates) == 0:
@@ -51,7 +56,9 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                         target_file_name = tex_file.name
                         break
             if target_file_name is None:
-                raise FileNotFoundError("No tex file with \\begin{document} found in the source directory")
+                raise FileNotFoundError(
+                    "No tex file with \\begin{document} found in the source directory"
+                )
             self._logger.info("Using %s as the target file name", target_file_name)
             return CompileSetting(
                 engine="pdflatex",
@@ -73,7 +80,9 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                 )
                 compile_engine = readme_data["process"]["compiler"]
                 if target_file_name is None:
-                    raise FileNotFoundError("No toplevel file found in the source directory")
+                    raise FileNotFoundError(
+                        "No toplevel file found in the source directory"
+                    )
                 return CompileSetting(
                     engine=compile_engine,
                     target_file_name=target_file_name,
@@ -92,7 +101,9 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                     None,
                 )
                 if target_file_name is None:
-                    raise FileNotFoundError("No toplevel file found in the source directory")
+                    raise FileNotFoundError(
+                        "No toplevel file found in the source directory"
+                    )
                 return CompileSetting(
                     engine=compile_engine,
                     target_file_name=target_file_name,
@@ -100,3 +111,36 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                 )
             else:
                 raise ValueError("Unknown readme file format")
+
+    def fetch_paper_metadata(self, paper_id: ArxivPaperId) -> ArxivPaperMetadata:
+        """
+        Fetch the metadata of a paper from arXiv.
+
+        Args:
+            paper_id (ArxivPaperId): The ID of the paper to fetch the metadata for.
+
+        Returns:
+            ArxivPaperMetadata: The metadata of the paper.
+        """
+        search = arxiv.Search(
+            id_list=[paper_id.root],
+        )
+        paper = self._arxiv_client.results(search)
+        paper_list = list(paper)
+        if len(paper_list) == 0:
+            raise ValueError(f"Paper {paper_id.root} not found")
+        self._logger.info("Found %d papers", len(paper_list))
+        paper = paper_list[0]
+
+        return ArxivPaperMetadata(
+            paper_id=paper_id,
+            title=paper.title,
+            summary=paper.summary,
+            published_date=paper.published,
+            authors=[ArxivPaperAuthor(name=author.name) for author in paper.authors],
+            source_url=(
+                HttpUrl(paper.pdf_url)
+                if paper.pdf_url
+                else HttpUrl(paper.links[0].href)
+            ),
+        )

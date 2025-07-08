@@ -32,7 +32,7 @@ class LatexCompiler(ILatexCompiler):
         cmd = [
             "latexmk",
             "-bibtex",
-            "-pdf",
+            f"-{compile_setting.engine}",
             "-interaction=nonstopmode",
             "-file-line-error",
             "-f",
