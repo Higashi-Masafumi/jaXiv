@@ -52,24 +52,6 @@ def remove_excessive_line_breaks(
     return cleaned_content
 
 
-def clean_trailing_spaces(latex_content: str) -> str:
-    """
-    各行の末尾の不要な空白文字を除去する。
-
-    Args:
-        latex_content: 処理対象のLaTeXソースコード
-
-    Returns:
-        行末の空白が除去されたLaTeXソースコード
-    """
-    if not latex_content:
-        return latex_content
-
-    lines = latex_content.split("\n")
-    cleaned_lines = [line.rstrip() for line in lines]
-    return "\n".join(cleaned_lines)
-
-
 def remove_comment_lines(latex_content: str) -> str:
     """
     LaTeXソースコードから、行頭が`%`（もしくは空白＋`%`）で始まるコメント行を削除する。

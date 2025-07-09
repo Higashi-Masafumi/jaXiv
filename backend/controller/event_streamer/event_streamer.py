@@ -8,9 +8,9 @@ from .models import (
 )
 from domain.repositories import IEventStreamer
 from logging import getLogger
-from typing import AsyncGenerator, Literal
+from typing import AsyncGenerator, Literal, Dict, Any
 from pydantic import HttpUrl
-
+import json
 
 class TranslateArxivEventStreamer(IEventStreamer):
     def __init__(self):
@@ -65,10 +65,11 @@ class TranslateArxivEventStreamer(IEventStreamer):
     async def finish(self) -> None:
         self._finished.set()
 
-    async def stream_events(self) -> AsyncGenerator[TranslateArxivEvent, None]:
+    async def stream_events(self) -> AsyncGenerator[Dict[str, Any], None]:
         while not self._finished.is_set():
             event = await self._event_queue.get()
-            self._logger.info(f"Yielding event: {event}")
-            yield event
+            dumped_event = json.dumps(event.model_dump(mode="json"))
+            self._logger.info(f"Yielding event: {dumped_event}")
+            yield {"data": dumped_event}
 
         self._logger.info("Event streamer finished")

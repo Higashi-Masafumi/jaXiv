@@ -1,5 +1,5 @@
 import { type MetaFunction } from "react-router";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -13,9 +13,9 @@ import { Progress } from "../components/ui/progress";
 import { Toaster } from "../components/ui/sonner";
 import { toast } from "sonner";
 import { extractArxivId } from "../lib/arxiv-utils";
-import { translateArxivWithSSE } from "../../api/translate-arxiv";
-import type { TranslateArxivEvent } from "../types/translate-events";
-import { TranslateArxivEventStatus } from "../types/translate-events";
+import { translateArxivWithEventSource } from "../../api/translate-arxiv";
+import type { TranslateArxivEvent } from "../../api/translate-events";
+import { TranslateArxivEventStatus } from "../../api/translate-events";
 import {
   CheckCircle2,
   FileText,
@@ -50,9 +50,18 @@ export default function Home() {
     message: "",
     progressMessages: [],
   });
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
-  const handleTranslate = async () => {
+  // コンポーネントがアンマウントされたときにEventSourceを閉じる
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
+  }, []);
+
+  const handleTranslate = () => {
     const arxivId = extractArxivId(arxivUrl);
 
     if (!arxivId) {
@@ -63,97 +72,83 @@ export default function Home() {
       return;
     }
 
+    // 既存の接続があれば閉じる
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
     // 状態をリセット
     setState({
       isTranslating: true,
       status: TranslateArxivEventStatus.PROGRESS,
-      message: "翻訳を開始しています...",
-      progressMessages: [],
+      message: "翻訳サーバーに接続しています...",
+      progressMessages: ["翻訳サーバーに接続しています..."],
+      pdfUrl: undefined,
+      error: undefined,
     });
 
-    // 前回のリクエストをキャンセル
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
-    try {
-      await translateArxivWithSSE(
-        arxivId,
-        "japanese",
-        (event: TranslateArxivEvent) => {
-          setState((prev) => {
-            if (event.status === TranslateArxivEventStatus.PROGRESS) {
-              return {
-                ...prev,
-                status: event.status,
-                message: event.message,
-                progressMessages: [...prev.progressMessages, event.message],
-                error: undefined,
-              };
-            } else if (event.status === TranslateArxivEventStatus.COMPLETED) {
-              return {
-                ...prev,
-                isTranslating: false,
-                status: event.status,
-                message: event.message,
-                progressMessages: [...prev.progressMessages, event.message],
-                pdfUrl: event.translated_pdf_url,
-                error: undefined,
-              };
-            } else if (event.status === TranslateArxivEventStatus.FAILED) {
-              return {
-                ...prev,
-                isTranslating: false,
-                status: event.status,
-                error: event.message,
-                message: event.message,
-              };
-            }
-
-            return prev;
-          });
-
-          // 完了または失敗時の通知
-          if (event.status === TranslateArxivEventStatus.COMPLETED) {
+    const es = translateArxivWithEventSource(
+      arxivId,
+      "japanese",
+      (event: TranslateArxivEvent) => {
+        console.log("Received SSE event:", event);
+        setState((prev) => {
+          if (event.status === TranslateArxivEventStatus.PROGRESS) {
+            return {
+              ...prev,
+              status: event.status,
+              message: event.message,
+              progressMessages: [...prev.progressMessages, event.message],
+              error: undefined,
+            };
+          } else if (event.status === TranslateArxivEventStatus.COMPLETED) {
             toast.success("翻訳が完了しました！", {
               description: "PDFのダウンロードが可能です。",
             });
+            eventSourceRef.current?.close();
+            return {
+              ...prev,
+              isTranslating: false,
+              status: event.status,
+              message: event.message,
+              progressMessages: [...prev.progressMessages, event.message],
+              pdfUrl: event.translated_pdf_url,
+              error: undefined,
+            };
           } else if (event.status === TranslateArxivEventStatus.FAILED) {
             toast.error("翻訳に失敗しました", {
               description: event.message,
             });
+            eventSourceRef.current?.close();
+            return {
+              ...prev,
+              isTranslating: false,
+              status: event.status,
+              error: event.message,
+              message: event.message,
+            };
           }
-        },
-        abortControllerRef.current.signal
-      );
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        toast.info("翻訳がキャンセルされました");
-      } else {
-        const errorMessage =
-          error instanceof Error ? error.message : "不明なエラー";
-        toast.error("エラーが発生しました", {
-          description: errorMessage,
+
+          return prev;
         });
-        setState((prev) => ({
-          ...prev,
-          isTranslating: false,
-          error: "接続エラーが発生しました。",
-        }));
       }
-    }
+    );
+    eventSourceRef.current = es;
   };
 
   const handleCancel = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
       setState({
         isTranslating: false,
         status: null,
         message: "",
         progressMessages: [],
+        pdfUrl: undefined,
+        error: "翻訳がキャンセルされました。",
       });
+      toast.info("翻訳をキャンセルしました");
     }
   };
 

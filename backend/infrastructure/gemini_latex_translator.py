@@ -28,24 +28,23 @@ class GeminiLatexTranslator(ILatexTranslator):
             "# 依頼事項\n"
             "1. コマンドはそのままにしてください。(`\\section`, `\\cite`, `\\begin{}`, `\\ `, math expressions like `$...$`, environments, labels, \\begin{document}, \\end{document}, etc.)\n"
             "2. 自然言語の部分のみを翻訳してください。(section titles, paragraph text, abstract, captions, keywords, etc.)\n"
-            "3. コード、数式、参照、ファイルパス、句読点、フォーマットはそのままにしてください。\n"
-            "4. 出力は、LaTeXのソースコードのみです。特に、```latex ... ``` や <latex> ... </latex> などはつけなくて良いです。\n"
-            "5. 与えられるLatexのソースコードは一部のみであるので、\\begin{document}と\\end{document}を補完したり、削除したりしてはいけません。\n"
-            "6. カスタムコマンドなど、一般的でないコマンドに関連するものは翻訳せず、そのままにしてください。\n"
-            "7. 数式中の記号 `\\(` `\\)` `$` `&` `\\` `{` `}` は **絶対に削除・全角化しない**。\n"
-            "8. `\\label{}` `\\ref{}` `\\cite{}` で括られたキー名は **一文字も変更しない**。\n"
-            "9. `%`はlatexにおけるコメントアウトになるので文字として`%`を含めたい場合は`\\%`としてください。\n"
+            "3. コード、数式、参照、ファイルパス、句読点、フォーマットはそのままにしてください。また、空白を勝手に削除しないでください。\n"
+            "4. 与えられるLatexのソースコードは一部のみであるので、\\begin{document}と\\end{document}を補完したり、削除したりしてはいけません。\n"
+            "5. カスタムコマンドなど、一般的でないコマンドに関連するものは翻訳せず、そのままにしてください。\n"
+            "6. 数式中の記号 `\\(` `\\)` `$` `&` `\\` `{` `}` は **絶対に削除・全角化しない**。\n"
+            "7. `\\label{}` `\\ref{}` `\\cite{}` で括られたキー名は **一文字も変更しない**。\n"
+            "8. `%`はlatexにおけるコメントアウトになるので文字として`%`を含めたい場合は`\\%`としてください。\n"
             "# 例\n"
-            "入力\n"
+            "<入力>\n"
             "\\documentclass{article}\n"
             "\\begin{document}\n"
             "\\section{Introduction}\n"
-            "This paper studies turbulence in galaxy clusters $\\approx100$,km,s$^{-1}$. \\ This is a test."
-            "出力\n"
+            "This paper studies turbulence in galaxy clusters $\\approx100\\%$,km,s$^{-1}$. \\ This is a test."
+            "<出力>\n"
             "\\documentclass{article}\n"
             "\\begin{document}\n"
             "\\section{はじめに}\n"
-            "本論文では銀河団の乱流（$\approx100$,km,s$^{-1}$）を研究します。\\ これはテストです。"
+            "本論文では銀河団の乱流（$\approx100\\%$,km,s$^{-1}$）を研究します。\\ これはテストです。"
             "# 注意事項\n"
             "[# 翻訳対象のlatexコード]で翻訳対象のlatexコードを与えます。\n"
             "[# 翻訳先言語]で翻訳先の言語を指定します。\n"
@@ -63,7 +62,7 @@ class GeminiLatexTranslator(ILatexTranslator):
                 f"{section}\n"
             )
             response = self._client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-pro",
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
                 ),
