@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends, Body, Path, Query
 from sse_starlette.sse import EventSourceResponse
 from usecase import TranslateArxivPaper, SaveTranslatedArxivUsecase
 from domain.entities import ArxivPaperId, TargetLanguage
@@ -75,10 +75,10 @@ def get_save_translated_arxiv(
 # ------------------------------------------------------------
 # ルーティング
 # ------------------------------------------------------------
-@router.post("/arxiv")
+@router.get("/arxiv/{arxiv_paper_id}")
 async def translate(
-    arxiv_paper_id: ArxivPaperId = Body(..., description="The ID of the paper"),
-    target_language: TargetLanguage = Body(..., description="The target language"),
+    arxiv_paper_id: str = Path(..., description="The ID of the paper"),
+    target_language: TargetLanguage = Query(..., description="The target language"),
     event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
     translate_arxiv_paper: TranslateArxivPaper = Depends(get_translate_arxiv_paper),
     save_translated_arxiv: SaveTranslatedArxivUsecase = Depends(
@@ -93,14 +93,14 @@ async def translate(
 
     async def run_workflow():
         pdf_file_path = await translate_arxiv_paper.translate(
-            arxiv_paper_id=arxiv_paper_id,
+            arxiv_paper_id=ArxivPaperId(root=arxiv_paper_id),
             target_language=target_language,
             output_dir=output_dir,
             event_streamer=event_streamer,
         )
         arxiv_paper_metadata_with_translated_url = (
             await save_translated_arxiv.save_translated_arxiv(
-                arxiv_paper_id=arxiv_paper_id,
+                arxiv_paper_id=ArxivPaperId(root=arxiv_paper_id),
                 translated_arxiv_pdf_path=pdf_file_path,
                 event_streamer=event_streamer,
             )

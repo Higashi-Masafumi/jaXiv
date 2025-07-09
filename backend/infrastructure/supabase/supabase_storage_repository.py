@@ -35,6 +35,8 @@ class SupabaseStorageRepository(IFileStorageRepository):
                 file=f,
                 file_options={
                     "content-type": "application/pdf",
+                    "cache-control": "3600",
+                    "x-upsert": "true",
                 }
             )
         # 3. ファイルのURLの取得
