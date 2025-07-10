@@ -40,13 +40,38 @@ class LatexCompiler(ILatexCompiler):
         ]
 
         self._logger.info(f"Executing command: {cmd}")
-        subprocess.run(
-            cmd,
-            cwd=compile_setting.source_directory,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=compile_setting.source_directory,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+                timeout=60,
+                errors="replace",
+            )
+            self._logger.info(
+                f"Latex compilation completed successfully {result.stdout}"
+            )
+            if result.stderr:
+                self._logger.warning(
+                    f"Latex compilation completed with warnings: {result.stderr}"
+                )
+        except subprocess.CalledProcessError as e:
+            self._logger.error(
+                f"Error compiling {compile_setting.target_file_name}: {e}"
+            )
+            raise RuntimeError(
+                f"Error compiling {compile_setting.target_file_name}: {e}"
+            )
+        except subprocess.TimeoutExpired as e:
+            self._logger.error(
+                f"Timeout compiling {compile_setting.target_file_name}: {e}"
+            )
+            raise RuntimeError(
+                f"Timeout compiling {compile_setting.target_file_name}: {e}"
+            )
 
         self._logger.info(f"Compiled {compile_setting.target_file_name}")
         # compileして生成されたpdfファイルのパスを返す

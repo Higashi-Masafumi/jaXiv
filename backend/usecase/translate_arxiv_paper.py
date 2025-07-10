@@ -6,7 +6,7 @@ from domain.repositories import (
 )
 from domain.entities import ArxivPaperId, LatexFile, TargetLanguage
 from logging import getLogger
-import asyncio
+import shutil
 from pathlib import Path
 
 
@@ -144,6 +144,7 @@ class TranslateArxivPaper:
                 arxiv_paper_id=arxiv_paper_id.root,
             )
             await event_streamer.finish()
+            shutil.rmtree(compile_setting.source_directory)
             raise e
         # 6. 翻訳後のpdf fileを保存
         return compiled_pdf_file_path
