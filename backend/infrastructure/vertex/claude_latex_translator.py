@@ -2,7 +2,7 @@ import re
 from domain.repositories import ILatexTranslator
 from domain.entities import LatexFile, TargetLanguage
 from anthropic import AnthropicVertex
-from utils.preprocess import optimize_latex_content # noqa: F401
+from utils.preprocess import optimize_latex_content  # noqa: F401
 from logging import getLogger
 
 
@@ -72,8 +72,22 @@ class ClaudeLatexTranslator(ILatexTranslator):
                     },
                 ],
             )
-            translated_section = response.content[0].text
-            if translated_section is None:
+            if response.content and len(response.content) > 0:
+                from anthropic.types import TextBlock
+
+                content_block = response.content[0]
+                if isinstance(content_block, TextBlock):
+                    translated_section = content_block.text
+                else:
+                    self._logger.error(
+                        "Unexpected content type in response for section %d", i
+                    )
+                    translated_section = ""
+            else:
+                self._logger.error("Empty response content for section %d", i)
+                translated_section = ""
+
+            if not translated_section:
                 self._logger.error("Failed to translate section %d", i)
                 continue
             translated_section = self._clean_latex_text(translated_section)

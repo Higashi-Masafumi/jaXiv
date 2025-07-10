@@ -14,8 +14,9 @@ export const translateArxivWithEventSource = (
   targetLanguage: "japanese",
   onEvent: (event: TranslateArxivEvent) => void
 ): EventSource => {
+  const backendBaseUrl = import.meta.env.VITE_BACKEND_BASE_URL;
   const es = new EventSource(
-    `http://localhost:8000/api/v1/translate/arxiv/${arxivPaperId}?target_language=${targetLanguage}`
+    `${backendBaseUrl}/api/v1/translate/arxiv/${arxivPaperId}?target_language=${targetLanguage}`
   );
 
   es.onmessage = (event) => {
