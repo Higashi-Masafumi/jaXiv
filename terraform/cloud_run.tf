@@ -43,6 +43,11 @@ resource "google_cloud_run_v2_service" "backend" {
         }
       }
 
+      env {
+        name = "BUCKET_NAME"
+        value = "translated-arxiv-bucket"  # Supabaseのバケット名
+      }
+
       resources {
         limits = {
           cpu    = "2"

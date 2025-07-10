@@ -46,9 +46,13 @@ def get_translate_arxiv_paper(
     # gemini_api_key = os.getenv("GEMINI_API_KEY")
     # if gemini_api_key is None:
     #     raise ValueError("GEMINI_API_KEY is not set")
-    vertex_project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
+
+    # Cloud Runでは GOOGLE_CLOUD_PROJECT が自動設定される
+    vertex_project_id = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv(
+        "GOOGLE_CLOUD_PROJECT_ID"
+    )
     if vertex_project_id is None:
-        raise ValueError("VERTEX_PROJECT_ID is not set")
+        raise ValueError("GOOGLE_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT_ID is not set")
     return TranslateArxivPaper(
         arxiv_source_fetcher=ArxivSourceFetcher(),
         latex_compiler=LatexCompiler(),
