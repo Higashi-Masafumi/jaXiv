@@ -24,34 +24,6 @@ steps:
     id: "push-backend"
     waitFor: ["build-backend"]
 
-  # Frontend: Build Docker image
-  - name: "gcr.io/cloud-builders/docker"
-    args:
-      [
-        "build",
-        "-t",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:${COMMIT_SHA}",
-        "-t",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:latest",
-        "--build-arg",
-        "VITE_BACKEND_BASE_URL=https://${_BACKEND_SERVICE_NAME}-${_BACKEND_SERVICE_HASH}-${_REGION}.a.run.app",
-        ".",
-      ]
-    dir: "frontend"
-    id: "build-frontend"
-    waitFor: ["deploy-backend"] # バックエンドデプロイ後にフロントエンドをビルド
-
-  # Frontend: Push to Artifact Registry
-  - name: "gcr.io/cloud-builders/docker"
-    args:
-      [
-        "push",
-        "--all-tags",
-        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend",
-      ]
-    id: "push-frontend"
-    waitFor: ["build-frontend"]
-
   # Deploy Backend to Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
@@ -72,6 +44,44 @@ steps:
       ]
     id: "deploy-backend"
     waitFor: ["push-backend"]
+
+  # Get Backend URL for Frontend build
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        BACKEND_URL=$$(gcloud run services describe ${_BACKEND_SERVICE_NAME} --region=${_REGION} --format="value(status.url)")
+        echo "BACKEND_URL=$$BACKEND_URL" > /workspace/backend_url.env
+    id: "get-backend-url"
+    waitFor: ["deploy-backend"]
+
+  # Frontend: Build Docker image with dynamic Backend URL
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        source /workspace/backend_url.env
+        docker build \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:${COMMIT_SHA} \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:latest \
+          --build-arg VITE_BACKEND_BASE_URL=$$BACKEND_URL \
+          .
+    dir: "frontend"
+    id: "build-frontend"
+    waitFor: ["get-backend-url"]
+
+  # Frontend: Push to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "--all-tags",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend",
+      ]
+    id: "push-frontend"
+    waitFor: ["build-frontend"]
 
   # Deploy Frontend to Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
@@ -99,7 +109,7 @@ substitutions:
   _REPOSITORY: "jaxiv-images"
   _BACKEND_SERVICE_NAME: "jaxiv-backend"
   _FRONTEND_SERVICE_NAME: "jaxiv-frontend"
-  _BACKEND_SERVICE_HASH: "uc" # This will be updated after first deployment
+
   _CLOUD_RUN_SA: "jaxiv-cloud-run@jaxiv-465416.iam.gserviceaccount.com"
 
 # Images to be stored
