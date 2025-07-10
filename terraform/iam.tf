@@ -43,6 +43,12 @@ resource "google_project_iam_member" "logs_writer" {
   member  = "serviceAccount:${google_service_account.cloud_build.email}"
 }
 
+resource "google_service_account_iam_member" "cloud_build_act_as_cloud_run" {
+  service_account_id = google_service_account.cloud_run.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
 # IAM roles for accessing secrets
 resource "google_secret_manager_secret_iam_member" "supabase_url" {
   secret_id = google_secret_manager_secret.supabase_url.secret_id
