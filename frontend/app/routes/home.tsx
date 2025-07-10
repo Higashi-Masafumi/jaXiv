@@ -50,16 +50,7 @@ export default function Home() {
     message: "",
     progressMessages: [],
   });
-  const eventSourceRef = useRef<EventSource | null>(null);
-
-  // コンポーネントがアンマウントされたときにEventSourceを閉じる
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-    };
-  }, []);
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
 
   const handleTranslate = () => {
     const arxivId = extractArxivId(arxivUrl);
@@ -71,23 +62,17 @@ export default function Home() {
       });
       return;
     }
-
-    // 既存の接続があれば閉じる
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-
     // 状態をリセット
     setState({
       isTranslating: true,
       status: TranslateArxivEventStatus.PROGRESS,
-      message: "翻訳サーバーに接続しています...",
-      progressMessages: ["翻訳サーバーに接続しています..."],
+      message: "翻訳を開始します...",
+      progressMessages: ["翻訳を開始します..."],
       pdfUrl: undefined,
       error: undefined,
     });
 
-    const es = translateArxivWithEventSource(
+    setEventSource(translateArxivWithEventSource(
       arxivId,
       "japanese",
       (event: TranslateArxivEvent) => {
@@ -105,7 +90,6 @@ export default function Home() {
             toast.success("翻訳が完了しました！", {
               description: "PDFのダウンロードが可能です。",
             });
-            eventSourceRef.current?.close();
             return {
               ...prev,
               isTranslating: false,
@@ -119,7 +103,6 @@ export default function Home() {
             toast.error("翻訳に失敗しました", {
               description: event.message,
             });
-            eventSourceRef.current?.close();
             return {
               ...prev,
               isTranslating: false,
@@ -131,25 +114,23 @@ export default function Home() {
 
           return prev;
         });
-      }
+      })
     );
-    eventSourceRef.current = es;
   };
 
   const handleCancel = () => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-      setState({
-        isTranslating: false,
-        status: null,
-        message: "",
-        progressMessages: [],
-        pdfUrl: undefined,
-        error: "翻訳がキャンセルされました。",
-      });
-      toast.info("翻訳をキャンセルしました");
+    if (eventSource) {
+      eventSource.close();
     }
+    setState({
+      isTranslating: false,
+      status: null,
+      message: "",
+      progressMessages: [],
+      pdfUrl: undefined,
+      error: "翻訳がキャンセルされました。",
+    });
+    toast.info("翻訳をキャンセルしました");
   };
 
   const handleCopyUrl = () => {

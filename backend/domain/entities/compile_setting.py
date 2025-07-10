@@ -1,6 +1,7 @@
 from pydantic import BaseModel, StrictStr, Field
 from typing import Literal
 
+
 class CompileSetting(BaseModel):
     """
     A compile setting.
@@ -9,6 +10,11 @@ class CompileSetting(BaseModel):
     engine: Literal["pdflatex", "xelatex", "lualatex"] = Field(
         default="pdflatex",
         description="The engine to use for compiling the latex file.",
+    )
+
+    use_bibtex: bool = Field(
+        default=True,
+        description="Whether to use bibtex for compiling the latex file.",
     )
 
     target_file_name: StrictStr = Field(

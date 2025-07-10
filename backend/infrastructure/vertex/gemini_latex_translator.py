@@ -7,29 +7,51 @@ from google.genai import types
 from utils import optimize_latex_content
 import re
 import time
+import asyncio
 
 
-class GeminiLatexTranslator(ILatexTranslator):
+class VertexGeminiLatexTranslator(ILatexTranslator):
     """
     A translator for LaTeX files using Gemini.
     """
 
-    def __init__(self, api_key: str):
-        self._api_key = api_key
+    def __init__(self, project_id: str, location: str):
         self._logger = getLogger(__name__)
-        self._client = genai.Client(api_key=api_key)
+        self._client = genai.Client(
+            vertexai=True, project=project_id, location=location
+        )
 
     async def translate(
         self, latex_file: LatexFile, target_language: TargetLanguage
     ) -> LatexFile:
         sections = self._split_section(latex_file.content)
+        translated_sections: list[str] = []
+        self._logger.info("Begin translating %d sections", len(sections))
+        # 並列実行数を制限する
+        semaphore = asyncio.Semaphore(5)
+
+        async def translate_section(
+            section: str, target_language: TargetLanguage
+        ) -> str:
+            async with semaphore:
+                return await self._translate_section(section, target_language)
+
+        translation_tasks = [
+            translate_section(section, target_language) for section in sections
+        ]
+        translated_sections = await asyncio.gather(*translation_tasks)
+        return LatexFile(path=latex_file.path, content="\n".join(translated_sections))
+
+    async def _translate_section(
+        self,
+        section: str,
+        target_language: TargetLanguage,
+    ) -> str:
         system_prompt = (
             f"あなたは、{target_language}のLatexの文法を熟知しているLatexの翻訳家です。与えられたLaTeXのソースコードのテキスト部分を、指定された言語に翻訳してください。"
             "あくまで翻訳するのはテキスト部分のみであり、latexのコードはそのままにしてください。"
             "自然な翻訳となるように注意してください。"
-        )
-        user_instruction = (
-            f"# 依頼事項\n"
+            "# 依頼事項\n"
             "1. コマンドはそのままにしてください。(`\\section`, `\\cite`, `\\begin{}`, `\\ `, math expressions like `$...$`, environments, labels, \\begin{document}, \\end{document}, etc.)\n"
             "2. 自然言語の部分のみを翻訳してください。(section titles, paragraph text, abstract, captions, keywords, etc.)\n"
             "3. コード、数式、参照、ファイルパス、句読点、フォーマットはそのままにしてください。また、空白を勝手に削除しないでください。\n"
@@ -48,62 +70,42 @@ class GeminiLatexTranslator(ILatexTranslator):
             "\\documentclass{article}\n"
             "\\begin{document}\n"
             "\\section{はじめに}\n"
-            "本論文では銀河団の乱流（$\approx100\\%$,km,s$^{-1}$）を研究します。\\ これはテストです。"
+            "本論文では銀河団の乱流（$\\approx100\\%$,km,s$^{-1}$）を研究します。\\ これはテストです。"
             "# 注意事項\n"
             "[# 翻訳対象のlatexコード]で翻訳対象のlatexコードを与えます。\n"
             "[# 翻訳先言語]で翻訳先の言語を指定します。\n"
         )
-        translated_sections: list[str] = []
-        self._logger.info("Begin translating %d sections", len(sections))
-        for i, section in enumerate(sections):
-            self._logger.info("Translating section %d", i)
-            # 前処理
-            section = optimize_latex_content(section)
-            # 空のセクションはスキップ
-            if section == "":
-                self._logger.warning("Section %d is empty. Skip.", i)
-                translated_sections.append(section)
-                continue
-            start_time = time.time()
-            user_prompt = (
-                f"[# 翻訳先言語]\n{target_language}\n"
-                f"[# 翻訳対象のlatexコード]\n"
-                f"{section}\n"
+        start_time = time.time()
+        # latexコードから不要なコードブロックを除去
+        section = optimize_latex_content(section)
+        if section == "":
+            self._logger.warning(
+                "\t---\n\tEmpty section: %s, Skip\n\t---",
+                section,
             )
-            response = self._client.models.generate_content(
-                model="gemini-2.5-flash-lite-preview-06-17",
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                ),
-                contents=[user_instruction, user_prompt],
-            )
-            translated_section = response.text
-            if translated_section is None:
-                raise ValueError("Failed to translate section")
-            translated_section = self._clean_latex_text(translated_section)
-            num_tokens = (
-                response.usage_metadata.prompt_token_count
-                if response.usage_metadata
-                else (
-                    0 + response.usage_metadata.candidates_token_count
-                    if response.usage_metadata
-                    else 0
-                )
-            )
-            if translated_section is None:
-                raise ValueError("Failed to translate section")
-            end_time = time.time()
-            self._logger.info(
-                "Translated section %d in %f seconds, %d tokens",
-                i,
-                end_time - start_time,
-                num_tokens,
-            )
-            translated_sections.append(translated_section)
-        return LatexFile(
-            content="\n".join(translated_sections),
-            path=latex_file.path,
+            return ""
+        user_prompt = (
+            f"[# 翻訳先言語]\n{target_language}\n"
+            f"[# 翻訳対象のlatexコード]\n"
+            f"{section}\n"
         )
+        response = self._client.models.generate_content(
+            model="gemini-2.5-flash-lite-preview-06-17",
+            contents=[user_prompt],
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+            ),
+        )
+        translated_section = response.text
+        if translated_section is None:
+            raise ValueError("Failed to translate section")
+        self._logger.info(
+            "Translated section in %f seconds, %d tokens",
+            time.time() - start_time,
+            response.usage_metadata.total_token_count if response.usage_metadata else 0,
+        )
+        translated_section = self._clean_latex_text(translated_section)
+        return translated_section
 
     @staticmethod
     def _split_section(latex_text: str) -> list[str]:

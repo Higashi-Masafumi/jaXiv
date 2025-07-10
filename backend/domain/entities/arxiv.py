@@ -1,5 +1,5 @@
-from pydantic import RootModel, BaseModel, Field, StrictStr, HttpUrl
-from datetime import datetime
+from pydantic import RootModel, BaseModel, Field, StrictStr, HttpUrl, field_validator
+from datetime import datetime, timezone
 
 
 class ArxivPaperId(RootModel[str]):
@@ -17,6 +17,19 @@ class ArxivPaperMetadata(BaseModel):
     published_date: datetime = Field(description="The date the paper was published")
     authors: list[ArxivPaperAuthor] = Field(description="The authors of the paper")
     source_url: HttpUrl = Field(description="The URL of the paper")
+
+    @field_validator("published_date", mode="before")
+    @classmethod
+    def fix_invalid_published_date(cls, v) -> datetime:
+        if isinstance(v, str):
+            # 不正なタイムゾーン表現を修正
+            if v.endswith("+00"):
+                v = v.replace("+00", "+00:00")
+            try:
+                return datetime.fromisoformat(v)
+            except ValueError:
+                return datetime.fromisoformat(v)
+        return v
 
 
 class ArxivPaperMetadataWithTranslatedUrl(ArxivPaperMetadata):

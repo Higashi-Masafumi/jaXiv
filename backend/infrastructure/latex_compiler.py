@@ -31,7 +31,7 @@ class LatexCompiler(ILatexCompiler):
             f.write(content)
         cmd = [
             "latexmk",
-            "-bibtex",
+            "-bibtex" if compile_setting.use_bibtex else "",
             "-pdf",
             "-interaction=nonstopmode",
             "-file-line-error",

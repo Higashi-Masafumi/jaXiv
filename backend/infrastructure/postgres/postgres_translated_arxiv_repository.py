@@ -8,6 +8,7 @@ from domain.entities.arxiv import (
 )
 from pydantic import HttpUrl
 from logging import getLogger
+from datetime import datetime, timezone
 
 
 class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
@@ -55,6 +56,15 @@ class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
             translated_paper_metadata (ArxivPaperMetadataWithTranslatedUrl): The translated metadata of the paper to save.
         """
         with Session(self._engine) as session:
+            # 1. すでに同じarxiv_paper_idが存在しないかを確認する
+            statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
+                ArxivPaperMetadataWithTranslatedUrlModel.paper_id == translated_paper_metadata.paper_id.root
+            )
+            result = session.exec(statement).first()
+            if result is not None:
+                self._logger.warning("Paper %s already exists", translated_paper_metadata.paper_id.root)
+                return
+            # 2. 新しいデータを保存する
             translated_paper_metadata_model = ArxivPaperMetadataWithTranslatedUrlModel(
                 paper_id=translated_paper_metadata.paper_id.root,
                 title=translated_paper_metadata.title,

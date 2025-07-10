@@ -39,7 +39,9 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
         response.raise_for_status()
         with tarfile.open(fileobj=BytesIO(response.content), mode="r|gz") as tar:
             tar.extractall(path=source_dir)
-        # 2. find 00README.json or 00README.yaml in the output directory
+        # 2. find bibtex file
+        bibtex_file_candidates = list(source_dir.rglob("*.bib"))
+        # 3. find 00README.json or 00README.yaml in the output directory
         readme_file_candidates = list(source_dir.glob("00README.*"))
         if len(readme_file_candidates) == 0:
             self._logger.warning(
@@ -62,6 +64,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
             self._logger.info("Using %s as the target file name", target_file_name)
             return CompileSetting(
                 engine="pdflatex",
+                use_bibtex=len(bibtex_file_candidates) > 0,
                 target_file_name=target_file_name,
                 source_directory=str(source_dir),
             )
@@ -85,6 +88,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                     )
                 return CompileSetting(
                     engine=compile_engine,
+                    use_bibtex=len(bibtex_file_candidates) > 0,
                     target_file_name=target_file_name,
                     source_directory=str(source_dir),
                 )
@@ -106,6 +110,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                     )
                 return CompileSetting(
                     engine=compile_engine,
+                    use_bibtex=len(bibtex_file_candidates) > 0,
                     target_file_name=target_file_name,
                     source_directory=str(source_dir),
                 )

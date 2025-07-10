@@ -98,14 +98,19 @@ class TranslateArxivPaper:
             message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが{len(tex_file_paths)}個見つかりました。翻訳を開始します。",
             arxiv_paper_id=arxiv_paper_id.root,
         )
+
+        # 翻訳は並列化する
         translated_latex_files: list[LatexFile] = []
-        tasks = [
-            self._latex_translator.translate(
+        for latex_file in latex_files:
+            translated_latex_file = await self._latex_translator.translate(
                 latex_file=latex_file, target_language=target_language
             )
-            for latex_file in latex_files
-        ]
-        translated_latex_files = await asyncio.gather(*tasks)
+            translated_latex_files.append(translated_latex_file)
+            await event_streamer.stream_event(
+                event_type="progress",
+                message=f"Arxiv {arxiv_paper_id.root} の{latex_file.path}の翻訳を完了しました。",
+                arxiv_paper_id=arxiv_paper_id.root,
+            )
         self._logger.info(f"Translated {len(translated_latex_files)} tex files")
 
         # 4. 翻訳後のtex contentをtex fileに書き込む
