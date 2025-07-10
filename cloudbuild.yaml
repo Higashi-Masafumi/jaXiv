@@ -95,6 +95,7 @@ steps:
         "--region=${_REGION}",
         "--platform=managed",
         "--allow-unauthenticated",
+        "--service-account=${_CLOUD_RUN_SA}",
         "--memory=2Gi",
         "--cpu=1",
         "--max-instances=5",
@@ -103,14 +104,7 @@ steps:
     id: "deploy-frontend"
     waitFor: ["push-frontend"]
 
-# Substitutions (variables)
-substitutions:
-  _REGION: "asia-northeast1"
-  _REPOSITORY: "jaxiv-images"
-  _BACKEND_SERVICE_NAME: "jaxiv-backend"
-  _FRONTEND_SERVICE_NAME: "jaxiv-frontend"
-
-  _CLOUD_RUN_SA: "jaxiv-cloud-run@jaxiv-465416.iam.gserviceaccount.com"
+# Substitutions are managed by Terraform in Cloud Build Trigger
 
 # Images to be stored
 images:

@@ -16,11 +16,16 @@ resource "google_cloudbuild_trigger" "main_branch" {
   
   filename = "cloudbuild.yaml"
   
+  # Terraformで管理される環境変数をCloud Build Triggerに注入
+  substitutions = {
+    _REGION                = var.region
+    _REPOSITORY           = google_artifact_registry_repository.main.name
+    _BACKEND_SERVICE_NAME = google_cloud_run_v2_service.backend.name
+    _FRONTEND_SERVICE_NAME = google_cloud_run_v2_service.frontend.name
+    _CLOUD_RUN_SA         = google_service_account.cloud_run.email
+  }
+  
   depends_on = [google_project_service.required_apis]
 }
 
-# Output Cloud Build service account email for reference
-output "cloud_build_service_account" {
-  description = "Cloud Build service account email"
-  value       = google_service_account.cloud_build.email
-} 
+# Output moved to outputs.tf 
