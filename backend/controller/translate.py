@@ -43,9 +43,9 @@ def get_arxiv_redirecter(
 def get_translate_arxiv_paper(
     event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
 ) -> TranslateArxivPaper:
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    if gemini_api_key is None:
-        raise ValueError("GEMINI_API_KEY is not set")
+    # gemini_api_key = os.getenv("GEMINI_API_KEY")
+    # if gemini_api_key is None:
+    #     raise ValueError("GEMINI_API_KEY is not set")
     vertex_project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
     if vertex_project_id is None:
         raise ValueError("VERTEX_PROJECT_ID is not set")
