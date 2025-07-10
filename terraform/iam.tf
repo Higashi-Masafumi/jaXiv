@@ -68,6 +68,13 @@ resource "google_secret_manager_secret_iam_member" "database_url" {
   member    = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
+# Cloud Run service account needs Vertex AI access
+resource "google_project_iam_member" "cloud_run_vertex_ai" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
 # Grant Cloud Run invoker role to all users (public access)
 data "google_iam_policy" "noauth" {
   binding {

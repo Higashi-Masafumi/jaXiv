@@ -20,7 +20,8 @@ resource "google_project_service" "required_apis" {
     "run.googleapis.com",
     "secretmanager.googleapis.com",
     "artifactregistry.googleapis.com",
-    "iam.googleapis.com"
+    "iam.googleapis.com",
+    "aiplatform.googleapis.com"
   ])
 
   service = each.key
