@@ -37,6 +37,12 @@ resource "google_project_iam_member" "storage_admin" {
   member  = "serviceAccount:${google_service_account.cloud_build.email}"
 }
 
+resource "google_project_iam_member" "logs_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
 # IAM roles for accessing secrets
 resource "google_secret_manager_secret_iam_member" "supabase_url" {
   secret_id = google_secret_manager_secret.supabase_url.secret_id
