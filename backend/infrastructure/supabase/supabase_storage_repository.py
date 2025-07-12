@@ -1,5 +1,5 @@
 from domain.repositories import IFileStorageRepository
-from domain.entities.latex_file import TranslatedLatexFile
+from domain.entities.latex_file import TranslatedPdfFile
 from supabase import create_async_client
 from logging import getLogger
 
@@ -12,7 +12,7 @@ class SupabaseStorageRepository(IFileStorageRepository):
         self._logger = getLogger(__name__)
 
     async def save_translated_latex_file_and_get_url(
-        self, translated_latex_file: TranslatedLatexFile
+        self, translated_latex_file: TranslatedPdfFile
     ) -> str:
         """
         Save a translated latex file and get the URL of the file.
@@ -37,7 +37,7 @@ class SupabaseStorageRepository(IFileStorageRepository):
                     "content-type": "application/pdf",
                     "cache-control": "3600",
                     "x-upsert": "true",
-                }
+                },
             )
         # 3. ファイルのURLの取得
         self._logger.info(
