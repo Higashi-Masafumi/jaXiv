@@ -89,7 +89,7 @@ class VertexGeminiLatexTranslator(ILatexTranslator):
             f"[# 翻訳対象のlatexコード]\n"
             f"{section}\n"
         )
-        response = self._client.models.generate_content(
+        response = await self._client.aio.models.generate_content(
             model="gemini-2.5-flash-lite-preview-06-17",
             contents=[user_prompt],
             config=types.GenerateContentConfig(

@@ -8,6 +8,7 @@ from domain.entities import ArxivPaperId, LatexFile, TargetLanguage
 from logging import getLogger
 import shutil
 from pathlib import Path
+import asyncio
 
 
 class TranslateArxivPaper:
@@ -32,6 +33,7 @@ class TranslateArxivPaper:
         target_language: TargetLanguage,
         output_dir: str,
         event_streamer: IEventStreamer,
+        max_workers: int = 5,
     ) -> str:
         """
         Translate an arxiv paper.
@@ -101,16 +103,21 @@ class TranslateArxivPaper:
 
         # 翻訳は並列化する
         translated_latex_files: list[LatexFile] = []
-        for latex_file in latex_files:
-            translated_latex_file = await self._latex_translator.translate(
-                latex_file=latex_file, target_language=target_language
-            )
-            translated_latex_files.append(translated_latex_file)
-            await event_streamer.stream_event(
-                event_type="progress",
-                message=f"Arxiv {arxiv_paper_id.root} の{latex_file.path}の翻訳を完了しました。",
-                arxiv_paper_id=arxiv_paper_id.root,
-            )
+        tasks = []
+        semaphore = asyncio.Semaphore(max_workers)
+        async def translate_latex_file(latex_file: LatexFile):
+            async with semaphore:
+                translated_latex_file = await self._latex_translator.translate(
+                    latex_file=latex_file, target_language=target_language
+                )
+                translated_latex_files.append(translated_latex_file)
+                await event_streamer.stream_event(
+                    event_type="progress",
+                    message=f"Arxiv {arxiv_paper_id.root} の{latex_file.path}の翻訳を完了しました。（{len(translated_latex_files)}/{len(latex_files)}個目）",
+                    arxiv_paper_id=arxiv_paper_id.root,
+                )
+        tasks = [translate_latex_file(latex_file) for latex_file in latex_files]
+        await asyncio.gather(*tasks)
         self._logger.info(f"Translated {len(translated_latex_files)} tex files")
 
         # 4. 翻訳後のtex contentをtex fileに書き込む

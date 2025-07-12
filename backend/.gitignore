@@ -9,4 +9,6 @@ wheels/
 # Virtual environments
 .venv
 output/
+raw_output/
+translated_output/
 .env
