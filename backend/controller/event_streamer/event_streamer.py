@@ -12,6 +12,7 @@ from typing import AsyncGenerator, Literal, Dict, Any
 from pydantic import HttpUrl
 import json
 
+
 class TranslateArxivEventStreamer(IEventStreamer):
     def __init__(self):
         self._event_queue: asyncio.Queue[TranslateArxivEvent] = asyncio.Queue()
@@ -69,7 +70,9 @@ class TranslateArxivEventStreamer(IEventStreamer):
         while not self._finished.is_set():
             event = await self._event_queue.get()
             dumped_event = json.dumps(event.model_dump(mode="json"))
-            self._logger.info(f"Yielding event: {dumped_event}")
+            self._logger.info(f"\t--------------------------------")
+            self._logger.info(f"\tYielding event: {dumped_event}")
+            self._logger.info(f"\t--------------------------------")
             yield {"data": dumped_event}
 
         self._logger.info("Event streamer finished")

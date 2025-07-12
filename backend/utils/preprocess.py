@@ -70,3 +70,27 @@ def remove_comment_lines(latex_content: str) -> str:
         line for line in latex_content.split("\n") if not re.match(r"^\s*%", line)
     ]
     return "\n".join(filtered_lines)
+
+
+def replace_escaped_latex_commands_with_html_entities(latex_content: str) -> str:
+    """
+    LaTeXソースコードから、エスケープされたLaTeXコマンドをHTMLエンティティに置換する。
+
+    Args:
+        latex_content: 処理対象のLaTeXソースコード
+
+    Returns:
+        HTMLエンティティに置換されたLaTeXソースコード
+
+    Examples:
+        >>> content = "\\section{Title}\n\n\n\n\nText here"
+        >>> replace_escaped_latex_commands_with_html_entities(content)
+        "\\section<bracket>Title<bracket>\n\n\n\n\nText here"
+    """
+
+    # 2. {}を<bracket>に置換する
+    latex_content = latex_content.replace("{", "<br>")
+    latex_content = latex_content.replace("}", "</br>")
+    latex_content = latex_content.replace("$", "<math>")
+
+    return latex_content

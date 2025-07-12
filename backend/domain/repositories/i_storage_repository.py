@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from domain.entities.latex_file import TranslatedLatexFile
+from domain.entities.latex_file import TranslatedPdfFile
 
 
 class IFileStorageRepository(ABC):
@@ -9,7 +9,7 @@ class IFileStorageRepository(ABC):
 
     @abstractmethod
     async def save_translated_latex_file_and_get_url(
-        self, translated_latex_file: TranslatedLatexFile
+        self, translated_latex_file: TranslatedPdfFile
     ) -> str:
         """
         Save a translated latex file and get the URL of the file.

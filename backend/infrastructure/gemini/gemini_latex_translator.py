@@ -1,25 +1,25 @@
-import re
+from domain.entities.target_language import TargetLanguage
 from domain.repositories import ILatexTranslator
-from domain.entities import LatexFile, TargetLanguage
-from anthropic import AnthropicVertex
-from utils.preprocess import optimize_latex_content  # noqa: F401
+from domain.entities.latex_file import LatexFile
 from logging import getLogger
+from google import genai
+from google.genai import types
+from utils.preprocess import optimize_latex_content  # noqa: F401
 from typing_extensions import deprecated
+import re
+import time
 
 
 @deprecated("Use VertexGeminiLatexTranslator instead")
-class ClaudeLatexTranslator(ILatexTranslator):
-    def __init__(
-        self,
-        project_id: str,
-        location: str,
-        model_name: str,
-    ):
-        self._project_id = project_id
-        self._location = location
-        self._model_name = model_name
-        self._client = AnthropicVertex(project_id=project_id, region=location)
+class GeminiLatexTranslator(ILatexTranslator):
+    """
+    A translator for LaTeX files using Gemini.
+    """
+
+    def __init__(self, api_key: str):
+        self._api_key = api_key
         self._logger = getLogger(__name__)
+        self._client = genai.Client(api_key=api_key)
 
     async def translate(
         self, latex_file: LatexFile, target_language: TargetLanguage
@@ -27,6 +27,10 @@ class ClaudeLatexTranslator(ILatexTranslator):
         sections = self._split_section(latex_file.content)
         system_prompt = (
             f"あなたは、{target_language}のLatexの文法を熟知しているLatexの翻訳家です。与えられたLaTeXのソースコードのテキスト部分を、指定された言語に翻訳してください。"
+            "あくまで翻訳するのはテキスト部分のみであり、latexのコードはそのままにしてください。"
+            "自然な翻訳となるように注意してください。"
+        )
+        user_instruction = (
             f"# 依頼事項\n"
             "1. コマンドはそのままにしてください。(`\\section`, `\\cite`, `\\begin{}`, `\\ `, math expressions like `$...$`, environments, labels, \\begin{document}, \\end{document}, etc.)\n"
             "2. 自然言語の部分のみを翻訳してください。(section titles, paragraph text, abstract, captions, keywords, etc.)\n"
@@ -52,52 +56,55 @@ class ClaudeLatexTranslator(ILatexTranslator):
             "[# 翻訳先言語]で翻訳先の言語を指定します。\n"
         )
         translated_sections: list[str] = []
+        self._logger.info("Begin translating %d sections", len(sections))
         for i, section in enumerate(sections):
-            section = optimize_latex_content(section)
+            self._logger.info("Translating section %d", i)
+            # # 前処理
+            # section = optimize_latex_content(section)
+            # 空のセクションはスキップ
             if section == "":
                 self._logger.warning("Section %d is empty. Skip.", i)
                 translated_sections.append(section)
                 continue
+            start_time = time.time()
             user_prompt = (
                 f"[# 翻訳先言語]\n{target_language}\n"
                 f"[# 翻訳対象のlatexコード]\n"
                 f"{section}\n"
             )
-            response = self._client.messages.create(
-                model=self._model_name,
-                system=system_prompt,
-                max_tokens=8192,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": user_prompt,
-                    },
-                ],
+            response = self._client.models.generate_content(
+                model="gemini-2.5-flash",
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                ),
+                contents=[user_instruction, user_prompt],
             )
-            if response.content and len(response.content) > 0:
-                from anthropic.types import TextBlock
-
-                content_block = response.content[0]
-                if isinstance(content_block, TextBlock):
-                    translated_section = content_block.text
-                else:
-                    self._logger.error(
-                        "Unexpected content type in response for section %d", i
-                    )
-                    translated_section = ""
-            else:
-                self._logger.error("Empty response content for section %d", i)
-                translated_section = ""
-
-            if not translated_section:
-                self._logger.error("Failed to translate section %d", i)
-                continue
+            translated_section = response.text
+            if translated_section is None:
+                raise ValueError("Failed to translate section")
             translated_section = self._clean_latex_text(translated_section)
+            num_tokens = (
+                response.usage_metadata.prompt_token_count
+                if response.usage_metadata
+                else (
+                    0 + response.usage_metadata.candidates_token_count
+                    if response.usage_metadata
+                    else 0
+                )
+            )
+            if translated_section is None:
+                raise ValueError("Failed to translate section")
+            end_time = time.time()
+            self._logger.info(
+                "Translated section %d in %f seconds, %d tokens",
+                i,
+                end_time - start_time,
+                num_tokens,
+            )
             translated_sections.append(translated_section)
-
         return LatexFile(
-            path=latex_file.path,
             content="\n".join(translated_sections),
+            path=latex_file.path,
         )
 
     @staticmethod

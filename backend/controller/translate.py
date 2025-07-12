@@ -1,13 +1,25 @@
-from fastapi import APIRouter, Depends, Body, Path, Query
+from fastapi import APIRouter, Depends, Body, Path, Query, HTTPException
 from sse_starlette.sse import EventSourceResponse
-from usecase import TranslateArxivPaper, SaveTranslatedArxivUsecase, ArxivRedirecter
-from domain.entities import ArxivPaperId, TargetLanguage
+from usecase import (
+    TranslateArxivPaper,
+    SaveTranslatedArxivUsecase,
+    ArxivRedirecter,
+    ModifyAndCompileUsecase,
+)
+from domain.entities import ArxivPaperId, TargetLanguage, CompileError
 from infrastructure.arxiv_source_fetcher import ArxivSourceFetcher
 from infrastructure.latex_compiler import LatexCompiler
-from infrastructure.gemini_latex_translator import GeminiLatexTranslator
+from infrastructure.gemini import GeminiLatexTranslator
 from infrastructure.vertex import (
     VertexGeminiLatexTranslator,
+    VertexGeminiLatexModifier,
+    ClaudeLatexTranslator,
 )
+from infrastructure.google import (
+    GoogleLatexTranslator,
+    CloudLatexTranslator,
+)
+from infrastructure.openai import OpenaiLatexTranslator
 from infrastructure.postgres import PostgresTranslatedArxivRepository
 from infrastructure.supabase import SupabaseStorageRepository
 from controller.event_streamer import TranslateArxivEventStreamer
@@ -26,9 +38,7 @@ def get_event_streamer() -> TranslateArxivEventStreamer:
 
 
 # 翻訳済み論文の取得用usecaseを取得
-def get_arxiv_redirecter(
-    event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
-) -> ArxivRedirecter:
+def get_arxiv_redirecter() -> ArxivRedirecter:
     postgres_url = os.getenv("POSTGRES_URL")
     if postgres_url is None:
         raise ValueError("POSTGRES_URL is not set")
@@ -40,12 +50,13 @@ def get_arxiv_redirecter(
 
 
 # 翻訳用usecaseを取得
-def get_translate_arxiv_paper(
-    event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
-) -> TranslateArxivPaper:
-    # gemini_api_key = os.getenv("GEMINI_API_KEY")
-    # if gemini_api_key is None:
-    #     raise ValueError("GEMINI_API_KEY is not set")
+def get_translate_arxiv_paper() -> TranslateArxivPaper:
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    if gemini_api_key is None:
+        raise ValueError("GEMINI_API_KEY is not set")
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if openai_api_key is None:
+        raise ValueError("OPENAI_API_KEY is not set")
 
     # Cloud Runでは GOOGLE_CLOUD_PROJECT が自動設定される
     vertex_project_id = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv(
@@ -63,10 +74,24 @@ def get_translate_arxiv_paper(
     )
 
 
+# 修正用usecaseを取得
+def get_modify_and_compile_usecase() -> ModifyAndCompileUsecase:
+    vertex_project_id = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv(
+        "GOOGLE_CLOUD_PROJECT_ID"
+    )
+    if vertex_project_id is None:
+        raise ValueError("GOOGLE_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT_ID is not set")
+    return ModifyAndCompileUsecase(
+        latex_compiler=LatexCompiler(),
+        latex_modifier=VertexGeminiLatexModifier(
+            project_id=vertex_project_id,
+            location="global",
+        ),
+    )
+
+
 # 翻訳済み論文の保存用usecaseを取得
-def get_save_translated_arxiv(
-    event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
-) -> SaveTranslatedArxivUsecase:
+def get_save_translated_arxiv() -> SaveTranslatedArxivUsecase:
     postgres_url = os.getenv("POSTGRES_URL")
     if postgres_url is None:
         raise ValueError("POSTGRES_URL is not set")
@@ -109,6 +134,9 @@ async def translate(
     event_streamer: TranslateArxivEventStreamer = Depends(get_event_streamer),
     arxiv_redirecter: ArxivRedirecter = Depends(get_arxiv_redirecter),
     translate_arxiv_paper: TranslateArxivPaper = Depends(get_translate_arxiv_paper),
+    modify_and_compile_usecase: ModifyAndCompileUsecase = Depends(
+        get_modify_and_compile_usecase
+    ),
     save_translated_arxiv: SaveTranslatedArxivUsecase = Depends(
         get_save_translated_arxiv
     ),
@@ -135,21 +163,48 @@ async def translate(
             )
             return translated_paper_metadata
         # 3. 翻訳済みの論文でなければ、翻訳を開始
-        pdf_file_path = await translate_arxiv_paper.translate(
+        compile_result = await translate_arxiv_paper.translate(
             arxiv_paper_id=ArxivPaperId(root=arxiv_paper_id),
             target_language=target_language,
             output_dir=output_dir,
             event_streamer=event_streamer,
         )
-        # 4. 翻訳済みの論文として保存
-        arxiv_paper_metadata_with_translated_url = (
-            await save_translated_arxiv.save_translated_arxiv(
+        # 4. 翻訳に成功した場合、翻訳済みの論文として保存
+        if isinstance(compile_result, str):
+            # 4. 翻訳済みの論文として保存
+            arxiv_paper_metadata_with_translated_url = (
+                await save_translated_arxiv.save_translated_arxiv(
+                    arxiv_paper_id=ArxivPaperId(root=arxiv_paper_id),
+                    translated_arxiv_pdf_path=compile_result,
+                    event_streamer=event_streamer,
+                )
+            )
+            return arxiv_paper_metadata_with_translated_url
+
+        # 5. 翻訳に失敗した場合、修正してコンパイル
+        try:
+            result = await modify_and_compile_usecase.execute(
                 arxiv_paper_id=ArxivPaperId(root=arxiv_paper_id),
-                translated_arxiv_pdf_path=pdf_file_path,
+                compile_setting=compile_result.compile_setting,
+                latex_files=compile_result.latex_files,
+                compile_error=compile_result.compile_error,
                 event_streamer=event_streamer,
             )
-        )
-        return arxiv_paper_metadata_with_translated_url
+            arxiv_paper_metadata_with_translated_url = (
+                await save_translated_arxiv.save_translated_arxiv(
+                    arxiv_paper_id=ArxivPaperId(root=arxiv_paper_id),
+                    translated_arxiv_pdf_path=result,
+                    event_streamer=event_streamer,
+                )
+            )
+            return arxiv_paper_metadata_with_translated_url
+        # 6. 修正に失敗した場合、エラーを返却
+        except Exception as e:
+            await event_streamer.stream_event(
+                event_type="failed",
+                message=f"Arxiv {arxiv_paper_id} の翻訳に失敗しました。{str(e)}",
+                arxiv_paper_id=arxiv_paper_id,
+            )
 
     asyncio.create_task(run_workflow())
 

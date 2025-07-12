@@ -4,8 +4,9 @@ from .arxiv import (
     ArxivPaperMetadata,
     ArxivPaperMetadataWithTranslatedUrl,
 )
-from .latex_file import LatexFile, TranslatedLatexFile
+from .latex_file import LatexFile, TranslatedPdfFile
 from .target_language import TargetLanguage
+from .compile_error import CompileError
 
 # __all__は、このモジュールから外部にエクスポートする公開APIを明示的に定義するものです。
 # "from domain.entities import *" のようなワイルドカードインポートを行った際に、
@@ -18,4 +19,5 @@ __all__ = [
     "TargetLanguage",
     "ArxivPaperMetadata",
     "ArxivPaperMetadataWithTranslatedUrl",
+    "CompileError",
 ]

@@ -24,9 +24,22 @@ class VertexGeminiLatexTranslator(ILatexTranslator):
         self, latex_file: LatexFile, target_language: TargetLanguage
     ) -> LatexFile:
         optimized_latex_content = optimize_latex_content(latex_file.content)
+        system_prompt = (
+            "あなたは、Latexを翻訳してください"
+            "ただし、latexの文法は保ったままにしてください。"
+            "# 注意するべきlatexの文法\n"
+            "1. latexにおけるコメントアウトは`%`で行う、もし`%`を含めたい場合は`\\%`としてください。すなわち`\\%`は`\\%`と翻訳しないといけません"
+            "2. 数式中の記号 `\\(` `\\)` `$` `&` `\\` `{` `}` は **絶対に削除・全角化しない**。"
+            "3. `\\label{}` `\\ref{}` `\\cite{}` で括られたキー名は **一文字も変更しない**。"
+            "4. `\\begin{document}`と`\\end{document}`は絶対に削除しないでください。"
+            "5. カスタムコマンドなど、一般的でないコマンドに関連するものは翻訳せず、そのままにしてください。"
+            "6. 数式中の記号 `\\(` `\\)` `$` `&` `\\` `{` `}` は **絶対に削除・全角化しない**。"
+            "7. `\\label{}` `\\ref{}` `\\cite{}` で括られたキー名は **一文字も変更しない**。"
+        )
         user_prompt = (
             f"次に与えるlatexを{target_language}に翻訳してください。"
             "ただし、latexの文法は保ったままにしてください。"
+            "コマンドのみが定義されたファイルの場合もあるのでその時は翻訳せずにそのまま返してください。"
             "\n\n"
             f"[# 翻訳対象のlatexコード]\n"
             f"{optimized_latex_content}\n"
@@ -35,6 +48,7 @@ class VertexGeminiLatexTranslator(ILatexTranslator):
         response = await self._client.aio.models.generate_content(
             model="gemini-2.5-flash",
             config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
                 temperature=1.0,
             ),
             contents=[user_prompt],

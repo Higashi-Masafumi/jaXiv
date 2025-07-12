@@ -1,4 +1,3 @@
-from os import path
 from pydantic import BaseModel, StrictStr, Field
 
 
@@ -11,12 +10,12 @@ class LatexFile(BaseModel):
     content: StrictStr = Field(description="The content of the latex file")
 
 
-class TranslatedLatexFile(BaseModel):
+class TranslatedPdfFile(BaseModel):
     """
-    A translated latex file.
+    A translated pdf file.
     """
 
-    path: StrictStr = Field(description="The path of the translated latex file")
+    path: StrictStr = Field(description="The path of the translated pdf file")
     storage_path: StrictStr = Field(
-        description="The path of the translated latex file in the storage"
+        description="The path of the translated pdf file in the storage"
     )

@@ -7,7 +7,7 @@ from domain.repositories import (
 from domain.entities import (
     ArxivPaperId,
     ArxivPaperMetadataWithTranslatedUrl,
-    TranslatedLatexFile,
+    TranslatedPdfFile,
 )
 from logging import getLogger
 from pydantic import HttpUrl
@@ -61,7 +61,7 @@ class SaveTranslatedArxivUsecase:
 
         # 2. 翻訳済み論文のpdfを保存する
         self._logger.info("Saving translated arxiv paper %s", arxiv_paper_id)
-        translated_latex_file = TranslatedLatexFile(
+        translated_latex_file = TranslatedPdfFile(
             path=translated_arxiv_pdf_path,
             storage_path=f"{arxiv_paper_id.root}_translated.pdf",
         )

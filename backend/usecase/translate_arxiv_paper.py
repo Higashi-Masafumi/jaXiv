@@ -4,10 +4,24 @@ from domain.repositories import (
     ILatexTranslator,
     IEventStreamer,
 )
-from domain.entities import ArxivPaperId, LatexFile, TargetLanguage
+from domain.entities import (
+    ArxivPaperId,
+    LatexFile,
+    TargetLanguage,
+    CompileError,
+    CompileSetting,
+)
 from logging import getLogger
-import shutil
 from pathlib import Path
+import asyncio
+from dataclasses import dataclass
+
+
+@dataclass
+class CompileFailedResult:
+    compile_error: CompileError
+    compile_setting: CompileSetting
+    latex_files: list[LatexFile]
 
 
 class TranslateArxivPaper:
@@ -32,7 +46,8 @@ class TranslateArxivPaper:
         target_language: TargetLanguage,
         output_dir: str,
         event_streamer: IEventStreamer,
-    ) -> str:
+        max_workers: int = 5,
+    ) -> str | CompileFailedResult:
         """
         Translate an arxiv paper.
 
@@ -70,47 +85,73 @@ class TranslateArxivPaper:
 
         # 2. ソースフォルダ内でtex fileをリストアップする
         # 再帰的に*.texファイルを検索する
-        tex_file_paths = list(Path(compile_setting.source_directory).rglob("*.tex"))
-        if len(tex_file_paths) == 0:
+        # tex_file_paths = list(Path(compile_setting.source_directory).rglob("*.tex"))
+        # if len(tex_file_paths) == 0:
+        #     # エラーをストリーミング
+        #     await event_streamer.stream_event(
+        #         event_type="failed",
+        #         message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが見つかりませんでした。",
+        #         arxiv_paper_id=arxiv_paper_id.root,
+        #     )
+        #     raise FileNotFoundError("No tex file found in the source directory")
+        # else:
+        #     self._logger.info(
+        #         f"Found {len(tex_file_paths)} tex files in the source directory"
+        #     )
+        #     latex_files: list[LatexFile] = []
+        #     for tex_file_path in tex_file_paths:
+        #         latex_file = LatexFile(
+        #             path=str(tex_file_path),
+        #             content=tex_file_path.read_text(),
+        #         )
+        #         latex_files.append(latex_file)
+        # target_file_nameで指定されたtexファイルのみを翻訳対象とする
+        target_tex_path = Path(compile_setting.source_directory) / compile_setting.target_file_name
+        if not target_tex_path.exists():
             # エラーをストリーミング
             await event_streamer.stream_event(
                 event_type="failed",
-                message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが見つかりませんでした。",
+                message=f"Arxiv {arxiv_paper_id} のtexソース内に指定された {compile_setting.target_file_name} が見つかりませんでした。",
                 arxiv_paper_id=arxiv_paper_id.root,
             )
-            raise FileNotFoundError("No tex file found in the source directory")
-        else:
-            self._logger.info(
-                f"Found {len(tex_file_paths)} tex files in the source directory"
+            raise FileNotFoundError(f"{compile_setting.target_file_name} not found in the source directory")
+        latex_files = [
+            LatexFile(
+                path=str(target_tex_path),
+                content=target_tex_path.read_text(),
             )
-            latex_files: list[LatexFile] = []
-            for tex_file_path in tex_file_paths:
-                latex_file = LatexFile(
-                    path=str(tex_file_path),
-                    content=tex_file_path.read_text(),
-                )
-                latex_files.append(latex_file)
+        ]
 
         # 3. 翻訳
         # 進捗をストリーミング
         await event_streamer.stream_event(
             event_type="progress",
-            message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが{len(tex_file_paths)}個見つかりました。翻訳を開始します。",
+            message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが1個見つかりました。翻訳を開始します。",
             arxiv_paper_id=arxiv_paper_id.root,
         )
 
         # 翻訳は並列化する
         translated_latex_files: list[LatexFile] = []
-        for latex_file in latex_files:
-            translated_latex_file = await self._latex_translator.translate(
-                latex_file=latex_file, target_language=target_language
-            )
-            translated_latex_files.append(translated_latex_file)
-            await event_streamer.stream_event(
-                event_type="progress",
-                message=f"Arxiv {arxiv_paper_id.root} の{latex_file.path}の翻訳を完了しました。",
-                arxiv_paper_id=arxiv_paper_id.root,
-            )
+        tasks = []
+        semaphore = asyncio.Semaphore(max_workers)
+
+        async def translate_latex_file(latex_file: LatexFile) -> LatexFile:
+            async with semaphore:
+                translated_latex_file = await self._latex_translator.translate(
+                    latex_file=latex_file, target_language=target_language
+                )
+                await event_streamer.stream_event(
+                    event_type="progress",
+                    message=f"Arxiv {arxiv_paper_id} の{latex_file.path}の翻訳を完了しました。",
+                    arxiv_paper_id=arxiv_paper_id.root,
+                )
+                return translated_latex_file
+
+        tasks = [
+            asyncio.create_task(translate_latex_file(latex_file))
+            for latex_file in latex_files
+        ]
+        translated_latex_files = await asyncio.gather(*tasks)
         self._logger.info(f"Translated {len(translated_latex_files)} tex files")
 
         # 4. 翻訳後のtex contentをtex fileに書き込む
@@ -126,25 +167,27 @@ class TranslateArxivPaper:
             arxiv_paper_id=arxiv_paper_id.root,
         )
         # コンパイルは失敗する可能性があるので、try-exceptで囲う
-        try:
-            compiled_pdf_file_path = self._latex_compiler.compile(
-                compile_setting=compile_setting
-            )
-            # 進捗をストリーミング
-            await event_streamer.stream_event(
-                event_type="progress",
-                message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルのコンパイルを完了しました。",
-                arxiv_paper_id=arxiv_paper_id.root,
-            )
-        except Exception as e:
-            self._logger.error(f"Error compiling {arxiv_paper_id}: {e}")
+        result = self._latex_compiler.compile(compile_setting=compile_setting)
+
+        if isinstance(result, CompileError):
+            # エラーをストリーミング
             await event_streamer.stream_event(
                 event_type="failed",
                 message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルのコンパイルに失敗しました。",
                 arxiv_paper_id=arxiv_paper_id.root,
             )
-            await event_streamer.finish()
-            shutil.rmtree(compile_setting.source_directory)
-            raise e
-        # 6. 翻訳後のpdf fileを保存
-        return compiled_pdf_file_path
+            # コンパイルエラーを返す
+            return CompileFailedResult(
+                compile_error=result,
+                compile_setting=compile_setting,
+                latex_files=translated_latex_files,
+            )
+        else:
+            # コンパイル成功をストリーミング
+            await event_streamer.stream_event(
+                event_type="progress",
+                message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルのコンパイルを完了しました。",
+                arxiv_paper_id=arxiv_paper_id.root,
+            )
+            # コンパイルされたpdf fileのパスを返す
+            return result
