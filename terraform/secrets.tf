@@ -42,4 +42,19 @@ resource "google_secret_manager_secret" "database_url" {
 resource "google_secret_manager_secret_version" "database_url" {
   secret      = google_secret_manager_secret.database_url.id
   secret_data = var.database_url
+}
+
+resource "google_secret_manager_secret" "mistral_api_key" {
+  secret_id = "${var.app_name}-mistral-api-key"
+  
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+resource "google_secret_manager_secret_version" "mistral_api_key" {
+  secret      = google_secret_manager_secret.mistral_api_key.id
+  secret_data = var.mistral_api_key
 } 

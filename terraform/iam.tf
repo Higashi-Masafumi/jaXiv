@@ -68,6 +68,12 @@ resource "google_secret_manager_secret_iam_member" "database_url" {
   member    = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "mistral_api_key" {
+  secret_id = google_secret_manager_secret.mistral_api_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
 # Cloud Run service account needs Vertex AI access
 resource "google_project_iam_member" "cloud_run_vertex_ai" {
   project = var.project_id
