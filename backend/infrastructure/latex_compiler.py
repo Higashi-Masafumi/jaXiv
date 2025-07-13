@@ -56,7 +56,7 @@ class LatexCompiler(ILatexCompiler):
             )
             if result.stderr:
                 self._logger.warning(
-                    f"Latex compilation completed with warnings: {result.stderr}"
+                    f"Latex compilation completed with warnings: source_directory={compile_setting.source_directory}, target_file_name={compile_setting.target_file_name}, stderr={result.stderr}"
                 )
         except subprocess.CalledProcessError as e:
             self._logger.error(
@@ -76,4 +76,7 @@ class LatexCompiler(ILatexCompiler):
         self._logger.info(f"Compiled {compile_setting.target_file_name}")
         # compileして生成されたpdfファイルのパスを返す
         pdf_file_name = compile_setting.target_file_name.replace(".tex", ".pdf")
-        return f"{compile_setting.source_directory}/{pdf_file_name}"
+        pdf_file_path = f"{compile_setting.source_directory}/{pdf_file_name}"
+        if not os.path.exists(pdf_file_path):
+            raise FileNotFoundError(f"PDF file not found: {pdf_file_path}")
+        return pdf_file_path
