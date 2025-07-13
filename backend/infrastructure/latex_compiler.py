@@ -44,12 +44,12 @@ class LatexCompiler(ILatexCompiler):
             result = subprocess.run(
                 cmd,
                 cwd=compile_setting.source_directory,
-                check=True,
+                check=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 encoding="utf-8",
                 timeout=60,
-                errors="replace",
+                errors="ignore",
             )
             self._logger.info(
                 f"Latex compilation completed successfully {result.stdout}"

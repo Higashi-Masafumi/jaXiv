@@ -8,6 +8,7 @@ from infrastructure.gemini_latex_translator import GeminiLatexTranslator
 from infrastructure.vertex import (
     VertexGeminiLatexTranslator,
 )
+from infrastructure.mistral import MistralLatexTranslator
 from infrastructure.postgres import PostgresTranslatedArxivRepository
 from infrastructure.supabase import SupabaseStorageRepository
 from controller.event_streamer import TranslateArxivEventStreamer
@@ -53,12 +54,14 @@ def get_translate_arxiv_paper(
     )
     if vertex_project_id is None:
         raise ValueError("GOOGLE_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT_ID is not set")
+    mistral_api_key = os.getenv("MISTRAL_API_KEY")
+    if mistral_api_key is None:
+        raise ValueError("MISTRAL_API_KEY is not set")
     return TranslateArxivPaper(
         arxiv_source_fetcher=ArxivSourceFetcher(),
         latex_compiler=LatexCompiler(),
-        latex_translator=VertexGeminiLatexTranslator(
-            project_id=vertex_project_id,
-            location="global",
+        latex_translator=MistralLatexTranslator(
+            api_key=mistral_api_key,
         ),
     )
 

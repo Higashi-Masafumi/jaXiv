@@ -50,4 +50,10 @@ variable "database_url" {
   description = "Database connection URL"
   type        = string
   sensitive   = true
+}
+
+variable "mistral_api_key" {
+  description = "Mistral AI API Key"
+  type        = string
+  sensitive   = true
 } 
