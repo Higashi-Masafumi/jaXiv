@@ -4,7 +4,7 @@ from controller.translate import router
 import logging
 from dotenv import load_dotenv
 import sentry_sdk
-import os
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 load_dotenv()
 
@@ -25,8 +25,12 @@ app.add_middleware(
 
 sentry_sdk.init(
     dsn="https://382d77a1d801f0362e4c2fb9644c6bdc@o4509661921083392.ingest.us.sentry.io/4509661921935360",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    integrations=[
+        LoggingIntegration(
+            level=logging.INFO,  # Capture info and above as breadcrumbs
+            event_level=logging.WARNING,  # Send errors as events
+        ),
+    ],
     send_default_pii=True,
 )
 
