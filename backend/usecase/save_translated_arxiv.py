@@ -57,6 +57,7 @@ class SaveTranslatedArxivUsecase:
             event_type="progress",
             message=f"Arxiv {arxiv_paper_id} のメタデータの取得を完了しました。",
             arxiv_paper_id=arxiv_paper_id.root,
+            progress_percentage=90,
         )
 
         # 2. 翻訳済み論文のpdfを保存する
@@ -77,6 +78,7 @@ class SaveTranslatedArxivUsecase:
             event_type="progress",
             message=f"Arxiv {arxiv_paper_id} の翻訳済み論文のpdfを保存しました。",
             arxiv_paper_id=arxiv_paper_id.root,
+            progress_percentage=100,
         )
 
         # 3. 論文のメタデータを更新
@@ -96,6 +98,7 @@ class SaveTranslatedArxivUsecase:
             event_type="completed",
             message=f"Arxiv {arxiv_paper_id} の翻訳済み論文のメタデータを保存しました。翻訳済みのpdfを表示します。",
             arxiv_paper_id=arxiv_paper_id.root,
+            progress_percentage=100,
             translated_pdf_url=HttpUrl(translated_arxiv_pdf_url),
         )
 

@@ -32,6 +32,7 @@ export const translateArxivWithEventSource = (
       status: TranslateArxivEventStatus.FAILED,
       message:
         "EventSource connection error. The server might be down or unreachable.",
+      progress_percentage: 0,
     });
     es.close(); // エラー発生時に接続を閉じる
   };

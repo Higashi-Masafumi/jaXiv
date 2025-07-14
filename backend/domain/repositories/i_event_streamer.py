@@ -14,6 +14,7 @@ class IEventStreamer(ABC):
         event_type: Literal["progress", "completed", "failed"],
         message: str,
         arxiv_paper_id: str,
+        progress_percentage: float,
         translated_pdf_url: HttpUrl | None = None,
     ) -> None:
         """
@@ -23,6 +24,7 @@ class IEventStreamer(ABC):
             event_type (Literal["progress", "completed", "failed"]): The type of the event.
             message (str): The message of the event.
             arxiv_paper_id (str): The arxiv paper id.
+            progress_percentage (float): The progress percentage.
             translated_pdf_url (HttpUrl | None, optional): The url of the translated pdf. Defaults to None.
 
         Returns:

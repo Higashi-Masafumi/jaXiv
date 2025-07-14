@@ -59,6 +59,12 @@ class TranslateArxivPaper:
             >>> translate_arxiv_paper.translate(arxiv_paper_id=ArxivPaperId(root="1234.5678"), target_language=TargetLanguage.EN, output_dir="output")
         """
         self._logger.info(f"Translating {arxiv_paper_id} to {target_language}")
+        await event_streamer.stream_event(
+            event_type="progress",
+            message=f"Arxiv {arxiv_paper_id} のtexソースコードの取得を開始します。",
+            arxiv_paper_id=arxiv_paper_id.root,
+            progress_percentage=0,
+        )
         # 1. 論文のtexファイルを取得
         compile_setting = self._arxiv_source_fetcher.fetch_tex_source(
             paper_id=arxiv_paper_id, output_dir=output_dir
@@ -68,6 +74,7 @@ class TranslateArxivPaper:
             event_type="progress",
             message=f"Arxiv {arxiv_paper_id} のtexソースコードの取得を完了しました。",
             arxiv_paper_id=arxiv_paper_id.root,
+            progress_percentage=10,
         )
 
         # 2. ソースフォルダ内でtex fileをリストアップする
@@ -79,6 +86,7 @@ class TranslateArxivPaper:
                 event_type="failed",
                 message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが見つかりませんでした。",
                 arxiv_paper_id=arxiv_paper_id.root,
+                progress_percentage=10,
             )
             raise FileNotFoundError("No tex file found in the source directory")
         else:
@@ -99,11 +107,13 @@ class TranslateArxivPaper:
             event_type="progress",
             message=f"Arxiv {arxiv_paper_id} のtexソース内にコンパイル対象となるtexファイルが{len(tex_file_paths)}個見つかりました。翻訳を開始します。",
             arxiv_paper_id=arxiv_paper_id.root,
+            progress_percentage=20,
         )
 
         # 翻訳は並列化する
         translated_latex_files: list[LatexFile] = []
         tasks = []
+        progress_by_file = 50 / len(latex_files) if len(latex_files) > 0 else 0
         semaphore = asyncio.Semaphore(max_workers)
         async def translate_latex_file(latex_file: LatexFile):
             async with semaphore:
@@ -115,6 +125,7 @@ class TranslateArxivPaper:
                     event_type="progress",
                     message=f"Arxiv {arxiv_paper_id.root} の{latex_file.path}の翻訳を完了しました。（{len(translated_latex_files)}/{len(latex_files)}個目）",
                     arxiv_paper_id=arxiv_paper_id.root,
+                    progress_percentage=20 + progress_by_file * len(translated_latex_files),
                 )
         tasks = [translate_latex_file(latex_file) for latex_file in latex_files]
         await asyncio.gather(*tasks)
@@ -131,6 +142,7 @@ class TranslateArxivPaper:
             event_type="progress",
             message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルの翻訳を完了しました。コンパイルを開始します",
             arxiv_paper_id=arxiv_paper_id.root,
+            progress_percentage=70,
         )
         # コンパイルは失敗する可能性があるので、try-exceptで囲う
         try:
@@ -142,6 +154,7 @@ class TranslateArxivPaper:
                 event_type="progress",
                 message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルのコンパイルを完了しました。",
                 arxiv_paper_id=arxiv_paper_id.root,
+                progress_percentage=80,
             )
         except Exception as e:
             self._logger.error(f"Error compiling {arxiv_paper_id}: {e}")
@@ -149,6 +162,7 @@ class TranslateArxivPaper:
                 event_type="failed",
                 message=f"Arxiv {arxiv_paper_id} のtexソース内のtexファイルのコンパイルに失敗しました。",
                 arxiv_paper_id=arxiv_paper_id.root,
+                progress_percentage=80,
             )
             await event_streamer.finish()
             shutil.rmtree(compile_setting.source_directory)

@@ -29,6 +29,7 @@ class ArxivRedirecter:
             event_type="progress",
             message=f"Arxiv {arxiv_paper_id.root} はすでに翻訳済みのpdfが存在しますので、翻訳済みのpdfを返却します。",
             arxiv_paper_id=arxiv_paper_id.root,
+            progress_percentage=100,
         )
 
         return translated_paper_metadata

@@ -38,6 +38,7 @@ interface TranslationState {
   status: TranslateArxivEventStatus | null;
   message: string;
   progressMessages: string[];
+  progressPercentage: number;
   pdfUrl?: string;
   error?: string;
 }
@@ -49,6 +50,7 @@ export default function Home() {
     status: null,
     message: "",
     progressMessages: [],
+    progressPercentage: 0,
   });
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
 
@@ -70,6 +72,7 @@ export default function Home() {
       progressMessages: ["翻訳を開始します..."],
       pdfUrl: undefined,
       error: undefined,
+      progressPercentage: 0,
     });
 
     setEventSource(translateArxivWithEventSource(
@@ -84,6 +87,7 @@ export default function Home() {
               status: event.status,
               message: event.message,
               progressMessages: [...prev.progressMessages, event.message],
+              progressPercentage: event.progress_percentage,
               error: undefined,
             };
           } else if (event.status === TranslateArxivEventStatus.COMPLETED) {
@@ -96,6 +100,7 @@ export default function Home() {
               status: event.status,
               message: event.message,
               progressMessages: [...prev.progressMessages, event.message],
+              progressPercentage: event.progress_percentage,
               pdfUrl: event.translated_pdf_url,
               error: undefined,
             };
@@ -109,6 +114,7 @@ export default function Home() {
               status: event.status,
               error: event.message,
               message: event.message,
+              progressPercentage: event.progress_percentage,
             };
           }
 
@@ -129,6 +135,7 @@ export default function Home() {
       progressMessages: [],
       pdfUrl: undefined,
       error: "翻訳がキャンセルされました。",
+      progressPercentage: 0,
     });
     toast.info("翻訳をキャンセルしました");
   };
@@ -228,7 +235,7 @@ export default function Home() {
                         {state.message}
                       </p>
                       {state.status === TranslateArxivEventStatus.PROGRESS && (
-                        <Progress className="mt-3 h-2" value={33} />
+                        <Progress className="mt-3 h-2" value={state.progressPercentage} />
                       )}
                     </div>
 

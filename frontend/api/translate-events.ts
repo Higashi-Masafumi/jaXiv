@@ -8,6 +8,7 @@ export interface TranslateArxivProgressEvent {
   status: TranslateArxivEventStatus.PROGRESS;
   arxiv_paper_id: string;
   message: string;
+  progress_percentage: number;
 }
 
 export interface TranslateArxivCompletedEvent {
@@ -15,12 +16,14 @@ export interface TranslateArxivCompletedEvent {
   arxiv_paper_id: string;
   message: string;
   translated_pdf_url: string;
+  progress_percentage: number;
 }
 
 export interface TranslateArxivFailedEvent {
   status: TranslateArxivEventStatus.FAILED;
   arxiv_paper_id: string;
   message: string;
+  progress_percentage: number;
 }
 
 export type TranslateArxivEvent =

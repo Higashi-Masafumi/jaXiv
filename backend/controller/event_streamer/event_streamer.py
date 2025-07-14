@@ -23,6 +23,7 @@ class TranslateArxivEventStreamer(IEventStreamer):
         event_type: Literal["progress", "completed", "failed"],
         message: str,
         arxiv_paper_id: str,
+        progress_percentage: float,
         translated_pdf_url: HttpUrl | None = None,
     ) -> None:
         self._logger.info(f"Streaming event: {event_type} for paper {arxiv_paper_id}")
@@ -36,6 +37,7 @@ class TranslateArxivEventStreamer(IEventStreamer):
                         status=TranslateArxivEventStatus.PROGRESS,
                         arxiv_paper_id=arxiv_paper_id,
                         message=message,
+                        progress_percentage=progress_percentage,
                     )
                 )
             case "completed" if translated_pdf_url is not None:
@@ -48,6 +50,7 @@ class TranslateArxivEventStreamer(IEventStreamer):
                         arxiv_paper_id=arxiv_paper_id,
                         message=message,
                         translated_pdf_url=translated_pdf_url,
+                        progress_percentage=progress_percentage,
                     )
                 )
             case "failed":
@@ -57,6 +60,7 @@ class TranslateArxivEventStreamer(IEventStreamer):
                         status=TranslateArxivEventStatus.FAILED,
                         arxiv_paper_id=arxiv_paper_id,
                         message=message,
+                        progress_percentage=progress_percentage,
                     )
                 )
             case _:
