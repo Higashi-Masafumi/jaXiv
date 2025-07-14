@@ -135,6 +135,7 @@ async def translate(
                 message=f"Arxiv {arxiv_paper_id} の翻訳済みpdfのURLは {translated_paper_metadata.translated_url} です。",
                 arxiv_paper_id=arxiv_paper_id,
                 translated_pdf_url=translated_paper_metadata.translated_url,
+                progress_percentage=100,
             )
             return translated_paper_metadata
         # 3. 翻訳済みの論文でなければ、翻訳を開始
