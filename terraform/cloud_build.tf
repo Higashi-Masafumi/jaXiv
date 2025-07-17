@@ -32,16 +32,25 @@ resource "google_cloudbuild_trigger" "manual_base_image_build" {
   name            = "manual-build-backend-base-image"
   description     = "Manually trigger to build the backend base image with TeX Live."
   service_account = google_service_account.cloud_build.id
-  filename        = "cloudbuild-base.yaml"
 
-  # Same GitHub configuration as main_branch trigger
-  github {
-    owner = "Higashi-Masafumi"  # Same as main_branch trigger
-    name  = "jaXiv"             # Same as main_branch trigger
+  # Repository and branch to pull source from
+  source_to_build {
+    uri       = "https://github.com/Higashi-Masafumi/jaXiv.git"
+    ref       = "refs/heads/main"
+    repo_type = "GITHUB"
+  }
 
-    pull_request {
-      branch = "^main$"
-    }
+  # Specify the Cloud Build config file within the repo
+  git_file_source {
+    path      = "cloudbuild-base.yaml"
+    uri       = "https://github.com/Higashi-Masafumi/jaXiv.git"
+    revision  = "refs/heads/main"
+    repo_type = "GITHUB"
+  }
+
+  # Set to true if you want an approval step before building
+  approval_config {
+    approval_required = false
   }
 
   substitutions = {
