@@ -60,6 +60,7 @@ python:3.13-slim + TeX Live Full + uv
 ### ベースイメージが見つからない場合
 
 Dockerfile でフォールバック機能を実装しているため、ベースイメージが存在しない場合は`python:3.13-slim`から直接ビルドされます。
+[Dockerfile.base](Dockerfile.base)と[Dockerfile](Dockerfile)をみてください
 
 ### ビルド時間が長い場合
 
