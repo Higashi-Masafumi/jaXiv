@@ -29,6 +29,9 @@ class MistralLatexTranslator(ILatexTranslator):
         semaphore = asyncio.Semaphore(max_workers)
 
         async def translate_section(section: str) -> str:
+            if len(section) == 0:
+                self._logger.info("Skipping empty section")
+                return ""
             async with semaphore:
                 self._logger.info("Translating section length %d", len(section))
                 chat_response = await self._client.chat.complete_async(
@@ -71,6 +74,7 @@ class MistralLatexTranslator(ILatexTranslator):
             "3. 数式中の記号 `\\(` `\\)` `$` `&` `\\` `{` `}` は **絶対に削除・全角化しない**。\n"
             "4. `\\label{}` `\\ref{}` `\\cite{}` で括られたキー名は **一文字も変更しない**。\n"
             "5. カスタムコマンドなど、一般的でないコマンドに関連するものは翻訳せず、そのままにしてください。\n"
+            "6. \\includegraphics は翻訳せず、画像パスをそのままにしてください\n"
             "# 注意事項\n"
             "単なるコマンドの定義ファイルの場合もあるので、その場合はそのままにしてください。\n"
             "# 出力形式\n"
