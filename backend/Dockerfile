@@ -1,16 +1,8 @@
-FROM python:3.13-slim
+# Use the pre-built base image with Python + TeX Live Full
+ARG BASE_IMAGE_URL
+FROM ${BASE_IMAGE_URL:-python:3.13-slim}
 
-# Install LaTeX environment
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    texlive-full \
-    latexmk ghostscript \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python package manager
-RUN pip install uv
-
-# Set the working directory
+# Set the working directory (in case base image doesn't have it)
 WORKDIR /app
 
 # Dependency management

@@ -1,9 +1,11 @@
 steps:
-  # Backend: Build Docker image
+  # Backend: Build Docker image using pre-built base image
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
         "build",
+        "--build-arg",
+        "BASE_IMAGE_URL=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend-base:latest",
         "-t",
         "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:${COMMIT_SHA}",
         "-t",
