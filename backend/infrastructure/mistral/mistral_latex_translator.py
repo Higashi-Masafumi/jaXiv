@@ -117,10 +117,11 @@ class MistralLatexTranslator(ILatexTranslator):
     @staticmethod
     def _split_section(latex_text: str) -> list[str]:
         """
-        LaTeX文書を\\sectionで分割。
-        \\sectionがなければ全文を1要素で返す。
+        LaTeX文書を\\section または \\subsection で分割。
+        どちらも存在しなければ全文を1要素で返す。
         """
-        pattern = re.compile(r"^\\section(\*?){.*}$", re.MULTILINE)
+        # ^\section{...}, ^\section*{...}, ^\subsection{...}, ^\subsection*{...} にマッチ
+        pattern = re.compile(r"^\\(?:sub)?section\*?\{.*\}$", re.MULTILINE)
         matches = list(pattern.finditer(latex_text))
 
         if not matches:
