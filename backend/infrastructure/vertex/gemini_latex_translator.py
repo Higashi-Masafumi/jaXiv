@@ -1,13 +1,14 @@
+import asyncio
+import re
+import time
+from logging import getLogger
+
+from domain.entities.latex_file import LatexFile
 from domain.entities.target_language import TargetLanguage
 from domain.repositories import ILatexTranslator
-from domain.entities.latex_file import LatexFile
-from logging import getLogger
 from google import genai
 from google.genai import types
 from utils import optimize_latex_content
-import re
-import time
-import asyncio
 
 
 class VertexGeminiLatexTranslator(ILatexTranslator):

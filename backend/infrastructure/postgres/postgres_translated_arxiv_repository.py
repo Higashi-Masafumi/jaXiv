@@ -8,7 +8,6 @@ from domain.entities.arxiv import (
 )
 from pydantic import HttpUrl
 from logging import getLogger
-from datetime import datetime, timezone
 
 
 class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):

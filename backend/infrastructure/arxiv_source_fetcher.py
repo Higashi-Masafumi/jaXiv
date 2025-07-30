@@ -1,16 +1,17 @@
-from domain.repositories import IArxivSourceFetcher
+import json
+import os
+import tarfile
+from io import BytesIO
+from logging import getLogger
+from pathlib import Path
 from typing import Final
+
+import arxiv
+import requests
+import yaml
 from domain.entities.arxiv import ArxivPaperAuthor, ArxivPaperId, ArxivPaperMetadata
 from domain.entities.compile_setting import CompileSetting
-from logging import getLogger
-import json
-import requests
-import tarfile
-import yaml
-from io import BytesIO
-import os
-from pathlib import Path
-import arxiv
+from domain.repositories import IArxivSourceFetcher
 from pydantic import HttpUrl
 
 
@@ -79,7 +80,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                         for src in readme_data["sources"]
                         if src["usage"] == "toplevel"
                     ),
-                    None,
+                    None,  # type: ignore
                 )
                 compile_engine = readme_data["process"]["compiler"]
                 if target_file_name is None:
@@ -102,7 +103,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                         for src in readme_data["sources"]
                         if src["usage"] == "toplevel"
                     ),
-                    None,
+                    None,  # type: ignore
                 )
                 if target_file_name is None:
                     raise FileNotFoundError(

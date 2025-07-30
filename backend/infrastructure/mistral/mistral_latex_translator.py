@@ -1,10 +1,11 @@
-from domain.repositories import ILatexTranslator
-from domain.entities import LatexFile, TargetLanguage
+import asyncio
+import re
 from logging import getLogger
+
+from domain.entities import LatexFile, TargetLanguage
+from domain.repositories import ILatexTranslator
 from mistralai import Mistral
 from utils.preprocess import optimize_latex_content
-import re
-import asyncio
 
 
 class MistralLatexTranslator(ILatexTranslator):
@@ -73,7 +74,7 @@ class MistralLatexTranslator(ILatexTranslator):
             "2. `%`はlatexにおけるコメントアウトになるので文字として`%`を含めたい場合は`\\%`としてください。\n"
             "3. 数式中の記号 `\\(` `\\)` `$` `&` `\\` `{` `}` は **絶対に削除・全角化しない**。\n"
             "4. `\\label{}` `\\ref{}` `\\cite{}` で括られたキー名は **一文字も変更しない**。\n"
-            "5. カスタムコマンドなど、一般的でないコマンドに関連するものは翻訳せず、そのままにしてください。\n"
+            "5. カスタムコマンドなど、一般的でないコマンドに関連するものは翻訳せず、そのままにしてください。明かに一般的なコマンドで囲まれている文章のみを翻訳してください。\n"
             "6. \\includegraphics は翻訳せず、画像パスをそのままにしてください\n"
             "# 注意事項\n"
             "単なるコマンドの定義ファイルの場合もあるので、その場合はそのままにしてください。\n"
