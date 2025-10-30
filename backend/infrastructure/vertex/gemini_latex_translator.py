@@ -9,8 +9,12 @@ from domain.repositories import ILatexTranslator
 from google import genai
 from google.genai import types
 from utils import optimize_latex_content
+from typing_extensions import deprecated
 
-
+@deprecated(
+    "Gemini is low performance. Use MistralLatexTranslator instead.",
+    category=UserWarning,
+)
 class VertexGeminiLatexTranslator(ILatexTranslator):
     """
     A translator for LaTeX files using Gemini.

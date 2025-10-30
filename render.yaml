@@ -1,0 +1,7 @@
+services:
+  - name: arxiv-translation-service
+    type: web
+    plan: free
+    runtime: docker
+    repo: https://github.com/Higashi-Masafumi/jaXiv
+    dockerfilePath: ./backend/Dockerfile.render

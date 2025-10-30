@@ -6,6 +6,12 @@ from .arxiv import (
 )
 from .latex_file import LatexFile, TranslatedLatexFile
 from .target_language import TargetLanguage
+from .stream import (
+    TypedTranslateChunk,
+    IntermediateTranslateChunk,
+    CompleteTranslateChunk,
+    ErrorTranslateChunk,
+)
 
 # __all__は、このモジュールから外部にエクスポートする公開APIを明示的に定義するものです。
 # "from domain.entities import *" のようなワイルドカードインポートを行った際に、
@@ -15,7 +21,12 @@ __all__ = [
     "CompileSetting",
     "ArxivPaperId",
     "LatexFile",
+    "TranslatedLatexFile",
     "TargetLanguage",
     "ArxivPaperMetadata",
     "ArxivPaperMetadataWithTranslatedUrl",
+    "TypedTranslateChunk",
+    "IntermediateTranslateChunk",
+    "CompleteTranslateChunk",
+    "ErrorTranslateChunk",
 ]

@@ -2,6 +2,7 @@
 resource "google_cloud_run_v2_service" "backend" {
   name               = "${var.app_name}-backend"
   location           = var.region
+  deletion_protection = false
 
   template {
     service_account = google_service_account.cloud_run.email
@@ -84,6 +85,7 @@ resource "google_cloud_run_v2_service" "backend" {
 resource "google_cloud_run_v2_service" "frontend" {
   name               = "${var.app_name}-frontend"
   location           = var.region
+  deletion_protection = false
 
   template {
     service_account = google_service_account.cloud_run.email

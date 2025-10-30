@@ -2,7 +2,6 @@ from domain.repositories import (
     IArxivSourceFetcher,
     IFileStorageRepository,
     ITranslatedArxivRepository,
-    IEventStreamer,
 )
 from domain.entities import (
     ArxivPaperId,
@@ -35,7 +34,6 @@ class SaveTranslatedArxivUsecase:
         self,
         arxiv_paper_id: ArxivPaperId,
         translated_arxiv_pdf_path: str,
-        event_streamer: IEventStreamer,
     ) -> ArxivPaperMetadataWithTranslatedUrl:
         """
         Save a translated arxiv paper.
@@ -52,13 +50,6 @@ class SaveTranslatedArxivUsecase:
         arxiv_paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
             paper_id=arxiv_paper_id
         )
-        # 進捗をストリーミング
-        await event_streamer.stream_event(
-            event_type="progress",
-            message=f"Arxiv {arxiv_paper_id} のメタデータの取得を完了しました。",
-            arxiv_paper_id=arxiv_paper_id.root,
-            progress_percentage=90,
-        )
 
         # 2. 翻訳済み論文のpdfを保存する
         self._logger.info("Saving translated arxiv paper %s", arxiv_paper_id)
@@ -73,13 +64,6 @@ class SaveTranslatedArxivUsecase:
         )
         # pdf_pathの親ディレクトリを削除する
         shutil.rmtree(Path(translated_arxiv_pdf_path).parent)
-        # 進捗をストリーミング
-        await event_streamer.stream_event(
-            event_type="progress",
-            message=f"Arxiv {arxiv_paper_id} の翻訳済み論文のpdfを保存しました。",
-            arxiv_paper_id=arxiv_paper_id.root,
-            progress_percentage=100,
-        )
 
         # 3. 論文のメタデータを更新
         arxiv_paper_metadata_with_translated_url = ArxivPaperMetadataWithTranslatedUrl(
@@ -92,14 +76,6 @@ class SaveTranslatedArxivUsecase:
         self._logger.info("Saving translated arxiv paper metadata %s", arxiv_paper_id)
         self._translated_arxiv_repository.save_translated_paper_metadata(
             translated_paper_metadata=arxiv_paper_metadata_with_translated_url
-        )
-        # 進捗をストリーミング
-        await event_streamer.stream_event(
-            event_type="completed",
-            message=f"Arxiv {arxiv_paper_id} の翻訳済み論文のメタデータを保存しました。翻訳済みのpdfを表示します。",
-            arxiv_paper_id=arxiv_paper_id.root,
-            progress_percentage=100,
-            translated_pdf_url=HttpUrl(translated_arxiv_pdf_url),
         )
 
         return arxiv_paper_metadata_with_translated_url

@@ -1,9 +1,10 @@
 .DS_Store
+.env
 /node_modules/
 
 # React Router
 /.react-router/
 /build/
 
-# Environment variables
-.env
+*storybook.log
+storybook-static

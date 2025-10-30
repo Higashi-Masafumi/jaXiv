@@ -7,8 +7,13 @@ from google.genai import types
 from utils import optimize_latex_content
 import re
 import time
+from typing_extensions import deprecated
 
 
+@deprecated(
+    "Gemini is low performance. Use MistralLatexTranslator instead.",
+    category=UserWarning,
+)
 class GeminiLatexTranslator(ILatexTranslator):
     """
     A translator for LaTeX files using Gemini.

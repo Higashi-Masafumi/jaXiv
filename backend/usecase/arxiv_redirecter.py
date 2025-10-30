@@ -1,4 +1,4 @@
-from domain.repositories import ITranslatedArxivRepository, IEventStreamer
+from domain.repositories import ITranslatedArxivRepository
 from domain.entities import ArxivPaperId, ArxivPaperMetadataWithTranslatedUrl
 from logging import getLogger
 
@@ -11,7 +11,6 @@ class ArxivRedirecter:
     async def redirect(
         self,
         arxiv_paper_id: ArxivPaperId,
-        event_streamer: IEventStreamer,
     ) -> ArxivPaperMetadataWithTranslatedUrl | None:
         translated_paper_metadata = (
             self._translated_arxiv_repository.get_translated_paper_metadata(
@@ -24,12 +23,4 @@ class ArxivRedirecter:
                 arxiv_paper_id,
             )
             return None
-
-        await event_streamer.stream_event(
-            event_type="progress",
-            message=f"Arxiv {arxiv_paper_id.root} はすでに翻訳済みのpdfが存在しますので、翻訳済みのpdfを返却します。",
-            arxiv_paper_id=arxiv_paper_id.root,
-            progress_percentage=100,
-        )
-
         return translated_paper_metadata
