@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "njpwerner.autodocstring",
+    "ms-python.black-formatter",
+    "anthropic.claude-code",
+    "esbenp.prettier-vscode"
+  ]
+}
