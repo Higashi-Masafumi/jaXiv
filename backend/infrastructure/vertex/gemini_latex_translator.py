@@ -2,14 +2,16 @@ import asyncio
 import re
 import time
 from logging import getLogger
+from warnings import deprecated
+
+from google import genai
+from google.genai import types
 
 from domain.entities.latex_file import LatexFile
 from domain.entities.target_language import TargetLanguage
 from domain.repositories import ILatexTranslator
-from google import genai
-from google.genai import types
 from utils import optimize_latex_content
-from typing_extensions import deprecated
+
 
 @deprecated(
     "Gemini is low performance. Use MistralLatexTranslator instead.",
@@ -90,9 +92,7 @@ class VertexGeminiLatexTranslator(ILatexTranslator):
             )
             return ""
         user_prompt = (
-            f"[# 翻訳先言語]\n{target_language}\n"
-            f"[# 翻訳対象のlatexコード]\n"
-            f"{section}\n"
+            f"[# 翻訳先言語]\n{target_language}\n[# 翻訳対象のlatexコード]\n{section}\n"
         )
         response = await self._client.aio.models.generate_content(
             model="gemini-2.5-flash-lite-preview-06-17",

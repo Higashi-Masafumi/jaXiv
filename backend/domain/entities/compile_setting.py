@@ -1,5 +1,6 @@
-from pydantic import BaseModel, StrictStr, Field
 from typing import Literal
+
+from pydantic import BaseModel, Field, StrictStr
 
 
 class CompileSetting(BaseModel):

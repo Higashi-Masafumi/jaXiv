@@ -1,8 +1,9 @@
-from domain.repositories import ILatexCompiler
-from domain.entities.compile_setting import CompileSetting
-from logging import getLogger
-import subprocess
 import os
+import subprocess
+from logging import getLogger
+
+from domain.entities.compile_setting import CompileSetting
+from domain.repositories import ILatexCompiler
 
 
 class LatexCompiler(ILatexCompiler):
@@ -21,7 +22,7 @@ class LatexCompiler(ILatexCompiler):
         target_file_path = os.path.join(
             compile_setting.source_directory, compile_setting.target_file_name
         )
-        with open(target_file_path, "r") as f:
+        with open(target_file_path) as f:
             content = f.read()
         content = content.replace(
             "\\begin{document}",

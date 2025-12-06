@@ -1,13 +1,16 @@
-from sqlmodel import create_engine, Session, select
-from .models import ArxivPaperMetadataWithTranslatedUrlModel
-from domain.repositories import ITranslatedArxivRepository
+from logging import getLogger
+
+from pydantic import HttpUrl
+from sqlmodel import Session, create_engine, select
+
 from domain.entities.arxiv import (
+    ArxivPaperAuthor,
     ArxivPaperId,
     ArxivPaperMetadataWithTranslatedUrl,
-    ArxivPaperAuthor,
 )
-from pydantic import HttpUrl
-from logging import getLogger
+from domain.repositories import ITranslatedArxivRepository
+
+from .models import ArxivPaperMetadataWithTranslatedUrlModel
 
 
 class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
@@ -57,11 +60,14 @@ class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
         with Session(self._engine) as session:
             # 1. すでに同じarxiv_paper_idが存在しないかを確認する
             statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
-                ArxivPaperMetadataWithTranslatedUrlModel.paper_id == translated_paper_metadata.paper_id.root
+                ArxivPaperMetadataWithTranslatedUrlModel.paper_id
+                == translated_paper_metadata.paper_id.root
             )
             result = session.exec(statement).first()
             if result is not None:
-                self._logger.warning("Paper %s already exists", translated_paper_metadata.paper_id.root)
+                self._logger.warning(
+                    "Paper %s already exists", translated_paper_metadata.paper_id.root
+                )
                 return
             # 2. 新しいデータを保存する
             translated_paper_metadata_model = ArxivPaperMetadataWithTranslatedUrlModel(

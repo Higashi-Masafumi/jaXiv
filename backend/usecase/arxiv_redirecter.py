@@ -1,6 +1,7 @@
-from domain.repositories import ITranslatedArxivRepository
-from domain.entities import ArxivPaperId, ArxivPaperMetadataWithTranslatedUrl
 from logging import getLogger
+
+from domain.entities import ArxivPaperId, ArxivPaperMetadataWithTranslatedUrl
+from domain.repositories import ITranslatedArxivRepository
 
 
 class ArxivRedirecter:

@@ -9,10 +9,11 @@ from typing import Final
 import arxiv
 import requests
 import yaml
+from pydantic import HttpUrl
+
 from domain.entities.arxiv import ArxivPaperAuthor, ArxivPaperId, ArxivPaperMetadata
 from domain.entities.compile_setting import CompileSetting
 from domain.repositories import IArxivSourceFetcher
-from pydantic import HttpUrl
 
 
 class ArxivSourceFetcher(IArxivSourceFetcher):
@@ -54,7 +55,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                 raise FileNotFoundError("No tex file found in the source directory")
             # \begin{document}を含むtexファイルを探す
             for tex_file in tex_file_candidates:
-                with open(tex_file, "r") as f:
+                with open(tex_file) as f:
                     if "\\begin{document}" in f.read():
                         target_file_name = tex_file.name
                         break
@@ -72,7 +73,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
         else:
             readme_file = readme_file_candidates[0]
             if readme_file.name.endswith(".json"):
-                with open(readme_file, "r") as f:
+                with open(readme_file) as f:
                     readme_data = json.load(f)
                 target_file_name = next(
                     (
@@ -94,7 +95,7 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
                     source_directory=str(source_dir),
                 )
             elif readme_file.name.endswith(".yaml"):
-                with open(readme_file, "r") as f:
+                with open(readme_file) as f:
                     readme_data = yaml.safe_load(f)
                 compile_engine = readme_data["process"]["compiler"]
                 target_file_name = next(

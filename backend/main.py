@@ -1,10 +1,12 @@
+import logging
+
+import sentry_sdk
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from controller.translate import router
-import logging
-from dotenv import load_dotenv
-import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
+
+from controller.translate import router
 
 load_dotenv()
 
@@ -39,6 +41,7 @@ sentry_sdk.init(
 async def root():
     return {"message": "Hello World"}
 
+
 @app.get("/sentry-debug")
 async def trigger_error():
-    division_by_zero = 1 / 0
+    1 / 0

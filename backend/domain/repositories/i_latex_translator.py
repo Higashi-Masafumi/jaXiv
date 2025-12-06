@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from domain.entities.latex_file import LatexFile
 from domain.entities.target_language import TargetLanguage
 

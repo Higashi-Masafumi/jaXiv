@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from domain.entities.arxiv import ArxivPaperId, ArxivPaperMetadata
 from domain.entities.compile_setting import CompileSetting
 
@@ -25,9 +26,7 @@ class IArxivSourceFetcher(ABC):
         pass
 
     @abstractmethod
-    def fetch_paper_metadata(
-        self, paper_id: ArxivPaperId
-    ) -> ArxivPaperMetadata:
+    def fetch_paper_metadata(self, paper_id: ArxivPaperId) -> ArxivPaperMetadata:
         """
         Fetch the metadata of a paper from arXiv.
 

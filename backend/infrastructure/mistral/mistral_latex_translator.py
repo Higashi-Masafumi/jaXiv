@@ -2,9 +2,10 @@ import asyncio
 import re
 from logging import getLogger
 
+from mistralai import Mistral
+
 from domain.entities import LatexFile, TargetLanguage
 from domain.repositories import ILatexTranslator
-from mistralai import Mistral
 from utils.preprocess import optimize_latex_content
 
 
@@ -86,7 +87,7 @@ class MistralLatexTranslator(ILatexTranslator):
 
     @staticmethod
     def _user_prompt(section: str) -> str:
-        return f"# 翻訳対象のlatexコード\n" f"{section}\n"
+        return f"# 翻訳対象のlatexコード\n{section}\n"
 
     @staticmethod
     def _extract_latex_content(translated_text: str) -> str:

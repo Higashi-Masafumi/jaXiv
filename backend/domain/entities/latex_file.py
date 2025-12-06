@@ -1,5 +1,4 @@
-from os import path
-from pydantic import BaseModel, StrictStr, Field
+from pydantic import BaseModel, Field, StrictStr
 
 
 class LatexFile(BaseModel):

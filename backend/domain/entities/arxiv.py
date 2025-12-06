@@ -1,5 +1,6 @@
-from pydantic import RootModel, BaseModel, Field, StrictStr, HttpUrl, field_validator
-from datetime import datetime, timezone
+from datetime import datetime
+
+from pydantic import BaseModel, Field, HttpUrl, RootModel, StrictStr, field_validator
 
 
 class ArxivPaperId(RootModel[str]):

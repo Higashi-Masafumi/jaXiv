@@ -1,7 +1,8 @@
-from domain.repositories import IFileStorageRepository
-from domain.entities.latex_file import TranslatedLatexFile
-from supabase import create_async_client
 from logging import getLogger
+
+from domain.entities.latex_file import TranslatedLatexFile
+from domain.repositories import IFileStorageRepository
+from supabase import create_async_client
 
 
 class SupabaseStorageRepository(IFileStorageRepository):
@@ -30,14 +31,14 @@ class SupabaseStorageRepository(IFileStorageRepository):
         supabase = await create_async_client(self._supabase_url, self._supabase_key)
         # 2. ファイルのアップロード
         with open(translated_latex_file.path, "rb") as f:
-            response = await supabase.storage.from_(self._bucket_name).upload(
+            await supabase.storage.from_(self._bucket_name).upload(
                 translated_latex_file.storage_path,
                 file=f,
                 file_options={
                     "content-type": "application/pdf",
                     "cache-control": "3600",
                     "x-upsert": "true",
-                }
+                },
             )
         # 3. ファイルのURLの取得
         self._logger.info(

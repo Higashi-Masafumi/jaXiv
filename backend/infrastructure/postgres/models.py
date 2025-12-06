@@ -1,7 +1,7 @@
-from sqlmodel import SQLModel, Field, Column, ARRAY, String
 import uuid
 from datetime import datetime
-from typing import List
+
+from sqlmodel import ARRAY, Column, Field, SQLModel, String
 
 
 class ArxivPaperMetadataWithTranslatedUrlModel(SQLModel, table=True):
@@ -10,7 +10,7 @@ class ArxivPaperMetadataWithTranslatedUrlModel(SQLModel, table=True):
     title: str = Field(description="The title of the paper")
     summary: str = Field(description="The summary of the paper")
     published_date: datetime = Field(description="The date the paper was published")
-    authors: List[str] = Field(
+    authors: list[str] = Field(
         sa_column=Column(ARRAY(String)),
         description="The authors of the paper",
     )

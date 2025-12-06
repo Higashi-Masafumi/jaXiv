@@ -1,22 +1,23 @@
+import asyncio
+import shutil
+from collections.abc import AsyncGenerator
+from logging import getLogger
+from pathlib import Path
+
+from domain.entities import (
+    ArxivPaperId,
+    CompleteTranslateChunk,
+    ErrorTranslateChunk,
+    IntermediateTranslateChunk,
+    LatexFile,
+    TargetLanguage,
+    TypedTranslateChunk,
+)
 from domain.repositories import (
     IArxivSourceFetcher,
     ILatexCompiler,
     ILatexTranslator,
 )
-from domain.entities import (
-    ArxivPaperId,
-    LatexFile,
-    TargetLanguage,
-    TypedTranslateChunk,
-    IntermediateTranslateChunk,
-    CompleteTranslateChunk,
-    ErrorTranslateChunk,
-)
-from logging import getLogger
-import shutil
-from pathlib import Path
-import asyncio
-from typing import AsyncGenerator
 
 
 class TranslateArxivPaper:
@@ -41,7 +42,7 @@ class TranslateArxivPaper:
         target_language: TargetLanguage,
         output_dir: str,
         max_workers: int = 5,
-    ) -> AsyncGenerator[TypedTranslateChunk, None]:
+    ) -> AsyncGenerator[TypedTranslateChunk]:
         """
         Translate an arxiv paper.
 

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from domain.entities.arxiv import ArxivPaperMetadataWithTranslatedUrl, ArxivPaperId
+
+from domain.entities.arxiv import ArxivPaperId, ArxivPaperMetadataWithTranslatedUrl
 
 
 class ITranslatedArxivRepository(ABC):

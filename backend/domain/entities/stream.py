@@ -1,4 +1,5 @@
-from typing import Literal, Generic, TypeVar
+from typing import Generic, Literal, TypeVar
+
 from pydantic import BaseModel, StrictInt, StrictStr
 
 _ChunkType = TypeVar("_ChunkType", bound=Literal["intermediate", "complete", "error"])

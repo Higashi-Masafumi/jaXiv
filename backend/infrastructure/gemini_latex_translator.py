@@ -1,13 +1,15 @@
-from domain.entities.target_language import TargetLanguage
-from domain.repositories import ILatexTranslator
-from domain.entities.latex_file import LatexFile
-from logging import getLogger
-from google import genai
-from google.genai import types
-from utils import optimize_latex_content
 import re
 import time
-from typing_extensions import deprecated
+from logging import getLogger
+from warnings import deprecated
+
+from google import genai
+from google.genai import types
+
+from domain.entities.latex_file import LatexFile
+from domain.entities.target_language import TargetLanguage
+from domain.repositories import ILatexTranslator
+from utils import optimize_latex_content
 
 
 @deprecated(
@@ -34,7 +36,7 @@ class GeminiLatexTranslator(ILatexTranslator):
             "自然な翻訳となるように注意してください。"
         )
         user_instruction = (
-            f"# 依頼事項\n"
+            "# 依頼事項\n"
             "1. コマンドはそのままにしてください。(`\\section`, `\\cite`, `\\begin{}`, `\\ `, math expressions like `$...$`, environments, labels, \\begin{document}, \\end{document}, etc.)\n"
             "2. 自然言語の部分のみを翻訳してください。(section titles, paragraph text, abstract, captions, keywords, etc.)\n"
             "3. コード、数式、参照、ファイルパス、句読点、フォーマットはそのままにしてください。また、空白を勝手に削除しないでください。\n"
