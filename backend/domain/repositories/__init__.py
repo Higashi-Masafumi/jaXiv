@@ -5,9 +5,9 @@ from .i_storage_repository import IFileStorageRepository
 from .i_translated_arxiv_repository import ITranslatedArxivRepository
 
 __all__ = [
-    "IArxivSourceFetcher",
-    "ILatexCompiler",
-    "ILatexTranslator",
-    "ITranslatedArxivRepository",
-    "IFileStorageRepository",
+	'IArxivSourceFetcher',
+	'ILatexCompiler',
+	'ILatexTranslator',
+	'ITranslatedArxivRepository',
+	'IFileStorageRepository',
 ]
