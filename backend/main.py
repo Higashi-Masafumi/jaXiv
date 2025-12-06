@@ -1,12 +1,11 @@
 import logging
 
 import sentry_sdk
+from controller.translate import router
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sentry_sdk.integrations.logging import LoggingIntegration
-
-from controller.translate import router
 
 load_dotenv()
 
