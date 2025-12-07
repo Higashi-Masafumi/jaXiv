@@ -85,16 +85,8 @@ class GeminiLatexTranslator(ILatexTranslator):
 				raise ValueError('Failed to translate section')
 			translated_section = self._clean_latex_text(translated_section)
 			num_tokens = (
-				response.usage_metadata.prompt_token_count
-				if response.usage_metadata
-				else (
-					0 + response.usage_metadata.candidates_token_count
-					if response.usage_metadata
-					else 0
-				)
+				response.usage_metadata.total_token_count if response.usage_metadata else 0
 			)
-			if translated_section is None:
-				raise ValueError('Failed to translate section')
 			end_time = time.time()
 			self._logger.info(
 				'Translated section %d in %f seconds, %d tokens',

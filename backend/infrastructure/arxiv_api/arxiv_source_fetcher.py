@@ -6,7 +6,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import Final
 
-import arxiv
+import arxiv # type: ignore
 import requests
 import yaml
 from pydantic import HttpUrl

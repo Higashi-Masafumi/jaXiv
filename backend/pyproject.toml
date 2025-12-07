@@ -32,4 +32,5 @@ dependencies = [
 dev = [
     "mypy>=1.17.0",
     "ruff>=0.14.8",
+    "types-pyyaml>=6.0.12.20250915",
 ]
