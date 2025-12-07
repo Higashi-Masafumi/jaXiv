@@ -1,3 +1,3 @@
 from .gemini_latex_translator import GeminiLatexTranslator
 
-__all__ = ["GeminiLatexTranslator"]
+__all__ = ['GeminiLatexTranslator']
