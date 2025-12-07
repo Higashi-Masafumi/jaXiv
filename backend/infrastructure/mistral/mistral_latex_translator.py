@@ -48,7 +48,7 @@ class MistralLatexTranslator(ILatexTranslator):
                     UserMessage(content=self._user_prompt(section)),
                 ]
                 chat_response = await self._client.chat.complete_async(
-                    model="codestral-2501",
+                    model="codestral-2508",
                     messages=messages,
                     stream=False,
                 )

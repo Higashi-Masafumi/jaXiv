@@ -74,7 +74,7 @@ class GeminiLatexTranslator(ILatexTranslator):
 				f'[# 翻訳先言語]\n{target_language}\n[# 翻訳対象のlatexコード]\n{section}\n'
 			)
 			response = self._client.models.generate_content(
-				model='gemini-2.5-flash-lite-preview-06-17',
+				model='gemini-2.5-flash',
 				config=types.GenerateContentConfig(
 					system_instruction=system_prompt,
 				),
