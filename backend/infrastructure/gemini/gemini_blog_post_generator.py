@@ -130,7 +130,35 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 		raw_text = response.text or ''
 		match = self.MARKDOWN_FENCE_RE.search(raw_text)
 		if match:
-			return match.group(1).strip()
-		raw_text = re.sub(r'^```[a-z]*\n', '', raw_text.strip())
-		raw_text = re.sub(r'\n```$', '', raw_text)
-		return raw_text.strip()
+			content = match.group(1).strip()
+		else:
+			content = re.sub(r'^```[a-z]*\n', '', raw_text.strip())
+			content = re.sub(r'\n```$', '', content)
+			content = content.strip()
+
+		return self._ensure_math_blank_lines(content)
+
+	@staticmethod
+	def _ensure_math_blank_lines(content: str) -> str:
+		"""$$ の前後に空行を確保（zenn-markdown-html がブロック数式として認識するために必須）。"""
+		lines = content.split('\n')
+		result: list[str] = []
+		in_math = False
+		for line in lines:
+			stripped = line.strip()
+			if stripped == '$$':
+				if not in_math:
+					# 開始 $$: 直前が空行でなければ空行を挿入
+					if result and result[-1].strip() != '':
+						result.append('')
+					in_math = True
+				else:
+					# 終了 $$: そのまま追加（後続行の処理で空行を挿入）
+					in_math = False
+				result.append(line)
+			else:
+				# 終了 $$ の直後に非空行が来たら空行を挿入
+				if not in_math and result and result[-1].strip() == '$$' and stripped != '':
+					result.append('')
+				result.append(line)
+		return '\n'.join(result)
