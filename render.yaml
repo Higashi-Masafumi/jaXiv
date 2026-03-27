@@ -15,7 +15,4 @@ services:
     rootDir: ./frontend
     envVars:
       - key: API_BASE_URL
-        fromService:
-          type: web
-          name: arxiv-translation-service
-          property: hostport
+        value: https://arxiv-translation-service.onrender.com
