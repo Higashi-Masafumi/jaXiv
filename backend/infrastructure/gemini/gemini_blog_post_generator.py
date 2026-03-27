@@ -65,7 +65,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 			config=types.GenerateContentConfig(
 				system_instruction=_SYSTEM_PROMPT,
 			),
-			contents=[user_prompt],
+			contents=user_prompt,
 		)
 
 		raw_text = response.text or ''

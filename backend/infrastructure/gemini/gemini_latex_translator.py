@@ -74,7 +74,7 @@ class GeminiLatexTranslator(ILatexTranslator):
 				config=types.GenerateContentConfig(
 					system_instruction=system_prompt,
 				),
-				contents=[user_instruction, user_prompt],
+				contents=f'{user_instruction}\n{user_prompt}',
 			)
 			translated_section = response.text
 			if translated_section is None:
