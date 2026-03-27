@@ -9,6 +9,7 @@ dependencies = [
     "anthropic[vertex]>=0.57.1",
     "arxiv>=2.2.0",
     "asyncio>=3.4.3",
+    "asyncpg>=0.30.0",
     "fastapi>=0.115.14",
     "feedparser>=6.0.11",
     "google-genai>=1.24.0",

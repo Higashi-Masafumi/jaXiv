@@ -8,9 +8,10 @@ from google import genai
 from google.genai import types
 
 from domain.entities.latex_file import LatexFile
-from domain.entities.target_language import TargetLanguage
-from domain.repositories import ILatexTranslator
-from utils import optimize_latex_content
+from domain.errors import TranslationFailedError
+from domain.gateways import ILatexTranslator
+from domain.services import LatexPreprocessor
+from domain.value_objects import TargetLanguage
 
 
 @deprecated(
@@ -18,9 +19,7 @@ from utils import optimize_latex_content
 	category=UserWarning,
 )
 class VertexGeminiLatexTranslator(ILatexTranslator):
-	"""
-	A translator for LaTeX files using Gemini.
-	"""
+	"""Gateway implementation for translating LaTeX using Vertex AI Gemini."""
 
 	def __init__(self, project_id: str, location: str):
 		self._logger = getLogger(__name__)
@@ -28,14 +27,12 @@ class VertexGeminiLatexTranslator(ILatexTranslator):
 
 	async def translate(self, latex_file: LatexFile, target_language: TargetLanguage) -> LatexFile:
 		sections = self._split_section(latex_file.content)
-		translated_sections: list[str] = []
 		self._logger.info('Begin translating %d sections', len(sections))
-		# 並列実行数を制限する
 		semaphore = asyncio.Semaphore(5)
 
-		async def translate_section(section: str, target_language: TargetLanguage) -> str:
+		async def translate_section(section: str, lang: TargetLanguage) -> str:
 			async with semaphore:
-				return await self._translate_section(section, target_language)
+				return await self._translate_section(section, lang)
 
 		translation_tasks = [translate_section(section, target_language) for section in sections]
 		translated_sections = await asyncio.gather(*translation_tasks)
@@ -75,13 +72,9 @@ class VertexGeminiLatexTranslator(ILatexTranslator):
 			'[# 翻訳先言語]で翻訳先の言語を指定します。\n'
 		)
 		start_time = time.time()
-		# latexコードから不要なコードブロックを除去
-		section = optimize_latex_content(section)
+		section = LatexPreprocessor.optimize(section)
 		if section == '':
-			self._logger.warning(
-				'\t---\n\tEmpty section: %s, Skip\n\t---',
-				section,
-			)
+			self._logger.warning('\t---\n\tEmpty section: %s, Skip\n\t---', section)
 			return ''
 		user_prompt = f'[# 翻訳先言語]\n{target_language}\n[# 翻訳対象のlatexコード]\n{section}\n'
 		response = await self._client.aio.models.generate_content(
@@ -93,49 +86,33 @@ class VertexGeminiLatexTranslator(ILatexTranslator):
 		)
 		translated_section = response.text
 		if translated_section is None:
-			raise ValueError('Failed to translate section')
+			raise TranslationFailedError('Gemini returned None')
 		self._logger.info(
 			'Translated section in %f seconds, %d tokens',
 			time.time() - start_time,
 			response.usage_metadata.total_token_count if response.usage_metadata else 0,
 		)
-		translated_section = self._clean_latex_text(translated_section)
-		return translated_section
+		return self._clean_latex_text(translated_section)
 
 	@staticmethod
 	def _split_section(latex_text: str) -> list[str]:
-		"""
-		LaTeX文書を\\sectionで分割。
-		\\sectionがなければ全文を1要素で返す。
-		"""
 		pattern = re.compile(r'^\\section(\*?){.*}$', re.MULTILINE)
 		matches = list(pattern.finditer(latex_text))
-
 		if not matches:
 			return [latex_text.strip()]
-
 		blocks = []
 		for i, m in enumerate(matches):
 			start = m.start()
 			end = matches[i + 1].start() if i + 1 < len(matches) else len(latex_text)
 			blocks.append(latex_text[start:end].strip())
-
-		# \sectionの前にテキストがあれば先頭に追加
 		pre_text = latex_text[: matches[0].start()].strip()
 		if pre_text:
 			blocks.insert(0, pre_text)
-
 		return blocks
 
 	@staticmethod
 	def _clean_latex_text(latex_text: str) -> str:
-		"""
-		Geminiの出力から不要なコードブロックやタグを除去する。
-		"""
-		# ```latex ... ``` を除去
 		latex_text = re.sub(r'```latex\s*([\s\S]*?)```', r'\1', latex_text)
-		# <latex> ... </latex> を除去
 		latex_text = re.sub(r'<latex>\s*([\s\S]*?)\s*</latex>', r'\1', latex_text)
-		# 他の可能性として ```だけ のものも除去
 		latex_text = re.sub(r'```', '', latex_text)
 		return latex_text.strip()

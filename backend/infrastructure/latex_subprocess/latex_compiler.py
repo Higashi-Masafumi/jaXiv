@@ -2,23 +2,23 @@ import os
 import subprocess
 from logging import getLogger
 
-from domain.entities.compile_setting import CompileSetting
-from domain.repositories import ILatexCompiler
+from domain.errors import LatexCompilationError, LatexCompilationTimeoutError, PdfNotGeneratedError
+from domain.gateways import ILatexCompiler
+from domain.value_objects import CompileSetting
 
 
 class LatexCompiler(ILatexCompiler):
-	"""
-	A latex compiler.
-	"""
+	"""Gateway implementation for compiling LaTeX via latexmk subprocess."""
 
 	def __init__(self):
 		self._logger = getLogger(__name__)
 
 	def compile(self, compile_setting: CompileSetting) -> str:
 		self._logger.info(
-			f'Compiling {compile_setting.target_file_name} with {compile_setting.engine}'
+			'Compiling %s with %s', compile_setting.target_file_name, compile_setting.engine
 		)
-		# 日本語のようなCJK言語を使うため\usepackage{CJK}を追加する
+
+		# Inject CJK support
 		target_file_path = os.path.join(
 			compile_setting.source_directory, compile_setting.target_file_name
 		)
@@ -30,6 +30,7 @@ class LatexCompiler(ILatexCompiler):
 		)
 		with open(target_file_path, 'w') as f:
 			f.write(content)
+
 		cmd = [
 			'latexmk',
 			'-bibtex' if compile_setting.use_bibtex else '',
@@ -40,7 +41,7 @@ class LatexCompiler(ILatexCompiler):
 			compile_setting.target_file_name,
 		]
 
-		self._logger.info(f'Executing command: {cmd}')
+		self._logger.info('Executing command: %s', cmd)
 		try:
 			result = subprocess.run(
 				cmd,
@@ -52,22 +53,25 @@ class LatexCompiler(ILatexCompiler):
 				timeout=60,
 				errors='ignore',
 			)
-			self._logger.info(f'Latex compilation completed successfully {result.stdout}')
+			self._logger.info('Latex compilation completed successfully %s', result.stdout)
 			if result.stderr:
 				self._logger.warning(
-					f'Latex compilation completed with warnings: source_directory={compile_setting.source_directory}, target_file_name={compile_setting.target_file_name}, stderr={result.stderr}'
+					'Latex compilation completed with warnings: source_directory=%s, '
+					'target_file_name=%s, stderr=%s',
+					compile_setting.source_directory,
+					compile_setting.target_file_name,
+					result.stderr,
 				)
 		except subprocess.CalledProcessError as e:
-			self._logger.error(f'Error compiling {compile_setting.target_file_name}: {e}')
-			raise RuntimeError(f'Error compiling {compile_setting.target_file_name}: {e}')
+			self._logger.error('Error compiling %s: %s', compile_setting.target_file_name, e)
+			raise LatexCompilationError(compile_setting.target_file_name, str(e)) from e
 		except subprocess.TimeoutExpired as e:
-			self._logger.error(f'Timeout compiling {compile_setting.target_file_name}: {e}')
-			raise RuntimeError(f'Timeout compiling {compile_setting.target_file_name}: {e}')
+			self._logger.error('Timeout compiling %s: %s', compile_setting.target_file_name, e)
+			raise LatexCompilationTimeoutError(compile_setting.target_file_name) from e
 
-		self._logger.info(f'Compiled {compile_setting.target_file_name}')
-		# compileして生成されたpdfファイルのパスを返す
+		self._logger.info('Compiled %s', compile_setting.target_file_name)
 		pdf_file_name = compile_setting.target_file_name.replace('.tex', '.pdf')
 		pdf_file_path = f'{compile_setting.source_directory}/{pdf_file_name}'
 		if not os.path.exists(pdf_file_path):
-			raise FileNotFoundError(f'PDF file not found: {pdf_file_path}')
+			raise PdfNotGeneratedError(pdf_file_path)
 		return pdf_file_path

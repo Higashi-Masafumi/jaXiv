@@ -1,10 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field, HttpUrl, RootModel, StrictStr, field_validator
+from pydantic import BaseModel, Field, HttpUrl, StrictStr, field_validator
 
-
-class ArxivPaperId(RootModel[str]):
-	root: str
+from domain.value_objects import ArxivPaperId
 
 
 class ArxivPaperAuthor(BaseModel):
@@ -23,7 +21,6 @@ class ArxivPaperMetadata(BaseModel):
 	@classmethod
 	def fix_invalid_published_date(cls, v) -> datetime:
 		if isinstance(v, str):
-			# 不正なタイムゾーン表現を修正
 			if v.endswith('+00'):
 				v = v.replace('+00', '+00:00')
 			try:
@@ -31,6 +28,18 @@ class ArxivPaperMetadata(BaseModel):
 			except ValueError:
 				return datetime.fromisoformat(v)
 		return v
+
+	def with_translated_url(
+		self,
+		translated_file_storage_path: str,
+		translated_url: HttpUrl,
+	) -> 'ArxivPaperMetadataWithTranslatedUrl':
+		"""Create a new entity with translated URL information."""
+		return ArxivPaperMetadataWithTranslatedUrl(
+			**self.model_dump(),
+			translated_file_storage_path=translated_file_storage_path,
+			translated_url=translated_url,
+		)
 
 
 class ArxivPaperMetadataWithTranslatedUrl(ArxivPaperMetadata):

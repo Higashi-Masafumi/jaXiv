@@ -1,11 +1,13 @@
 from typing import Generic, Literal, TypeVar
 
-from pydantic import BaseModel, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
 
 _ChunkType = TypeVar('_ChunkType', bound=Literal['intermediate', 'complete', 'error'])
 
 
 class _TranslateChunk(BaseModel, Generic[_ChunkType]):
+	model_config = ConfigDict(frozen=True)
+
 	type: _ChunkType
 	message: StrictStr
 	progress_percentage: StrictInt

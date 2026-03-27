@@ -1,49 +1,35 @@
 from abc import ABC, abstractmethod
 
-from domain.entities.arxiv import ArxivPaperId, ArxivPaperMetadataWithTranslatedUrl
+from domain.entities.arxiv import ArxivPaperMetadataWithTranslatedUrl
+from domain.value_objects import ArxivPaperId
 
 
 class ITranslatedArxivRepository(ABC):
-	"""
-	A repository for fetching the translated metadata of a paper from arXiv.
-	"""
+	"""Repository for persisting and retrieving translated arXiv paper metadata."""
 
 	@abstractmethod
-	def get_translated_paper_metadata(
+	async def find_by_paper_id(
 		self, paper_id: ArxivPaperId
 	) -> ArxivPaperMetadataWithTranslatedUrl | None:
 		"""
-		Fetch the translated metadata of a paper from arXiv.
+		Find translated paper metadata by paper ID.
 
 		Args:
-		    paper_id (ArxivPaperId): The ID of the paper to fetch the translated metadata for.
+		    paper_id: The arXiv paper ID.
 
 		Returns:
-		    ArxivPaperMetadataWithTranslatedUrl: The translated metadata of the paper.
-
-		>>> fetch_translated_paper_metadata(ArxivPaperId('1234.5678'))
-		ArxivPaperMetadataWithTranslatedUrl(
-		    paper_id=ArxivPaperId("1234.5678"),
-		    title="The title of the paper",
-		    summary="The summary of the paper",
-		    published_date=PastDate(2021, 1, 1),
-		)
-		>>> fetch_translated_paper_metadata(ArxivPaperId('1234.5678')) is None
-		True
+		    The translated metadata, or None if not found.
 		"""
-		pass
+		...
 
 	@abstractmethod
-	def save_translated_paper_metadata(
+	async def save(
 		self, translated_paper_metadata: ArxivPaperMetadataWithTranslatedUrl
 	) -> None:
 		"""
-		Save the translated metadata of a paper to the database.
+		Save translated paper metadata.
 
 		Args:
-		    translated_paper_metadata (ArxivPaperMetadataWithTranslatedUrl): The translated metadata of the paper to save.
-
-		Returns:
-		    None
+		    translated_paper_metadata: The metadata to save.
 		"""
-		pass
+		...
