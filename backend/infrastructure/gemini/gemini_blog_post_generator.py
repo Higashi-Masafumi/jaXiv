@@ -18,7 +18,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 	def __init__(
 		self,
 		api_key: str,
-		model: str = 'gemini-3.1-flash-lite-preview',
+		model: str = 'gemini-2.5-flash',
 		max_latex_chars: int = 80_000,
 	):
 		self.client = genai.Client(api_key=api_key)
