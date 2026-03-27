@@ -79,7 +79,7 @@ class VertexGeminiLatexTranslator(ILatexTranslator):
 		user_prompt = f'[# 翻訳先言語]\n{target_language}\n[# 翻訳対象のlatexコード]\n{section}\n'
 		response = await self._client.aio.models.generate_content(
 			model='gemini-2.5-flash-lite-preview-06-17',
-			contents=[user_prompt],
+			contents=user_prompt,
 			config=types.GenerateContentConfig(
 				system_instruction=system_prompt,
 			),
