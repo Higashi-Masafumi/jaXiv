@@ -6,3 +6,15 @@ services:
     repo: https://github.com/Higashi-Masafumi/jaXiv
     dockerfilePath: Dockerfile.render
     rootDir: ./backend
+  - name: jaxiv-frontend
+    type: web
+    plan: free
+    runtime: docker
+    repo: https://github.com/Higashi-Masafumi/jaXiv
+    dockerfilePath: Dockerfile
+    rootDir: ./frontend
+    envVars:
+      - key: API_BASE_URL
+        fromService:
+          type: web
+          name: arxiv-translation-service
