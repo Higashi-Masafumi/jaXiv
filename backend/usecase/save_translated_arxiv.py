@@ -5,21 +5,19 @@ from pathlib import Path
 from pydantic import HttpUrl
 
 from domain.entities import (
-	ArxivPaperId,
 	ArxivPaperMetadataWithTranslatedUrl,
 	TranslatedLatexFile,
 )
+from domain.gateways import IArxivSourceFetcher
 from domain.repositories import (
-	IArxivSourceFetcher,
 	IFileStorageRepository,
 	ITranslatedArxivRepository,
 )
+from domain.value_objects import ArxivPaperId
 
 
 class SaveTranslatedArxivUsecase:
-	"""
-	Save a translated arxiv paper.
-	"""
+	"""Use case for saving a translated arXiv paper to storage and database."""
 
 	def __init__(
 		self,
@@ -32,52 +30,49 @@ class SaveTranslatedArxivUsecase:
 		self._file_storage_repository = file_storage_repository
 		self._arxiv_source_fetcher = arxiv_source_fetcher
 
-	async def save_translated_arxiv(
+	async def execute(
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		translated_arxiv_pdf_path: str,
 	) -> ArxivPaperMetadataWithTranslatedUrl:
 		"""
-		Save a translated arxiv paper.
+		Save a translated arXiv paper.
 
 		Args:
-		    arxiv_paper_id (ArxivPaperId): The ID of the paper to save.
-		    translated_arxiv_pdf_path (str): The path to the translated arxiv pdf file.
+		    arxiv_paper_id: The arXiv paper ID.
+		    translated_arxiv_pdf_path: Local path to the translated PDF.
 
 		Returns:
-		    ArxivPaperMetadataWithTranslatedUrl: The metadata of the saved paper.
+		    Metadata with the translated URL.
 		"""
-		self._logger.info('Saving translated arxiv paper %s', arxiv_paper_id)
-		# 1. 論文のメタデータを取得
+		self._logger.info('Saving translated arxiv paper %s', arxiv_paper_id.value)
+
+		# 1. Fetch paper metadata
 		arxiv_paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
 			paper_id=arxiv_paper_id
 		)
 
-		# 2. 翻訳済み論文のpdfを保存する
-		self._logger.info('Saving translated arxiv paper %s', arxiv_paper_id)
-		translated_latex_file = TranslatedLatexFile(
+		# 2. Upload translated PDF
+		translated_file = TranslatedLatexFile(
 			path=translated_arxiv_pdf_path,
-			storage_path=f'{arxiv_paper_id.root}_translated.pdf',
+			storage_path=f'{arxiv_paper_id.value}_translated.pdf',
 		)
-		translated_arxiv_pdf_url = (
-			await self._file_storage_repository.save_translated_latex_file_and_get_url(
-				translated_latex_file=translated_latex_file
-			)
+		translated_pdf_url = await self._file_storage_repository.save_translated_file_and_get_url(
+			translated_file=translated_file
 		)
-		# pdf_pathの親ディレクトリを削除する
+
+		# 3. Clean up local files
 		shutil.rmtree(Path(translated_arxiv_pdf_path).parent)
 
-		# 3. 論文のメタデータを更新
-		arxiv_paper_metadata_with_translated_url = ArxivPaperMetadataWithTranslatedUrl(
-			**arxiv_paper_metadata.model_dump(),
-			translated_file_storage_path=translated_latex_file.storage_path,
-			translated_url=HttpUrl(translated_arxiv_pdf_url),
+		# 4. Create metadata with translated URL
+		metadata_with_url = arxiv_paper_metadata.with_translated_url(
+			translated_file_storage_path=translated_file.storage_path,
+			translated_url=HttpUrl(translated_pdf_url),
 		)
 
-		# 4. 論文のメタデータを保存
-		self._logger.info('Saving translated arxiv paper metadata %s', arxiv_paper_id)
-		self._translated_arxiv_repository.save_translated_paper_metadata(
-			translated_paper_metadata=arxiv_paper_metadata_with_translated_url
+		# 5. Persist metadata
+		await self._translated_arxiv_repository.save(
+			translated_paper_metadata=metadata_with_url
 		)
 
-		return arxiv_paper_metadata_with_translated_url
+		return metadata_with_url

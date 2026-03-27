@@ -1,84 +1,71 @@
 from logging import getLogger
 
 from pydantic import HttpUrl
-from sqlmodel import Session, create_engine, select
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from domain.entities.arxiv import (
-	ArxivPaperAuthor,
-	ArxivPaperId,
-	ArxivPaperMetadataWithTranslatedUrl,
+    ArxivPaperAuthor,
+    ArxivPaperMetadataWithTranslatedUrl,
 )
 from domain.repositories import ITranslatedArxivRepository
+from domain.value_objects import ArxivPaperId
 
 from .models import ArxivPaperMetadataWithTranslatedUrlModel
 
 
 class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
-	def __init__(self, postgres_url: str):
-		self._engine = create_engine(postgres_url)
-		self._logger = getLogger(__name__)
+    """Repository implementation using PostgreSQL via SQLAlchemy AsyncSession."""
 
-	def get_translated_paper_metadata(
-		self, paper_id: ArxivPaperId
-	) -> ArxivPaperMetadataWithTranslatedUrl | None:
-		"""
-		Fetch the translated metadata of a paper from arXiv.
+    def __init__(self, session: AsyncSession):
+        self._session = session
+        self._logger = getLogger(__name__)
 
-		Args:
-		    paper_id (ArxivPaperId): The ID of the paper to fetch the translated metadata for.
+    async def find_by_paper_id(
+        self, paper_id: ArxivPaperId
+    ) -> ArxivPaperMetadataWithTranslatedUrl | None:
+        statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
+            col(ArxivPaperMetadataWithTranslatedUrlModel.paper_id) == paper_id.value
+        )
+        result = await self._session.execute(statement)
+        row = result.scalars().first()
+        if row is None:
+            return None
+        return ArxivPaperMetadataWithTranslatedUrl(
+            paper_id=ArxivPaperId(value=row.paper_id),
+            title=row.title,
+            summary=row.summary,
+            published_date=row.published_date,
+            authors=[ArxivPaperAuthor(name=author) for author in row.authors],
+            source_url=HttpUrl(row.source_url),
+            translated_url=HttpUrl(row.translated_url),
+            translated_file_storage_path=row.translated_file_storage_path,
+        )
 
-		Returns:
-		    ArxivPaperMetadataWithTranslatedUrl | None: The translated metadata of the paper.
-		"""
-		with Session(self._engine) as session:
-			statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
-				ArxivPaperMetadataWithTranslatedUrlModel.paper_id == paper_id.root
-			)
-			result = session.exec(statement).first()
-			if result is None:
-				return None
-			return ArxivPaperMetadataWithTranslatedUrl(
-				paper_id=ArxivPaperId(root=result.paper_id),
-				title=result.title,
-				summary=result.summary,
-				published_date=result.published_date,
-				authors=[ArxivPaperAuthor(name=author) for author in result.authors],
-				source_url=HttpUrl(result.source_url),
-				translated_url=HttpUrl(result.translated_url),
-				translated_file_storage_path=result.translated_file_storage_path,
-			)
-
-	def save_translated_paper_metadata(
-		self, translated_paper_metadata: ArxivPaperMetadataWithTranslatedUrl
-	) -> None:
-		"""
-		Save the translated metadata of a paper to arXiv.
-
-		Args:
-		    translated_paper_metadata (ArxivPaperMetadataWithTranslatedUrl): The translated metadata of the paper to save.
-		"""
-		with Session(self._engine) as session:
-			# 1. すでに同じarxiv_paper_idが存在しないかを確認する
-			statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
-				ArxivPaperMetadataWithTranslatedUrlModel.paper_id
-				== translated_paper_metadata.paper_id.root
-			)
-			result = session.exec(statement).first()
-			if result is not None:
-				self._logger.warning(
-					'Paper %s already exists', translated_paper_metadata.paper_id.root
-				)
-				return
-			# 2. 新しいデータを保存する
-			translated_paper_metadata_model = ArxivPaperMetadataWithTranslatedUrlModel(
-				paper_id=translated_paper_metadata.paper_id.root,
-				title=translated_paper_metadata.title,
-				summary=translated_paper_metadata.summary,
-				published_date=translated_paper_metadata.published_date,
-				authors=[author.name for author in translated_paper_metadata.authors],
-				source_url=str(translated_paper_metadata.source_url),
-				translated_url=str(translated_paper_metadata.translated_url),
-				translated_file_storage_path=translated_paper_metadata.translated_file_storage_path,
-			)
-			session.add(translated_paper_metadata_model)
-			session.commit()
+    async def save(
+        self, translated_paper_metadata: ArxivPaperMetadataWithTranslatedUrl
+    ) -> None:
+        statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
+            col(ArxivPaperMetadataWithTranslatedUrlModel.paper_id)
+            == translated_paper_metadata.paper_id.value
+        )
+        result = await self._session.execute(statement)
+        existing = result.scalars().first()
+        if existing is not None:
+            self._logger.warning(
+                'Paper %s already exists', translated_paper_metadata.paper_id.value
+            )
+            return
+        model = ArxivPaperMetadataWithTranslatedUrlModel(
+            paper_id=translated_paper_metadata.paper_id.value,
+            title=translated_paper_metadata.title,
+            summary=translated_paper_metadata.summary,
+            published_date=translated_paper_metadata.published_date,
+            authors=[author.name for author in translated_paper_metadata.authors],
+            source_url=str(translated_paper_metadata.source_url),
+            translated_url=str(translated_paper_metadata.translated_url),
+            translated_file_storage_path=translated_paper_metadata.translated_file_storage_path,
+        )
+        self._session.add(model)
+        await self._session.flush()

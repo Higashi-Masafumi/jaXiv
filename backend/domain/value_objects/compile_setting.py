@@ -1,12 +1,12 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 
 class CompileSetting(BaseModel):
-	"""
-	A compile setting.
-	"""
+	"""Value Object representing LaTeX compile settings."""
+
+	model_config = ConfigDict(frozen=True)
 
 	engine: Literal['pdflatex', 'xelatex', 'lualatex'] = Field(
 		default='pdflatex',

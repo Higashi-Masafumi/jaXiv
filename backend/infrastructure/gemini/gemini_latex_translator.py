@@ -7,9 +7,9 @@ from google import genai
 from google.genai import types
 
 from domain.entities.latex_file import LatexFile
-from domain.entities.target_language import TargetLanguage
-from domain.repositories import ILatexTranslator
-from utils import optimize_latex_content
+from domain.gateways import ILatexTranslator
+from domain.services import LatexPreprocessor
+from domain.value_objects import TargetLanguage
 
 
 @deprecated(
@@ -17,9 +17,7 @@ from utils import optimize_latex_content
 	category=UserWarning,
 )
 class GeminiLatexTranslator(ILatexTranslator):
-	"""
-	A translator for LaTeX files using Gemini.
-	"""
+	"""Gateway implementation for translating LaTeX using Gemini API."""
 
 	def __init__(self, api_key: str):
 		self._api_key = api_key
@@ -62,9 +60,7 @@ class GeminiLatexTranslator(ILatexTranslator):
 		self._logger.info('Begin translating %d sections', len(sections))
 		for i, section in enumerate(sections):
 			self._logger.info('Translating section %d', i)
-			# 前処理
-			section = optimize_latex_content(section)
-			# 空のセクションはスキップ
+			section = LatexPreprocessor.optimize(section)
 			if section == '':
 				self._logger.warning('Section %d is empty. Skip.', i)
 				translated_sections.append(section)
@@ -100,38 +96,23 @@ class GeminiLatexTranslator(ILatexTranslator):
 
 	@staticmethod
 	def _split_section(latex_text: str) -> list[str]:
-		"""
-		LaTeX文書を\\sectionで分割。
-		\\sectionがなければ全文を1要素で返す。
-		"""
 		pattern = re.compile(r'^\\section(\*?){.*}$', re.MULTILINE)
 		matches = list(pattern.finditer(latex_text))
-
 		if not matches:
 			return [latex_text.strip()]
-
 		blocks = []
 		for i, m in enumerate(matches):
 			start = m.start()
 			end = matches[i + 1].start() if i + 1 < len(matches) else len(latex_text)
 			blocks.append(latex_text[start:end].strip())
-
-		# \sectionの前にテキストがあれば先頭に追加
 		pre_text = latex_text[: matches[0].start()].strip()
 		if pre_text:
 			blocks.insert(0, pre_text)
-
 		return blocks
 
 	@staticmethod
 	def _clean_latex_text(latex_text: str) -> str:
-		"""
-		Geminiの出力から不要なコードブロックやタグを除去する。
-		"""
-		# ```latex ... ``` を除去
 		latex_text = re.sub(r'```latex\s*([\s\S]*?)```', r'\1', latex_text)
-		# <latex> ... </latex> を除去
 		latex_text = re.sub(r'<latex>\s*([\s\S]*?)\s*</latex>', r'\1', latex_text)
-		# 他の可能性として ```だけ のものも除去
 		latex_text = re.sub(r'```', '', latex_text)
 		return latex_text.strip()
