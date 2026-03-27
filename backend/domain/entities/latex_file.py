@@ -16,6 +16,4 @@ class TranslatedLatexFile(BaseModel):
 	model_config = ConfigDict(frozen=True)
 
 	path: StrictStr = Field(description='The local path of the translated pdf file')
-	storage_path: StrictStr = Field(
-		description='The path of the translated file in the storage'
-	)
+	storage_path: StrictStr = Field(description='The path of the translated file in the storage')

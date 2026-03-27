@@ -71,8 +71,6 @@ class SaveTranslatedArxivUsecase:
 		)
 
 		# 5. Persist metadata
-		await self._translated_arxiv_repository.save(
-			translated_paper_metadata=metadata_with_url
-		)
+		await self._translated_arxiv_repository.save(translated_paper_metadata=metadata_with_url)
 
 		return metadata_with_url

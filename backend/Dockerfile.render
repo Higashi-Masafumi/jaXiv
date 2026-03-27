@@ -3,7 +3,7 @@ FROM python:3.13-slim
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     texlive-full \
-    latexmk ghostscript \
+    latexmk ghostscript poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 # Install Python package manager
 RUN pip install uv

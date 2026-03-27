@@ -7,9 +7,7 @@ class IFileStorageRepository(ABC):
 	"""Repository for storing and retrieving translated files."""
 
 	@abstractmethod
-	async def save_translated_file_and_get_url(
-		self, translated_file: TranslatedLatexFile
-	) -> str:
+	async def save_translated_file_and_get_url(self, translated_file: TranslatedLatexFile) -> str:
 		"""
 		Save a translated file and return its public URL.
 

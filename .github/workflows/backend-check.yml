@@ -29,3 +29,10 @@ jobs:
         run: uv run ruff check . --fix
       - name: Check typing
         run: uv run mypy .
+      - name: Check OpenAPI schema diff
+        run: |
+          if git diff --name-only origin/main...HEAD | grep -q 'openapi.json'; then
+            echo "openapi.json has uncommitted changes against main"
+            exit 1
+          fi
+          echo "OpenAPI schema is up to date"

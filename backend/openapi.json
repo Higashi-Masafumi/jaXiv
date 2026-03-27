@@ -1,0 +1,353 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Translate Arxiv Paper",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/translate/arxiv/{arxiv_paper_id}": {
+      "post": {
+        "summary": "Translate Sync",
+        "operationId": "translate_sync_api_v1_translate_arxiv__arxiv_paper_id__post",
+        "parameters": [
+          {
+            "name": "arxiv_paper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the paper",
+              "title": "Arxiv Paper Id"
+            },
+            "description": "The ID of the paper"
+          },
+          {
+            "name": "target_language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TargetLanguage",
+              "description": "The target language"
+            },
+            "description": "The target language"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslateResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/translate/arxiv/{arxiv_paper_id}/stream": {
+      "get": {
+        "summary": "Translate Stream",
+        "operationId": "translate_stream_api_v1_translate_arxiv__arxiv_paper_id__stream_get",
+        "parameters": [
+          {
+            "name": "arxiv_paper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the paper",
+              "title": "Arxiv Paper Id"
+            },
+            "description": "The ID of the paper"
+          },
+          {
+            "name": "target_language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TargetLanguage",
+              "description": "The target language"
+            },
+            "description": "The target language"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blog/arxiv/{arxiv_paper_id}": {
+      "post": {
+        "summary": "Generate Blog",
+        "operationId": "generate_blog_api_v1_blog_arxiv__arxiv_paper_id__post",
+        "parameters": [
+          {
+            "name": "arxiv_paper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The arXiv paper ID",
+              "title": "Arxiv Paper Id"
+            },
+            "description": "The arXiv paper ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlogPostResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get Blog",
+        "operationId": "get_blog_api_v1_blog_arxiv__arxiv_paper_id__get",
+        "parameters": [
+          {
+            "name": "arxiv_paper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The arXiv paper ID",
+              "title": "Arxiv Paper Id"
+            },
+            "description": "The arXiv paper ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlogPostResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sentry-debug": {
+      "get": {
+        "summary": "Trigger Error",
+        "operationId": "trigger_error_sentry_debug_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BlogPostResponseSchema": {
+        "properties": {
+          "paper_id": {
+            "type": "string",
+            "title": "Paper Id"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "paper_id",
+          "content",
+          "title",
+          "summary",
+          "authors",
+          "source_url",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "BlogPostResponseSchema"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "TargetLanguage": {
+        "type": "string",
+        "enum": [
+          "japanese"
+        ],
+        "title": "TargetLanguage",
+        "description": "The target language for translation."
+      },
+      "TranslateResponseSchema": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "translated_pdf_url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Translated Pdf Url"
+          },
+          "translated_language": {
+            "type": "string",
+            "title": "Translated Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "translated_pdf_url",
+          "translated_language"
+        ],
+        "title": "TranslateResponseSchema"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

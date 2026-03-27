@@ -54,6 +54,14 @@ body {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-hero-background: var(--background);
+  --color-hero-foreground: var(--foreground);
+  --color-hero-muted: var(--muted-foreground);
+  --color-hero-accent: var(--primary);
+  --color-hero-accent-soft: var(--primary);
+  --color-hero-accent-secondary-soft: var(--secondary);
+  --color-hero-card: var(--card);
+  --color-hero-card-border: var(--border);
 }
 
 :root {
