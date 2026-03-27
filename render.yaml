@@ -18,3 +18,4 @@ services:
         fromService:
           type: web
           name: arxiv-translation-service
+          property: hostport
