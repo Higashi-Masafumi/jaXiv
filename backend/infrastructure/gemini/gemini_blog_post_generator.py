@@ -47,6 +47,10 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 		- 数式は KaTeX 互換の LaTeX 記法で記述してください。以下のルールを厳守すること：
 		- インライン数式は `$...$`、ブロック数式は `$$...$$` で囲む
 		- `$` や `$$` の内側にさらに `$` を入れないこと（ネスト禁止）
+		- 論文ソース中の `\\newcommand` / `\\def` で定義されたカスタムマクロは絶対にそのまま使わず、標準的な KaTeX コマンドに展開すること。例：
+			- `\\E` → `\\mathbb{E}`, `\\x` → `\\mathbf{x}`, `\\R` → `\\mathbb{R}` など
+			- `\\TurboQuant` のような独自命名はプレーンテキストに置き換える
+			- `\\left< \\right>` → `\\left\\langle \\right\\rangle`
 		- 旧式フォントコマンド（`\\tt`, `\\bf`, `\\it`, `\\rm`, `\\sf`, `\\sc`）は使用禁止。代わりに以下を使う：
 			- `\\tt` → `\\texttt{}` または数式中なら `\\mathtt{}`
 			- `\\bf` → `\\textbf{}` または `\\mathbf{}`
