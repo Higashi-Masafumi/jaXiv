@@ -16,7 +16,7 @@ def create_async_session_factory(postgres_url: str) -> async_sessionmaker[AsyncS
     else:
         async_url = postgres_url
 
-    engine = create_async_engine(async_url, echo=False)
+    engine = create_async_engine(async_url, echo=False, connect_args={"ssl": "require"})
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
