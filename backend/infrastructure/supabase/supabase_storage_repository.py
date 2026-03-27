@@ -14,9 +14,7 @@ class SupabaseStorageRepository(IFileStorageRepository):
 		self._bucket_name = bucket_name
 		self._logger = getLogger(__name__)
 
-	async def save_translated_file_and_get_url(
-		self, translated_file: TranslatedLatexFile
-	) -> str:
+	async def save_translated_file_and_get_url(self, translated_file: TranslatedLatexFile) -> str:
 		self._logger.info('Saving translated file %s', translated_file.storage_path)
 		supabase = await create_async_client(self._supabase_url, self._supabase_key)
 		with open(translated_file.path, 'rb') as f:

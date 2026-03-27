@@ -23,9 +23,7 @@ class ITranslatedArxivRepository(ABC):
 		...
 
 	@abstractmethod
-	async def save(
-		self, translated_paper_metadata: ArxivPaperMetadataWithTranslatedUrl
-	) -> None:
+	async def save(self, translated_paper_metadata: ArxivPaperMetadataWithTranslatedUrl) -> None:
 		"""
 		Save translated paper metadata.
 

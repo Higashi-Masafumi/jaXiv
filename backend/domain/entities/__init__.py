@@ -3,6 +3,7 @@ from .arxiv import (
 	ArxivPaperMetadata,
 	ArxivPaperMetadataWithTranslatedUrl,
 )
+from .blog import BlogPost
 from .latex_file import LatexFile, TranslatedLatexFile
 from .stream import (
 	CompleteTranslateChunk,
@@ -15,6 +16,7 @@ __all__ = [
 	'ArxivPaperAuthor',
 	'ArxivPaperMetadata',
 	'ArxivPaperMetadataWithTranslatedUrl',
+	'BlogPost',
 	'LatexFile',
 	'TranslatedLatexFile',
 	'TypedTranslateChunk',

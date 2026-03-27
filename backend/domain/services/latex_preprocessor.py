@@ -20,9 +20,7 @@ class LatexPreprocessor:
 		return cleaned
 
 	@staticmethod
-	def _remove_excessive_line_breaks(
-		latex_content: str, max_consecutive_breaks: int = 2
-	) -> str:
+	def _remove_excessive_line_breaks(latex_content: str, max_consecutive_breaks: int = 2) -> str:
 		if not latex_content:
 			return latex_content
 		pattern = r'\n{' + str(max_consecutive_breaks + 1) + r',}'
