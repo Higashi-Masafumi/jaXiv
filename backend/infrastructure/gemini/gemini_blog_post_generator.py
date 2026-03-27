@@ -1,6 +1,8 @@
+import mimetypes
 import re
 from logging import getLogger
 from pathlib import Path
+from typing import ClassVar, Final
 
 from google import genai
 from google.genai import types
@@ -8,7 +10,29 @@ from google.genai import types
 from domain.entities.arxiv import ArxivPaperMetadata
 from domain.gateways import IBlogPostGenerator
 
-_SYSTEM_PROMPT = """\
+
+class GeminiBlogPostGenerator(IBlogPostGenerator):
+	"""Gateway implementation for generating blog posts using Gemini API."""
+
+	IMAGE_EXTENSIONS: ClassVar[frozenset[str]] = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp'})
+	MARKDOWN_FENCE_RE: ClassVar[re.Pattern[str]] = re.compile(r'```markdown\s*([\s\S]*?)```')
+
+	def __init__(
+		self,
+		api_key: str,
+		model: str = 'gemini-3-flash',
+		max_images: int = 20,
+		max_latex_chars: int = 80_000,
+	):
+		self.client = genai.Client(api_key=api_key)
+		self.logger = getLogger(__name__)
+		self.model: Final[str] = model
+		self.max_images: Final[int] = max_images
+		self.max_latex_chars: Final[int] = max_latex_chars
+
+	@property
+	def system_prompt(self) -> str:
+		return """\
 あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
 与えられた arXiv 論文の情報をもとに、一般の読者にも理解しやすい日本語のブログ記事を Markdown 形式で執筆してください。
 
@@ -24,18 +48,21 @@ _SYSTEM_PROMPT = """\
 - Markdown のセクションヘッダは `##` から使用してください（`#` はタイトル用）
 - 図が提供されている場合は、適切な位置に `![図の説明](URL)` として埋め込んでください
 - 画像URL（png/jpg/webp/svg など）のみ `![...]` で埋め込み、PDF URL は `[図の説明](URL)` の通常リンクにしてください
-- 数式は LaTeX 記法（`$...$` や `$$...$$`）のままで構いません
+- 数式は KaTeX 互換の LaTeX 記法で記述してください。以下のルールを厳守すること：
+  - インライン数式は `$...$`、ブロック数式は `$$...$$` で囲む
+  - `$` や `$$` の内側にさらに `$` を入れないこと（ネスト禁止）
+  - 旧式フォントコマンド（`\\tt`, `\\bf`, `\\it`, `\\rm`, `\\sf`, `\\sc`）は使用禁止。代わりに以下を使う：
+    - `\\tt` → `\\texttt{}` または数式中なら `\\mathtt{}`
+    - `\\bf` → `\\textbf{}` または `\\mathbf{}`
+    - `\\it` → `\\textit{}` または `\\mathit{}`
+    - `\\rm` → `\\textrm{}` または `\\mathrm{}`
+  - 数式中にテキストを入れる場合は `\\text{}` を使用（`\\mbox{}` や `\\hbox{}` は不可）
+  - KaTeX 非対応のコマンド例：`\\newcommand`, `\\def`, `\\DeclareMathOperator`, `\\usepackage`, `\\eqref`（`\\ref` を使う）
+  - `aligned`, `cases`, `matrix`, `bmatrix`, `pmatrix` 等の基本環境は使用可能
+  - `\\label{}` と `\\ref{}` はブログ記事では使わず、文脈で説明すること
 - 専門用語は初出時に簡単な説明を加えてください
 - 出力は Markdown コードブロック（```markdown ... ```）で囲んでください
 """
-
-
-class GeminiBlogPostGenerator(IBlogPostGenerator):
-	"""Gateway implementation for generating blog posts using Gemini API."""
-
-	def __init__(self, api_key: str):
-		self._client = genai.Client(api_key=api_key)
-		self._logger = getLogger(__name__)
 
 	async def generate(
 		self,
@@ -43,10 +70,31 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 		latex_source_dir: Path,
 		figure_urls: dict[str, str],
 	) -> str:
-		latex_content = self._read_latex_content(latex_source_dir)
-		authors_str = ', '.join(a.name for a in paper_metadata.authors)
-		figure_section = self._build_figure_section(figure_urls)
+		# LaTeX ソース読み込み
+		tex_parts: list[str] = []
+		total = 0
+		for tex_file in sorted(latex_source_dir.rglob('*.tex')):
+			try:
+				text = tex_file.read_text(encoding='utf-8', errors='ignore')
+				if total + len(text) > self.max_latex_chars:
+					tex_parts.append(text[: self.max_latex_chars - total])
+					break
+				tex_parts.append(text)
+				total += len(text)
+			except Exception:
+				self.logger.warning('Failed to read %s', tex_file, exc_info=True)
+		latex_content = '\n\n'.join(tex_parts)
 
+		# 図URL一覧セクション
+		figure_section = ''
+		if figure_urls:
+			lines = ['# 利用可能な図のURL\n']
+			for filename, url in figure_urls.items():
+				lines.append(f'- {filename}: {url}')
+			lines.append('\n')
+			figure_section = '\n'.join(lines)
+
+		authors_str = ', '.join(a.name for a in paper_metadata.authors)
 		user_prompt = (
 			f'# 論文情報\n'
 			f'- タイトル: {paper_metadata.title}\n'
@@ -59,52 +107,45 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 			'上記の情報をもとに、日本語のブログ記事を Markdown 形式で作成してください。'
 		)
 
-		self._logger.info('Generating blog post for paper %s', paper_metadata.paper_id.value)
-		response = self._client.models.generate_content(
-			model='gemini-2.5-flash',
+		# 画像ファイル収集（マルチモーダル入力用）
+		image_files = sorted(
+			(f for f in latex_source_dir.rglob('*') if f.suffix.lower() in self.IMAGE_EXTENSIONS),
+			key=lambda f: f.name,
+		)
+		image_parts: list[types.Part | str] = []
+		for img_file in image_files[: self.max_images]:
+			try:
+				data = img_file.read_bytes()
+				mime = mimetypes.guess_type(img_file.name)[0] or 'image/png'
+				url = figure_urls.get(img_file.name, '')
+				image_parts.append(f'\n## 図: {img_file.name} (URL: {url})\n')
+				image_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
+			except Exception:
+				self.logger.warning('Failed to read image %s', img_file, exc_info=True)
+
+		contents: list[types.Part | str] = [user_prompt]
+		if image_parts:
+			contents.append('\n# 以下は論文中の図です。内容を理解してブログ記事に反映してください。\n')
+			contents.extend(image_parts)
+
+		self.logger.info(
+			'Generating blog post for paper %s (with %d images)',
+			paper_metadata.paper_id.value,
+			len(image_parts),
+		)
+		response = await self.client.aio.models.generate_content(
+			model=self.model,
 			config=types.GenerateContentConfig(
-				system_instruction=_SYSTEM_PROMPT,
+				system_instruction=self.system_prompt,
 			),
-			contents=user_prompt,
+			contents=contents,
 		)
 
+		# Markdown 抽出
 		raw_text = response.text or ''
-		return self._extract_markdown(raw_text)
-
-	def _read_latex_content(self, source_dir: Path, max_chars: int = 80_000) -> str:
-		"""Read and concatenate .tex files from the source directory (up to max_chars)."""
-		tex_files = sorted(source_dir.rglob('*.tex'))
-		parts: list[str] = []
-		total = 0
-		for tex_file in tex_files:
-			try:
-				text = tex_file.read_text(encoding='utf-8', errors='ignore')
-				if total + len(text) > max_chars:
-					parts.append(text[: max_chars - total])
-					break
-				parts.append(text)
-				total += len(text)
-			except Exception:
-				self._logger.warning('Failed to read %s', tex_file, exc_info=True)
-		return '\n\n'.join(parts)
-
-	@staticmethod
-	def _build_figure_section(figure_urls: dict[str, str]) -> str:
-		if not figure_urls:
-			return ''
-		lines = ['# 利用可能な図のURL\n']
-		for filename, url in figure_urls.items():
-			lines.append(f'- {filename}: {url}')
-		lines.append('\n')
-		return '\n'.join(lines)
-
-	@staticmethod
-	def _extract_markdown(text: str) -> str:
-		"""Extract content from ```markdown ... ``` fences if present."""
-		match = re.search(r'```markdown\s*([\s\S]*?)```', text)
+		match = self.MARKDOWN_FENCE_RE.search(raw_text)
 		if match:
 			return match.group(1).strip()
-		# Fallback: strip any outer ``` fences
-		text = re.sub(r'^```[a-z]*\n', '', text.strip())
-		text = re.sub(r'\n```$', '', text)
-		return text.strip()
+		raw_text = re.sub(r'^```[a-z]*\n', '', raw_text.strip())
+		raw_text = re.sub(r'\n```$', '', raw_text)
+		return raw_text.strip()
