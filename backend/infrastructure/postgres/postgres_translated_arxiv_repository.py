@@ -3,6 +3,7 @@ from logging import getLogger
 from pydantic import HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from domain.entities.arxiv import (
     ArxivPaperAuthor,
@@ -25,7 +26,7 @@ class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
         self, paper_id: ArxivPaperId
     ) -> ArxivPaperMetadataWithTranslatedUrl | None:
         statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
-            ArxivPaperMetadataWithTranslatedUrlModel.paper_id == paper_id.value
+            col(ArxivPaperMetadataWithTranslatedUrlModel.paper_id) == paper_id.value
         )
         result = await self._session.execute(statement)
         row = result.scalars().first()
@@ -46,7 +47,7 @@ class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
         self, translated_paper_metadata: ArxivPaperMetadataWithTranslatedUrl
     ) -> None:
         statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
-            ArxivPaperMetadataWithTranslatedUrlModel.paper_id
+            col(ArxivPaperMetadataWithTranslatedUrlModel.paper_id)
             == translated_paper_metadata.paper_id.value
         )
         result = await self._session.execute(statement)

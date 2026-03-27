@@ -32,13 +32,13 @@ def _get_output_dir() -> str:
 # ------------------------------------------------------------
 @router.post('/arxiv/{arxiv_paper_id}')
 async def translate_sync(
-    arxiv_paper_id: str = Path(..., description='The ID of the paper'),
-    target_language: TargetLanguage = Query(..., description='The target language'),
-    arxiv_redirecter: Annotated[ArxivRedirecter, Depends(get_arxiv_redirecter)] = ...,
-    translate_arxiv_paper: Annotated[TranslateArxivPaper, Depends(get_translate_arxiv_paper)] = ...,
+    arxiv_paper_id: Annotated[str, Path(description='The ID of the paper')],
+    target_language: Annotated[TargetLanguage, Query(description='The target language')],
+    arxiv_redirecter: Annotated[ArxivRedirecter, Depends(get_arxiv_redirecter)],
+    translate_arxiv_paper: Annotated[TranslateArxivPaper, Depends(get_translate_arxiv_paper)],
     save_translated_arxiv: Annotated[
         SaveTranslatedArxivUsecase, Depends(get_save_translated_arxiv)
-    ] = ...,
+    ],
 ) -> TranslateResponseSchema:
     output_dir = _get_output_dir()
     paper_id = ArxivPaperId(value=arxiv_paper_id)
@@ -82,13 +82,13 @@ async def translate_sync(
 
 @router.get('/arxiv/{arxiv_paper_id}/stream', response_class=EventSourceResponse)
 async def translate_stream(
-    arxiv_paper_id: str = Path(..., description='The ID of the paper'),
-    target_language: TargetLanguage = Query(..., description='The target language'),
-    arxiv_redirecter: Annotated[ArxivRedirecter, Depends(get_arxiv_redirecter)] = ...,
-    translate_arxiv_paper: Annotated[TranslateArxivPaper, Depends(get_translate_arxiv_paper)] = ...,
+    arxiv_paper_id: Annotated[str, Path(description='The ID of the paper')],
+    target_language: Annotated[TargetLanguage, Query(description='The target language')],
+    arxiv_redirecter: Annotated[ArxivRedirecter, Depends(get_arxiv_redirecter)],
+    translate_arxiv_paper: Annotated[TranslateArxivPaper, Depends(get_translate_arxiv_paper)],
     save_translated_arxiv: Annotated[
         SaveTranslatedArxivUsecase, Depends(get_save_translated_arxiv)
-    ] = ...,
+    ],
 ) -> EventSourceResponse:
     output_dir = _get_output_dir()
     paper_id = ArxivPaperId(value=arxiv_paper_id)
