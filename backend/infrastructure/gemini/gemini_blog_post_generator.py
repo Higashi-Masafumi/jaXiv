@@ -1,4 +1,3 @@
-import mimetypes
 import re
 from logging import getLogger
 from pathlib import Path
@@ -14,55 +13,52 @@ from domain.gateways import IBlogPostGenerator
 class GeminiBlogPostGenerator(IBlogPostGenerator):
 	"""Gateway implementation for generating blog posts using Gemini API."""
 
-	IMAGE_EXTENSIONS: ClassVar[frozenset[str]] = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp'})
 	MARKDOWN_FENCE_RE: ClassVar[re.Pattern[str]] = re.compile(r'```markdown\s*([\s\S]*?)```')
 
 	def __init__(
 		self,
 		api_key: str,
-		model: str = 'gemini-3-flash',
-		max_images: int = 20,
+		model: str = 'gemini-3.1-flash-lite-preview',
 		max_latex_chars: int = 80_000,
 	):
 		self.client = genai.Client(api_key=api_key)
 		self.logger = getLogger(__name__)
 		self.model: Final[str] = model
-		self.max_images: Final[int] = max_images
 		self.max_latex_chars: Final[int] = max_latex_chars
 
 	@property
 	def system_prompt(self) -> str:
 		return """\
-あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
-与えられた arXiv 論文の情報をもとに、一般の読者にも理解しやすい日本語のブログ記事を Markdown 形式で執筆してください。
+		あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
+		与えられた arXiv 論文の情報をもとに、一般の読者にも理解しやすい日本語のブログ記事を Markdown 形式で執筆してください。
 
-# ブログ記事の構成
-1. タイトル（論文タイトルの日本語訳）
-2. 概要（1〜2 段落で論文の要点を簡潔に説明）
-3. 背景・問題設定（この研究が解こうとしている問題と、その重要性）
-4. 提案手法（どのようなアプローチで問題を解いたか）
-5. 実験・結果（どのような実験を行い、どのような結果が得られたか）
-6. 考察・まとめ（研究の意義・限界・今後の展望）
+		# ブログ記事の構成
+		1. タイトル（論文タイトルの日本語訳）
+		2. 概要（1〜2 段落で論文の要点を簡潔に説明）
+		3. 背景・問題設定（この研究が解こうとしている問題と、その重要性）
+		4. 提案手法（どのようなアプローチで問題を解いたか）
+		5. 実験・結果（どのような実験を行い、どのような結果が得られたか）
+		6. 考察・まとめ（研究の意義・限界・今後の展望）
 
-# 注意事項
-- Markdown のセクションヘッダは `##` から使用してください（`#` はタイトル用）
-- 図が提供されている場合は、適切な位置に `![図の説明](URL)` として埋め込んでください
-- 画像URL（png/jpg/webp/svg など）のみ `![...]` で埋め込み、PDF URL は `[図の説明](URL)` の通常リンクにしてください
-- 数式は KaTeX 互換の LaTeX 記法で記述してください。以下のルールを厳守すること：
-  - インライン数式は `$...$`、ブロック数式は `$$...$$` で囲む
-  - `$` や `$$` の内側にさらに `$` を入れないこと（ネスト禁止）
-  - 旧式フォントコマンド（`\\tt`, `\\bf`, `\\it`, `\\rm`, `\\sf`, `\\sc`）は使用禁止。代わりに以下を使う：
-    - `\\tt` → `\\texttt{}` または数式中なら `\\mathtt{}`
-    - `\\bf` → `\\textbf{}` または `\\mathbf{}`
-    - `\\it` → `\\textit{}` または `\\mathit{}`
-    - `\\rm` → `\\textrm{}` または `\\mathrm{}`
-  - 数式中にテキストを入れる場合は `\\text{}` を使用（`\\mbox{}` や `\\hbox{}` は不可）
-  - KaTeX 非対応のコマンド例：`\\newcommand`, `\\def`, `\\DeclareMathOperator`, `\\usepackage`, `\\eqref`（`\\ref` を使う）
-  - `aligned`, `cases`, `matrix`, `bmatrix`, `pmatrix` 等の基本環境は使用可能
-  - `\\label{}` と `\\ref{}` はブログ記事では使わず、文脈で説明すること
-- 専門用語は初出時に簡単な説明を加えてください
-- 出力は Markdown コードブロック（```markdown ... ```）で囲んでください
-"""
+		# 注意事項
+		- Markdown のセクションヘッダは `##` から使用してください（`#` はタイトル用）
+		- 図が提供されている場合は、適切な位置に `![図の説明](URL)` として埋め込んでください
+		- 画像URL（png/jpg/webp/svg など）のみ `![...]` で埋め込み、PDF URL は `[図の説明](URL)` の通常リンクにしてください
+		- 数式は KaTeX 互換の LaTeX 記法で記述してください。以下のルールを厳守すること：
+		- インライン数式は `$...$`、ブロック数式は `$$...$$` で囲む
+		- `$` や `$$` の内側にさらに `$` を入れないこと（ネスト禁止）
+		- 旧式フォントコマンド（`\\tt`, `\\bf`, `\\it`, `\\rm`, `\\sf`, `\\sc`）は使用禁止。代わりに以下を使う：
+			- `\\tt` → `\\texttt{}` または数式中なら `\\mathtt{}`
+			- `\\bf` → `\\textbf{}` または `\\mathbf{}`
+			- `\\it` → `\\textit{}` または `\\mathit{}`
+			- `\\rm` → `\\textrm{}` または `\\mathrm{}`
+		- 数式中にテキストを入れる場合は `\\text{}` を使用（`\\mbox{}` や `\\hbox{}` は不可）
+		- KaTeX 非対応のコマンド例：`\\newcommand`, `\\def`, `\\DeclareMathOperator`, `\\usepackage`, `\\eqref`（`\\ref` を使う）
+		- `aligned`, `cases`, `matrix`, `bmatrix`, `pmatrix` 等の基本環境は使用可能
+		- `\\label{}` と `\\ref{}` はブログ記事では使わず、文脈で説明すること
+		- 専門用語は初出時に簡単な説明を加えてください
+		- 出力は Markdown コードブロック（```markdown ... ```）で囲んでください
+		"""
 
 	async def generate(
 		self,
@@ -107,38 +103,13 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 			'上記の情報をもとに、日本語のブログ記事を Markdown 形式で作成してください。'
 		)
 
-		# 画像ファイル収集（マルチモーダル入力用）
-		image_files = sorted(
-			(f for f in latex_source_dir.rglob('*') if f.suffix.lower() in self.IMAGE_EXTENSIONS),
-			key=lambda f: f.name,
-		)
-		image_parts: list[types.Part | str] = []
-		for img_file in image_files[: self.max_images]:
-			try:
-				data = img_file.read_bytes()
-				mime = mimetypes.guess_type(img_file.name)[0] or 'image/png'
-				url = figure_urls.get(img_file.name, '')
-				image_parts.append(f'\n## 図: {img_file.name} (URL: {url})\n')
-				image_parts.append(types.Part.from_bytes(data=data, mime_type=mime))
-			except Exception:
-				self.logger.warning('Failed to read image %s', img_file, exc_info=True)
-
-		contents: list[types.Part | str] = [user_prompt]
-		if image_parts:
-			contents.append('\n# 以下は論文中の図です。内容を理解してブログ記事に反映してください。\n')
-			contents.extend(image_parts)
-
-		self.logger.info(
-			'Generating blog post for paper %s (with %d images)',
-			paper_metadata.paper_id.value,
-			len(image_parts),
-		)
+		self.logger.info('Generating blog post for paper %s', paper_metadata.paper_id.value)
 		response = await self.client.aio.models.generate_content(
 			model=self.model,
 			config=types.GenerateContentConfig(
 				system_instruction=self.system_prompt,
 			),
-			contents=contents,
+			contents=user_prompt,
 		)
 
 		# Markdown 抽出
