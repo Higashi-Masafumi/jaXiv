@@ -206,24 +206,20 @@ async def confirm_order(
 ```
 src/
 ├── domain/
-│   ├── {context}/
-│   │   ├── entities/
-│   │   ├── value_objects/
-│   │   ├── services/          # Domain Services
-│   │   ├── repositories/      # Abstract interfaces
-│   │   ├── gateways/          # Abstract interfaces
-│   │   └── errors/
+│   ├── entities/
+│   ├── value_objects/
+│   ├── services/              # Domain Services
+│   ├── repositories/          # Abstract interfaces
+│   ├── gateways/              # Abstract interfaces
+│   └── errors/
 ├── application/
-│   └── {context}/
-│       └── use_cases/
+│   └── use_cases/
 ├── infrastructure/
-│   ├── {context}/
-│   │   ├── repositories/      # Concrete implementations
-│   │   └── gateways/          # Concrete implementations
+│   ├── repositories/          # Concrete implementations
+│   ├── gateways/              # Concrete implementations
 │   └── dependencies.py        # FastAPI DI wiring
 └── interface/
-    └── {context}/
-        └── routers/
+    └── routers/
 ```
 
 ---
