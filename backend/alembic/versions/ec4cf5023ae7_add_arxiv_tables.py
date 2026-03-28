@@ -1,4 +1,4 @@
-"""add_araxiv_tables
+"""add_arxiv_tables
 
 Revision ID: ec4cf5023ae7
 Revises:

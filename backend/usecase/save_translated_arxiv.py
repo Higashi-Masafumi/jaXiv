@@ -16,7 +16,7 @@ from domain.repositories import (
 from domain.value_objects import ArxivPaperId
 
 
-class SaveTranslatedArxivUsecase:
+class SaveTranslatedArxivUseCase:
 	"""Use case for saving a translated arXiv paper to storage and database."""
 
 	def __init__(

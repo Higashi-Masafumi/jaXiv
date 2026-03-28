@@ -27,10 +27,10 @@ from infrastructure.postgres import (
 )
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
 from usecase import (
-	ArxivRedirecter,
-	GenerateBlogPostUsecase,
-	GetBlogPostUsecase,
-	SaveTranslatedArxivUsecase,
+	ArxivRedirector,
+	GenerateBlogPostUseCase,
+	GetBlogPostUseCase,
+	SaveTranslatedArxivUseCase,
 	TranslateArxivPaper,
 )
 
@@ -101,12 +101,12 @@ def get_figure_storage_repository() -> SupabaseFigureStorageRepository:
 # --------------------------------------
 # Use case providers
 # --------------------------------------
-async def get_arxiv_redirecter(
+async def get_arxiv_redirector(
 	translated_arxiv_repository: Annotated[
 		ITranslatedArxivRepository, Depends(get_translated_arxiv_repository)
 	],
-) -> ArxivRedirecter:
-	return ArxivRedirecter(
+) -> ArxivRedirector:
+	return ArxivRedirector(
 		translated_arxiv_repository=translated_arxiv_repository,
 	)
 
@@ -131,8 +131,8 @@ async def get_save_translated_arxiv(
 		IFileStorageRepository, Depends(get_file_storage_repository)
 	],
 	arxiv_source_fetcher: Annotated[IArxivSourceFetcher, Depends(get_arxiv_source_fetcher)],
-) -> SaveTranslatedArxivUsecase:
-	return SaveTranslatedArxivUsecase(
+) -> SaveTranslatedArxivUseCase:
+	return SaveTranslatedArxivUseCase(
 		translated_arxiv_repository=translated_arxiv_repository,
 		file_storage_repository=file_storage_repository,
 		arxiv_source_fetcher=arxiv_source_fetcher,
@@ -142,8 +142,8 @@ async def get_save_translated_arxiv(
 async def get_get_blog_post(
 	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
 	arxiv_source_fetcher: Annotated[IArxivSourceFetcher, Depends(get_arxiv_source_fetcher)],
-) -> GetBlogPostUsecase:
-	return GetBlogPostUsecase(
+) -> GetBlogPostUseCase:
+	return GetBlogPostUseCase(
 		blog_post_repository=blog_post_repository,
 		arxiv_source_fetcher=arxiv_source_fetcher,
 	)
@@ -156,8 +156,8 @@ async def get_generate_blog_post(
 	figure_storage_repository: Annotated[
 		SupabaseFigureStorageRepository, Depends(get_figure_storage_repository)
 	],
-) -> GenerateBlogPostUsecase:
-	return GenerateBlogPostUsecase(
+) -> GenerateBlogPostUseCase:
+	return GenerateBlogPostUseCase(
 		blog_post_repository=blog_post_repository,
 		blog_post_generator=blog_post_generator,
 		arxiv_source_fetcher=arxiv_source_fetcher,
