@@ -60,3 +60,11 @@ class PdfNotGeneratedError(DomainError):
 	def __init__(self, pdf_path: str):
 		super().__init__(f'PDF file not found after compilation: {pdf_path}')
 		self.pdf_path = pdf_path
+
+
+class PdfProcessingError(DomainError):
+	"""Raised when PDF figure extraction or processing fails."""
+
+	def __init__(self, detail: str = ''):
+		super().__init__(f'PDF processing failed: {detail}')
+		self.detail = detail

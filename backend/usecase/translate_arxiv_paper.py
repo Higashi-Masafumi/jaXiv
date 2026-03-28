@@ -53,9 +53,9 @@ class TranslateArxivPaper:
 		Yields:
 		    TypedTranslateChunk with translation progress.
 		"""
-		self._logger.info('Translating %s to %s', arxiv_paper_id.value, target_language)
+		self._logger.info('Translating %s to %s', arxiv_paper_id.root, target_language)
 		yield IntermediateTranslateChunk(
-			message=f'Translating Arxiv {arxiv_paper_id.value} to {target_language}',
+			message=f'Translating Arxiv {arxiv_paper_id.root} to {target_language}',
 			progress_percentage=0,
 		)
 
@@ -64,7 +64,7 @@ class TranslateArxivPaper:
 			paper_id=arxiv_paper_id, output_dir=output_dir
 		)
 		yield IntermediateTranslateChunk(
-			message=f'Fetched tex source for Arxiv {arxiv_paper_id.value}',
+			message=f'Fetched tex source for Arxiv {arxiv_paper_id.root}',
 			progress_percentage=10,
 		)
 
@@ -72,7 +72,7 @@ class TranslateArxivPaper:
 		tex_file_paths = list(Path(compile_setting.source_directory).rglob('*.tex'))
 		if len(tex_file_paths) == 0:
 			yield ErrorTranslateChunk(
-				message=f'No tex file found in the source directory for Arxiv {arxiv_paper_id.value}',
+				message=f'No tex file found in the source directory for Arxiv {arxiv_paper_id.root}',
 				progress_percentage=10,
 				error_details='チェックポイント: texファイルが存在しない、または拡張子が異なる可能性があります。',
 			)
@@ -85,7 +85,7 @@ class TranslateArxivPaper:
 
 		# 3. Translate in parallel
 		yield IntermediateTranslateChunk(
-			message=f'Starting translation of tex files for Arxiv {arxiv_paper_id.value}',
+			message=f'Starting translation of tex files for Arxiv {arxiv_paper_id.root}',
 			progress_percentage=20,
 		)
 
@@ -104,7 +104,7 @@ class TranslateArxivPaper:
 			translated_file = await task
 			translated_latex_files.append(translated_file)
 			yield IntermediateTranslateChunk(
-				message=f'Translated {i + 1}/{len(latex_files)} tex files for Arxiv {arxiv_paper_id.value}',
+				message=f'Translated {i + 1}/{len(latex_files)} tex files for Arxiv {arxiv_paper_id.root}',
 				progress_percentage=round(20 + progress_by_file * (i + 1)),
 			)
 
@@ -115,20 +115,20 @@ class TranslateArxivPaper:
 
 		# 5. Compile
 		yield IntermediateTranslateChunk(
-			message=f'Compiling translated tex files for Arxiv {arxiv_paper_id.value}',
+			message=f'Compiling translated tex files for Arxiv {arxiv_paper_id.root}',
 			progress_percentage=70,
 		)
 		try:
 			compiled_pdf_path = self._latex_compiler.compile(compile_setting=compile_setting)
 			yield CompleteTranslateChunk(
-				message=f'Compiled translated tex files for Arxiv {arxiv_paper_id.value}',
+				message=f'Compiled translated tex files for Arxiv {arxiv_paper_id.root}',
 				progress_percentage=90,
 				translated_pdf_path=compiled_pdf_path,
 			)
 		except Exception as e:
-			self._logger.error('Error compiling %s: %s', arxiv_paper_id.value, e)
+			self._logger.error('Error compiling %s: %s', arxiv_paper_id.root, e)
 			yield ErrorTranslateChunk(
-				message=f'Error compiling translated tex files for Arxiv {arxiv_paper_id.value}',
+				message=f'Error compiling translated tex files for Arxiv {arxiv_paper_id.root}',
 				progress_percentage=70,
 				error_details=str(e),
 			)

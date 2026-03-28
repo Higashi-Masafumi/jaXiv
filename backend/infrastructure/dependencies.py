@@ -10,9 +10,13 @@ from domain.gateways import (
 	IBlogPostGenerator,
 	ILatexCompiler,
 	ILatexTranslator,
+	IPdfBlogPostGenerator,
+	IPdfFigureExtractor,
+	IPdfMetadataExtractor,
 )
 from domain.repositories import (
 	IBlogPostRepository,
+	IFigureStorageRepository,
 	IFileStorageRepository,
 	ITranslatedArxivRepository,
 )
@@ -20,6 +24,7 @@ from infrastructure.arxiv_api import ArxivSourceFetcher
 from infrastructure.gemini import GeminiBlogPostGenerator
 from infrastructure.latex_subprocess import LatexCompiler
 from infrastructure.mistral import MistralLatexTranslator
+from infrastructure.pdf import PdfFigureExtractor, PdfMetadataExtractor
 from infrastructure.postgres import (
 	PostgresBlogPostRepository,
 	PostgresTranslatedArxivRepository,
@@ -28,6 +33,7 @@ from infrastructure.postgres import (
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
 from usecase import (
 	ArxivRedirector,
+	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostUseCase,
 	GetBlogPostUseCase,
 	SaveTranslatedArxivUseCase,
@@ -71,6 +77,14 @@ async def get_blog_post_repository(
 	return PostgresBlogPostRepository(session=session)
 
 
+def get_figure_storage_repository() -> IFigureStorageRepository:
+	return SupabaseFigureStorageRepository(
+		supabase_url=_supabase_url,
+		supabase_key=_supabase_key,
+		bucket_name=_blog_figures_bucket_name,
+	)
+
+
 # --------------------------------------
 # Gateway providers
 # --------------------------------------
@@ -90,12 +104,16 @@ def get_blog_post_generator() -> IBlogPostGenerator:
 	return GeminiBlogPostGenerator(api_key=_gemini_api_key)
 
 
-def get_figure_storage_repository() -> SupabaseFigureStorageRepository:
-	return SupabaseFigureStorageRepository(
-		supabase_url=_supabase_url,
-		supabase_key=_supabase_key,
-		bucket_name=_blog_figures_bucket_name,
-	)
+def get_pdf_blog_post_generator() -> IPdfBlogPostGenerator:
+	return GeminiBlogPostGenerator(api_key=_gemini_api_key)
+
+
+def get_pdf_figure_extractor() -> IPdfFigureExtractor:
+	return PdfFigureExtractor()
+
+
+def get_pdf_metadata_extractor() -> IPdfMetadataExtractor:
+	return PdfMetadataExtractor()
 
 
 # --------------------------------------
@@ -154,7 +172,7 @@ async def get_generate_blog_post(
 	blog_post_generator: Annotated[IBlogPostGenerator, Depends(get_blog_post_generator)],
 	arxiv_source_fetcher: Annotated[IArxivSourceFetcher, Depends(get_arxiv_source_fetcher)],
 	figure_storage_repository: Annotated[
-		SupabaseFigureStorageRepository, Depends(get_figure_storage_repository)
+		IFigureStorageRepository, Depends(get_figure_storage_repository)
 	],
 ) -> GenerateBlogPostUseCase:
 	return GenerateBlogPostUseCase(
@@ -162,4 +180,22 @@ async def get_generate_blog_post(
 		blog_post_generator=blog_post_generator,
 		arxiv_source_fetcher=arxiv_source_fetcher,
 		figure_storage_repository=figure_storage_repository,
+	)
+
+
+async def get_generate_blog_post_from_pdf(
+	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
+	blog_post_generator: Annotated[IPdfBlogPostGenerator, Depends(get_pdf_blog_post_generator)],
+	figure_extractor: Annotated[IPdfFigureExtractor, Depends(get_pdf_figure_extractor)],
+	figure_storage_repository: Annotated[
+		IFigureStorageRepository, Depends(get_figure_storage_repository)
+	],
+	metadata_extractor: Annotated[IPdfMetadataExtractor, Depends(get_pdf_metadata_extractor)],
+) -> GenerateBlogPostFromPdfUseCase:
+	return GenerateBlogPostFromPdfUseCase(
+		blog_post_repository=blog_post_repository,
+		blog_post_generator=blog_post_generator,
+		figure_extractor=figure_extractor,
+		figure_storage_repository=figure_storage_repository,
+		metadata_extractor=metadata_extractor,
 	)

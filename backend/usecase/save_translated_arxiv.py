@@ -45,7 +45,7 @@ class SaveTranslatedArxivUseCase:
 		Returns:
 		    Metadata with the translated URL.
 		"""
-		self._logger.info('Saving translated arxiv paper %s', arxiv_paper_id.value)
+		self._logger.info('Saving translated arxiv paper %s', arxiv_paper_id.root)
 
 		# 1. Fetch paper metadata
 		arxiv_paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
@@ -55,7 +55,7 @@ class SaveTranslatedArxivUseCase:
 		# 2. Upload translated PDF
 		translated_file = TranslatedLatexFile(
 			path=translated_arxiv_pdf_path,
-			storage_path=f'{arxiv_paper_id.value}_translated.pdf',
+			storage_path=f'{arxiv_paper_id.root}_translated.pdf',
 		)
 		translated_pdf_url = await self._file_storage_repository.save_translated_file_and_get_url(
 			translated_file=translated_file

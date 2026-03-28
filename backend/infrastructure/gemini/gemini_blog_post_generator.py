@@ -7,10 +7,12 @@ from google import genai
 from google.genai import types
 
 from domain.entities.arxiv import ArxivPaperMetadata
-from domain.gateways import IBlogPostGenerator
+from domain.entities.extracted_figure import UploadedFigure
+from domain.entities.pdf_paper import PdfPaperMetadata
+from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
 
 
-class GeminiBlogPostGenerator(IBlogPostGenerator):
+class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	"""Gateway implementation for generating blog posts using Gemini API."""
 
 	MARKDOWN_FENCE_RE: ClassVar[re.Pattern[str]] = re.compile(r'```markdown\s*([\s\S]*?)```')
@@ -126,8 +128,63 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 			contents=user_prompt,
 		)
 
-		# Markdown 抽出
-		raw_text = response.text or ''
+		return self._extract_markdown(response.text or '')
+
+	async def generate_from_pdf(
+		self,
+		paper_metadata: PdfPaperMetadata,
+		pdf_path: Path,
+		figures: list[UploadedFigure],
+	) -> str:
+		# Build figure reference section
+		figure_section = ''
+		if figures:
+			lines = ['# 利用可能な図の一覧\n']
+			for fig in figures:
+				label = f'Figure {fig.figure_number}' if fig.figure_number else f'図 (p.{fig.page_number})'
+				caption_part = f': "{fig.caption}"' if fig.caption else ''
+				lines.append(f'- {label} (p.{fig.page_number}){caption_part} → ![{label}]({fig.url})')
+			lines.append('\n')
+			figure_section = '\n'.join(lines)
+
+		authors_str = ', '.join(paper_metadata.authors)
+		user_prompt = (
+			f'# 論文情報\n'
+			f'- タイトル: {paper_metadata.title}\n'
+			f'- 著者: {authors_str}\n'
+			f'- 概要:\n{paper_metadata.summary}\n\n'
+			f'{figure_section}'
+			'添付の PDF 論文を読み、上記の図 URL を適切な箇所に埋め込みながら、'
+			'日本語のブログ記事を Markdown 形式で作成してください。\n'
+			'各図を参照する際は、上記の一覧に記載された URL をそのまま使用してください。'
+		)
+
+		# Upload PDF to Gemini Files API
+		self.logger.info('Uploading PDF to Gemini Files API: %s', pdf_path.name)
+		uploaded_file = self.client.files.upload(
+			file=pdf_path,
+			config=types.UploadFileConfig(mime_type='application/pdf'),
+		)
+
+		try:
+			response = await self.client.aio.models.generate_content(
+				model=self.model,
+				config=types.GenerateContentConfig(
+					system_instruction=self.system_prompt,
+				),
+				contents=[
+					types.Part.from_uri(file_uri=uploaded_file.uri, mime_type='application/pdf'),
+					user_prompt,
+				],
+			)
+		finally:
+			self.client.files.delete(name=uploaded_file.name)
+			self.logger.info('Deleted uploaded PDF from Gemini Files API')
+
+		return self._extract_markdown(response.text or '')
+
+	def _extract_markdown(self, raw_text: str) -> str:
+		"""Extract Markdown content from Gemini response and post-process."""
 		match = self.MARKDOWN_FENCE_RE.search(raw_text)
 		if match:
 			content = match.group(1).strip()
@@ -135,7 +192,6 @@ class GeminiBlogPostGenerator(IBlogPostGenerator):
 			content = re.sub(r'^```[a-z]*\n', '', raw_text.strip())
 			content = re.sub(r'\n```$', '', content)
 			content = content.strip()
-
 		return self._ensure_math_blank_lines(content)
 
 	@staticmethod

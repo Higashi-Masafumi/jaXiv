@@ -30,6 +30,8 @@ dependencies = [
     "supabase>=2.16.0",
     "types-requests>=2.32.4.20250611",
     "uvicorn>=0.35.0",
+    "doclayout-yolo>=0.0.3",
+    "PyMuPDF>=1.25.0",
 ]
 
 [dependency-groups]

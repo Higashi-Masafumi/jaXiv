@@ -34,17 +34,17 @@ class GetBlogPostUseCase:
 		Returns None if the blog post does not exist yet.
 		Metadata is always sourced from the arXiv API.
 		"""
-		blog_post = await self._blog_post_repository.find_by_paper_id(arxiv_paper_id.value)
+		blog_post = await self._blog_post_repository.find_by_paper_id(arxiv_paper_id.root)
 		if blog_post is None:
 			return None
 
-		self._logger.info('Fetching metadata from arXiv API: %s', arxiv_paper_id.value)
+		self._logger.info('Fetching metadata from arXiv API: %s', arxiv_paper_id.root)
 		try:
 			paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
 				paper_id=arxiv_paper_id
 			)
 		except ArxivPaperNotFoundError:
-			self._logger.warning('Paper %s not found on arXiv', arxiv_paper_id.value)
+			self._logger.warning('Paper %s not found on arXiv', arxiv_paper_id.root)
 			paper_metadata = None
 
 		if paper_metadata is None:
@@ -53,11 +53,11 @@ class GetBlogPostUseCase:
 
 			paper_metadata = ArxivPaperMetadata(
 				paper_id=arxiv_paper_id,
-				title=arxiv_paper_id.value,
+				title=arxiv_paper_id.root,
 				summary='',
 				published_date=blog_post.created_at,
 				authors=[],
-				source_url=HttpUrl(f'https://arxiv.org/abs/{arxiv_paper_id.value}'),
+				source_url=HttpUrl(f'https://arxiv.org/abs/{arxiv_paper_id.root}'),
 			)
 
 		return BlogPostWithMetadata(blog_post=blog_post, paper_metadata=paper_metadata)
