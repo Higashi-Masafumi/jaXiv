@@ -33,7 +33,7 @@ class PdfPaperId(RootModel[StrictStr]):
 	@classmethod
 	def generate(cls) -> 'PdfPaperId':
 		"""Generate a new time-ordered PdfPaperId using UUID7."""
-		return cls(f'pdf-{uuid7()}')
+		return cls(f'pdf-{uuid7().hex}')
 
 	def __str__(self) -> str:
 		return self.root
