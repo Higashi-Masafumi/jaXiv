@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from controller.schemas.blog_response import BlogPostResponseSchema
 from domain.value_objects import ArxivPaperId
 from infrastructure.dependencies import get_generate_blog_post, get_get_blog_post
-from usecase import GenerateBlogPostUsecase, GetBlogPostUsecase
+from usecase import GenerateBlogPostUseCase, GetBlogPostUseCase
 
 router = APIRouter(prefix='/api/v1/blog')
 
@@ -34,8 +34,8 @@ def _to_schema(result) -> BlogPostResponseSchema:
 @router.post('/arxiv/{arxiv_paper_id}', response_model=BlogPostResponseSchema)
 async def generate_blog(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
-	generate_blog_post: Annotated[GenerateBlogPostUsecase, Depends(get_generate_blog_post)],
-	get_blog_post: Annotated[GetBlogPostUsecase, Depends(get_get_blog_post)],
+	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
+	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
 ) -> BlogPostResponseSchema:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(value=arxiv_paper_id)
@@ -49,7 +49,7 @@ async def generate_blog(
 @router.get('/arxiv/{arxiv_paper_id}', response_model=BlogPostResponseSchema)
 async def get_blog(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
-	get_blog_post: Annotated[GetBlogPostUsecase, Depends(get_get_blog_post)],
+	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
 ) -> BlogPostResponseSchema:
 	paper_id = ArxivPaperId(value=arxiv_paper_id)
 	result = await get_blog_post.execute(arxiv_paper_id=paper_id)

@@ -15,7 +15,7 @@ class BlogPostWithMetadata:
 	paper_metadata: ArxivPaperMetadata
 
 
-class GetBlogPostUsecase:
+class GetBlogPostUseCase:
 	"""Use case for retrieving a blog post along with its paper metadata."""
 
 	def __init__(

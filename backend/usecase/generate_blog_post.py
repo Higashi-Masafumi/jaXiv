@@ -10,7 +10,7 @@ from domain.value_objects import ArxivPaperId
 from infrastructure.supabase import SupabaseFigureStorageRepository
 
 
-class GenerateBlogPostUsecase:
+class GenerateBlogPostUseCase:
 	"""Use case for generating and persisting a blog post from an arXiv paper."""
 
 	def __init__(

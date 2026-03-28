@@ -5,7 +5,7 @@ from domain.repositories import ITranslatedArxivRepository
 from domain.value_objects import ArxivPaperId
 
 
-class ArxivRedirecter:
+class ArxivRedirector:
 	"""Use case for checking if a translated paper already exists."""
 
 	def __init__(self, translated_arxiv_repository: ITranslatedArxivRepository):

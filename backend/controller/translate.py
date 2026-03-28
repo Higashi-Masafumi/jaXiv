@@ -11,11 +11,11 @@ from domain.entities import TypedTranslateChunk
 from domain.errors import TranslationFailedError
 from domain.value_objects import ArxivPaperId, TargetLanguage
 from infrastructure.dependencies import (
-	get_arxiv_redirecter,
+	get_arxiv_redirector,
 	get_save_translated_arxiv,
 	get_translate_arxiv_paper,
 )
-from usecase import ArxivRedirecter, SaveTranslatedArxivUsecase, TranslateArxivPaper
+from usecase import ArxivRedirector, SaveTranslatedArxivUseCase, TranslateArxivPaper
 
 router = APIRouter(prefix='/api/v1/translate')
 
@@ -34,17 +34,17 @@ def _get_output_dir() -> str:
 async def translate_sync(
 	arxiv_paper_id: Annotated[str, Path(description='The ID of the paper')],
 	target_language: Annotated[TargetLanguage, Query(description='The target language')],
-	arxiv_redirecter: Annotated[ArxivRedirecter, Depends(get_arxiv_redirecter)],
+	arxiv_redirector: Annotated[ArxivRedirector, Depends(get_arxiv_redirector)],
 	translate_arxiv_paper: Annotated[TranslateArxivPaper, Depends(get_translate_arxiv_paper)],
 	save_translated_arxiv: Annotated[
-		SaveTranslatedArxivUsecase, Depends(get_save_translated_arxiv)
+		SaveTranslatedArxivUseCase, Depends(get_save_translated_arxiv)
 	],
 ) -> TranslateResponseSchema:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(value=arxiv_paper_id)
 
 	# 1. Check if already translated
-	translated_paper_metadata = await arxiv_redirecter.execute(arxiv_paper_id=paper_id)
+	translated_paper_metadata = await arxiv_redirector.execute(arxiv_paper_id=paper_id)
 	if translated_paper_metadata is not None:
 		return TranslateResponseSchema(
 			message=f'Arxiv {arxiv_paper_id} is already translated.',
@@ -84,10 +84,10 @@ async def translate_sync(
 async def translate_stream(
 	arxiv_paper_id: Annotated[str, Path(description='The ID of the paper')],
 	target_language: Annotated[TargetLanguage, Query(description='The target language')],
-	arxiv_redirecter: Annotated[ArxivRedirecter, Depends(get_arxiv_redirecter)],
+	arxiv_redirector: Annotated[ArxivRedirector, Depends(get_arxiv_redirector)],
 	translate_arxiv_paper: Annotated[TranslateArxivPaper, Depends(get_translate_arxiv_paper)],
 	save_translated_arxiv: Annotated[
-		SaveTranslatedArxivUsecase, Depends(get_save_translated_arxiv)
+		SaveTranslatedArxivUseCase, Depends(get_save_translated_arxiv)
 	],
 ) -> EventSourceResponse:
 	output_dir = _get_output_dir()
@@ -95,7 +95,7 @@ async def translate_stream(
 
 	async def run_workflow():
 		# 1. Check if already translated
-		translated_paper_metadata = await arxiv_redirecter.execute(arxiv_paper_id=paper_id)
+		translated_paper_metadata = await arxiv_redirector.execute(arxiv_paper_id=paper_id)
 		if translated_paper_metadata is not None:
 			yield ServerSentEvent(data=translated_paper_metadata.translated_url)
 			return
