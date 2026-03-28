@@ -4,13 +4,19 @@ from pathlib import Path
 
 from domain.entities.blog import BlogPost
 from domain.entities.extracted_figure import UploadedFigure
-from domain.gateways import IPdfBlogPostGenerator, IPdfFigureExtractor, IPdfMetadataExtractor
+from domain.gateways import IPdfBlogPostGenerator, IPdfFigureExtractor
 from domain.repositories import IBlogPostRepository, IFigureStorageRepository
 from domain.value_objects import PdfPaperId
 
 
 class GenerateBlogPostFromPdfUseCase:
-	"""Use case for generating and persisting a blog post from an uploaded PDF."""
+	"""Use case for generating and persisting a blog post from an uploaded PDF.
+
+	Gemini extracts the paper metadata (title, authors, summary) **and**
+	generates the blog post in a single structured-output API call.
+	A UUID7-based paper_id is generated upfront so that figure uploads
+	can use the final storage prefix immediately.
+	"""
 
 	def __init__(
 		self,
@@ -18,23 +24,15 @@ class GenerateBlogPostFromPdfUseCase:
 		blog_post_generator: IPdfBlogPostGenerator,
 		figure_extractor: IPdfFigureExtractor,
 		figure_storage_repository: IFigureStorageRepository,
-		metadata_extractor: IPdfMetadataExtractor,
 	):
 		self._logger = getLogger(__name__)
 		self._blog_post_repository = blog_post_repository
 		self._blog_post_generator = blog_post_generator
 		self._figure_extractor = figure_extractor
 		self._figure_storage_repository = figure_storage_repository
-		self._metadata_extractor = metadata_extractor
 
 	async def execute(self, pdf_path: Path) -> BlogPost:
-		metadata = self._metadata_extractor.extract_metadata(pdf_path)
-		paper_id = PdfPaperId.from_title(metadata.title)
-
-		existing = await self._blog_post_repository.find_by_paper_id(paper_id.root)
-		if existing is not None:
-			self._logger.info('Returning cached blog post for %s', paper_id.root)
-			return existing
+		paper_id = PdfPaperId.generate()
 
 		try:
 			source_url: str | None = await self._figure_storage_repository.upload_pdf(
@@ -77,8 +75,7 @@ class GenerateBlogPostFromPdfUseCase:
 			paper_id.root,
 		)
 
-		markdown_content = await self._blog_post_generator.generate_from_pdf(
-			paper_metadata=metadata,
+		metadata, markdown_content = await self._blog_post_generator.generate_from_pdf(
 			pdf_path=pdf_path,
 			figures=uploaded_figures,
 		)

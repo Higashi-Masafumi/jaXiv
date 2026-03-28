@@ -12,7 +12,6 @@ from domain.gateways import (
 	ILatexTranslator,
 	IPdfBlogPostGenerator,
 	IPdfFigureExtractor,
-	IPdfMetadataExtractor,
 )
 from domain.repositories import (
 	IBlogPostRepository,
@@ -24,7 +23,7 @@ from infrastructure.arxiv_api import ArxivSourceFetcher
 from infrastructure.gemini import GeminiBlogPostGenerator
 from infrastructure.latex_subprocess import LatexCompiler
 from infrastructure.mistral import MistralLatexTranslator
-from infrastructure.pdf import PdfFigureExtractor, PdfMetadataExtractor
+from infrastructure.pdf import PdfFigureExtractor
 from infrastructure.postgres import (
 	PostgresBlogPostRepository,
 	PostgresTranslatedArxivRepository,
@@ -112,10 +111,6 @@ def get_pdf_figure_extractor() -> IPdfFigureExtractor:
 	return PdfFigureExtractor()
 
 
-def get_pdf_metadata_extractor() -> IPdfMetadataExtractor:
-	return PdfMetadataExtractor()
-
-
 # --------------------------------------
 # Use case providers
 # --------------------------------------
@@ -186,12 +181,10 @@ async def get_generate_blog_post_from_pdf(
 	figure_storage_repository: Annotated[
 		IFigureStorageRepository, Depends(get_figure_storage_repository)
 	],
-	metadata_extractor: Annotated[IPdfMetadataExtractor, Depends(get_pdf_metadata_extractor)],
 ) -> GenerateBlogPostFromPdfUseCase:
 	return GenerateBlogPostFromPdfUseCase(
 		blog_post_repository=blog_post_repository,
 		blog_post_generator=blog_post_generator,
 		figure_extractor=figure_extractor,
 		figure_storage_repository=figure_storage_repository,
-		metadata_extractor=metadata_extractor,
 	)

@@ -1,7 +1,7 @@
-import hashlib
 import re
 
 from pydantic import ConfigDict, RootModel, StrictStr, field_validator
+from uuid6 import uuid7
 
 from domain.errors import DomainError
 
@@ -15,10 +15,10 @@ class InvalidPdfPaperIdError(DomainError):
 
 
 class PdfPaperId(RootModel[StrictStr]):
-	"""Value Object representing a paper ID derived from an uploaded PDF.
+	"""Value Object representing a paper ID for an uploaded PDF.
 
-	Format: 'pdf-<12 hex chars>' where the hex part is the first 12 characters
-	of the SHA-256 hash of the paper title.
+	Format: ``pdf-<UUID7 hex (32 chars)>``
+	UUID7 is time-ordered so IDs sort chronologically.
 	"""
 
 	model_config = ConfigDict(frozen=True)
@@ -26,15 +26,14 @@ class PdfPaperId(RootModel[StrictStr]):
 	@field_validator('root')
 	@classmethod
 	def validate_paper_id(cls, v: str) -> str:
-		if not re.match(r'^pdf-[0-9a-f]{12}$', v):
+		if not re.match(r'^pdf-[0-9a-f]{32}$', v):
 			raise InvalidPdfPaperIdError(v)
 		return v
 
 	@classmethod
-	def from_title(cls, title: str) -> 'PdfPaperId':
-		"""Create a PdfPaperId by hashing the paper title."""
-		digest = hashlib.sha256(title.encode()).hexdigest()[:12]
-		return cls(f'pdf-{digest}')
+	def generate(cls) -> 'PdfPaperId':
+		"""Generate a new time-ordered PdfPaperId using UUID7."""
+		return cls(f'pdf-{uuid7()}')
 
 	def __str__(self) -> str:
 		return self.root

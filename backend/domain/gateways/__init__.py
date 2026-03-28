@@ -4,7 +4,6 @@ from .i_latex_compiler import ILatexCompiler
 from .i_latex_translator import ILatexTranslator
 from .i_pdf_blog_post_generator import IPdfBlogPostGenerator
 from .i_pdf_figure_extractor import IPdfFigureExtractor
-from .i_pdf_metadata_extractor import IPdfMetadataExtractor
 
 __all__ = [
 	'IArxivSourceFetcher',
@@ -13,5 +12,4 @@ __all__ = [
 	'ILatexTranslator',
 	'IPdfBlogPostGenerator',
 	'IPdfFigureExtractor',
-	'IPdfMetadataExtractor',
 ]

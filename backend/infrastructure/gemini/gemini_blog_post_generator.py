@@ -5,11 +5,21 @@ from typing import ClassVar, Final
 
 from google import genai
 from google.genai import types
+from pydantic import BaseModel, Field
 
 from domain.entities.arxiv import ArxivPaperMetadata
 from domain.entities.extracted_figure import UploadedFigure
 from domain.entities.pdf_paper import PdfPaperMetadata
 from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
+
+
+class PdfBlogResponse(BaseModel):
+	"""Gemini structured output schema for PDF blog post generation."""
+
+	title: str = Field(description='論文の英語原題')
+	authors: list[str] = Field(description='著者名リスト（英語原文）')
+	summary: str = Field(description='論文アブストラクトの要約（英語・2〜3文）')
+	content: str = Field(description='日本語ブログ記事の Markdown 本文')
 
 
 class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
@@ -76,6 +86,41 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		- 出力は Markdown コードブロック（```markdown ... ```）で囲んでください
 		"""
 
+	@property
+	def pdf_system_prompt(self) -> str:
+		return """\
+		あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
+		添付された PDF 論文を読み、JSON でメタデータとブログ記事を返してください。
+
+		# 返すべきフィールド
+		- title: 論文の英語原題（PDF から正確に読み取ること）
+		- authors: 著者名のリスト（英語原文）
+		- summary: アブストラクトの要約（英語・2〜3文）
+		- content: 一般読者向けの日本語ブログ記事（Markdown 形式）
+
+		# content（ブログ記事）の構成
+		1. タイトル（論文タイトルの日本語訳）
+		2. 概要（1〜2 段落で論文の要点を簡潔に説明）
+		3. 背景・問題設定（この研究が解こうとしている問題と、その重要性）
+		4. 提案手法（どのようなアプローチで問題を解いたか）
+		5. 実験・結果（どのような実験を行い、どのような結果が得られたか）
+		6. 考察・まとめ（研究の意義・限界・今後の展望）
+
+		# content の Markdown 注意事項
+		- セクションヘッダは `##` から使用（`#` はタイトル用）
+		- 図が提供されている場合は、適切な位置に `![図の説明](URL)` として埋め込む
+		- 画像URL のみ `![...]` で埋め込み、PDF URL は `[図の説明](URL)` の通常リンクにする
+		- 数式は KaTeX 互換の LaTeX 記法で記述。以下のルールを厳守：
+		  - インライン数式: `$...$`、ブロック数式: `$$...$$`
+		  - ブロック数式の `$$` 前後には必ず空行を入れること
+		  - `$` / `$$` のネスト禁止
+		  - `\\newcommand` / `\\def` で定義されたカスタムマクロは標準 KaTeX コマンドに展開する
+		  - 旧式フォントコマンド（`\\tt`, `\\bf`, `\\it`, `\\rm`）は使用禁止
+		  - `\\text{}` を使用（`\\mbox{}` / `\\hbox{}` 不可）
+		  - `\\label{}` / `\\ref{}` は使わず文脈で説明
+		- 専門用語は初出時に簡単な説明を加える
+		"""
+
 	async def generate(
 		self,
 		paper_metadata: ArxivPaperMetadata,
@@ -132,11 +177,9 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 	async def generate_from_pdf(
 		self,
-		paper_metadata: PdfPaperMetadata,
 		pdf_path: Path,
 		figures: list[UploadedFigure],
-	) -> str:
-		# Build figure reference section
+	) -> tuple[PdfPaperMetadata, str]:
 		figure_section = ''
 		if figures:
 			lines = ['# 利用可能な図の一覧\n']
@@ -153,19 +196,12 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			lines.append('\n')
 			figure_section = '\n'.join(lines)
 
-		authors_str = ', '.join(paper_metadata.authors)
 		user_prompt = (
-			f'# 論文情報\n'
-			f'- タイトル: {paper_metadata.title}\n'
-			f'- 著者: {authors_str}\n'
-			f'- 概要:\n{paper_metadata.summary}\n\n'
 			f'{figure_section}'
-			'添付の PDF 論文を読み、上記の図 URL を適切な箇所に埋め込みながら、'
-			'日本語のブログ記事を Markdown 形式で作成してください。\n'
-			'各図を参照する際は、上記の一覧に記載された URL をそのまま使用してください。'
+			'添付の PDF 論文を読み、メタデータ（title, authors, summary）と日本語ブログ記事（content）を返してください。\n'
+			'図を参照する際は、上記の一覧に記載された URL をそのまま使用してください。'
 		)
 
-		# Upload PDF to Gemini Files API
 		self.logger.info('Uploading PDF to Gemini Files API: %s', pdf_path.name)
 		uploaded_file = self.client.files.upload(
 			file=pdf_path,
@@ -177,9 +213,11 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		try:
 			response = await self.client.aio.models.generate_content(
 				model=self.model,
-				config=types.GenerateContentConfig(
-					system_instruction=self.system_prompt,
-				),
+				config={
+					'system_instruction': self.pdf_system_prompt,
+					'response_mime_type': 'application/json',
+					'response_json_schema': PdfBlogResponse.model_json_schema(),
+				},
 				contents=[  # type: ignore[arg-type]
 					types.Part.from_uri(file_uri=uploaded_file.uri, mime_type='application/pdf'),
 					user_prompt,
@@ -189,7 +227,17 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			self.client.files.delete(name=uploaded_file.name)
 			self.logger.info('Deleted uploaded PDF from Gemini Files API')
 
-		return self._extract_markdown(response.text or '')
+		parsed = PdfBlogResponse.model_validate_json(response.text or '{}')
+		metadata = PdfPaperMetadata(
+			title=parsed.title,
+			authors=parsed.authors,
+			summary=parsed.summary,
+		)
+		return metadata, self._ensure_math_blank_lines(parsed.content)
+
+	# ------------------------------------------------------------------
+	# Markdown extraction helpers
+	# ------------------------------------------------------------------
 
 	def _extract_markdown(self, raw_text: str) -> str:
 		"""Extract Markdown content from Gemini response and post-process."""
