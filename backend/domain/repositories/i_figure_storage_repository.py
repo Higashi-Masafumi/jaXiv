@@ -28,3 +28,16 @@ class IFigureStorageRepository(ABC):
 	) -> str:
 		"""Upload raw image bytes to storage and return the public URL."""
 		...
+
+	@abstractmethod
+	async def upload_pdf(self, paper_id: str, pdf_path: Path) -> str:
+		"""Upload a PDF file to storage and return the public URL.
+
+		Args:
+		    paper_id: Identifier used as a path prefix.
+		    pdf_path: Path to the PDF file to upload.
+
+		Returns:
+		    The public URL of the uploaded PDF.
+		"""
+		...

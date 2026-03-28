@@ -164,7 +164,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PdfBlogPostResponseSchema"
+                  "$ref": "#/components/schemas/BlogPostResponseSchema"
                 }
               }
             }
@@ -202,7 +202,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PdfBlogPostResponseSchema"
+                  "$ref": "#/components/schemas/BlogPostResponseSchema"
                 }
               }
             }
@@ -261,10 +261,6 @@
             "type": "string",
             "title": "Paper Id"
           },
-          "content": {
-            "type": "string",
-            "title": "Content"
-          },
           "title": {
             "type": "string",
             "title": "Title"
@@ -281,8 +277,19 @@
             "title": "Authors"
           },
           "source_url": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Source Url"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
           },
           "created_at": {
             "type": "string",
@@ -298,11 +305,11 @@
         "type": "object",
         "required": [
           "paper_id",
-          "content",
           "title",
           "summary",
           "authors",
           "source_url",
+          "content",
           "created_at",
           "updated_at"
         ],
@@ -335,36 +342,6 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
-      },
-      "PdfBlogPostResponseSchema": {
-        "properties": {
-          "paper_id": {
-            "type": "string",
-            "title": "Paper Id"
-          },
-          "content": {
-            "type": "string",
-            "title": "Content"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "paper_id",
-          "content",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "PdfBlogPostResponseSchema"
       },
       "TargetLanguage": {
         "type": "string",

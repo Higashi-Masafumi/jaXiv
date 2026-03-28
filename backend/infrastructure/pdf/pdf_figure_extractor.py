@@ -15,6 +15,7 @@ from domain.gateways import IPdfFigureExtractor
 
 FIGURE_NUMBER_RE: re.Pattern[str] = re.compile(r'(?:Fig(?:ure)?|図)\s*\.?\s*(\d+)', re.IGNORECASE)
 
+
 class PdfFigureExtractor(IPdfFigureExtractor):
 	"""Extracts figures and captions from PDFs using DocLayout-YOLO and PyMuPDF.
 
@@ -69,7 +70,11 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 				page_img = Image.open(io.BytesIO(img_bytes))
 
 				det_res = self.model.predict(
-					page_img, imgsz=1024, conf=self.CONFIDENCE_THRESHOLD, device='cpu', verbose=False
+					page_img,
+					imgsz=1024,
+					conf=self.CONFIDENCE_THRESHOLD,
+					device='cpu',
+					verbose=False,
 				)
 
 				figure_bboxes: list[list[float]] = []

@@ -13,10 +13,6 @@ export type BlogPostResponseSchema = {
    */
   paper_id: string
   /**
-   * Content
-   */
-  content: string
-  /**
    * Title
    */
   title: string
@@ -31,7 +27,11 @@ export type BlogPostResponseSchema = {
   /**
    * Source Url
    */
-  source_url: string
+  source_url: string | null
+  /**
+   * Content
+   */
+  content: string
   /**
    * Created At
    */
@@ -62,28 +62,6 @@ export type HttpValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
-}
-
-/**
- * PdfBlogPostResponseSchema
- */
-export type PdfBlogPostResponseSchema = {
-  /**
-   * Paper Id
-   */
-  paper_id: string
-  /**
-   * Content
-   */
-  content: string
-  /**
-   * Created At
-   */
-  created_at: string
-  /**
-   * Updated At
-   */
-  updated_at: string
 }
 
 /**
@@ -266,7 +244,7 @@ export type GetBlogApiV1BlogPaperIdGetResponses = {
   /**
    * Successful Response
    */
-  200: PdfBlogPostResponseSchema
+  200: BlogPostResponseSchema
 }
 
 export type GetBlogApiV1BlogPaperIdGetResponse =
@@ -293,7 +271,7 @@ export type GenerateBlogFromPdfApiV1BlogPdfPostResponses = {
   /**
    * Successful Response
    */
-  200: PdfBlogPostResponseSchema
+  200: BlogPostResponseSchema
 }
 
 export type GenerateBlogFromPdfApiV1BlogPdfPostResponse =

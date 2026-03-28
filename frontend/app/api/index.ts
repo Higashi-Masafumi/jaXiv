@@ -30,7 +30,6 @@ export type {
   GetBlogApiV1BlogPaperIdGetResponse,
   GetBlogApiV1BlogPaperIdGetResponses,
   HttpValidationError,
-  PdfBlogPostResponseSchema,
   RootGetData,
   RootGetResponses,
   TargetLanguage,

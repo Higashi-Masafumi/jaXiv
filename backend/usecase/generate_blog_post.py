@@ -66,6 +66,10 @@ class GenerateBlogPostUseCase:
 		now = datetime.now(UTC)
 		blog_post = BlogPost(
 			paper_id=arxiv_paper_id.root,
+			title=paper_metadata.title,
+			summary=paper_metadata.summary,
+			authors=[a.name for a in paper_metadata.authors],
+			source_url=str(paper_metadata.source_url),
 			content=markdown_content,
 			created_at=now,
 			updated_at=now,

@@ -26,9 +26,9 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
 		self._arxiv_client: arxiv.Client = arxiv.Client()
 
 	def fetch_tex_source(self, paper_id: ArxivPaperId, output_dir: str) -> CompileSetting:
-		self._logger.info('Fetching tex source for paper %s', paper_id.value)
-		tar_src_url = f'{self._arxiv_src_url}/{paper_id.value}'
-		source_dir = Path(os.path.join(output_dir, paper_id.value))
+		self._logger.info('Fetching tex source for paper %s', paper_id.root)
+		tar_src_url = f'{self._arxiv_src_url}/{paper_id.root}'
+		source_dir = Path(os.path.join(output_dir, paper_id.root))
 		if not os.path.exists(source_dir):
 			os.makedirs(source_dir)
 
@@ -51,10 +51,10 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
 		)
 
 	def fetch_paper_metadata(self, paper_id: ArxivPaperId) -> ArxivPaperMetadata:
-		search = arxiv.Search(id_list=[paper_id.value])
+		search = arxiv.Search(id_list=[paper_id.root])
 		paper_list = list(self._arxiv_client.results(search))
 		if len(paper_list) == 0:
-			raise ArxivPaperNotFoundError(paper_id.value)
+			raise ArxivPaperNotFoundError(paper_id.root)
 
 		self._logger.info('Found %d papers', len(paper_list))
 		paper = paper_list[0]

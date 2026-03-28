@@ -111,7 +111,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			f'# 論文情報\n'
 			f'- タイトル: {paper_metadata.title}\n'
 			f'- 著者: {authors_str}\n'
-			f'- arXiv ID: {paper_metadata.paper_id.value}\n'
+			f'- arXiv ID: {paper_metadata.paper_id.root}\n'
 			f'- 概要:\n{paper_metadata.summary}\n\n'
 			f'{figure_section}'
 			f'# LaTeX ソースコード（抜粋）\n'
@@ -119,7 +119,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			'上記の情報をもとに、日本語のブログ記事を Markdown 形式で作成してください。'
 		)
 
-		self.logger.info('Generating blog post for paper %s', paper_metadata.paper_id.value)
+		self.logger.info('Generating blog post for paper %s', paper_metadata.paper_id.root)
 		response = await self.client.aio.models.generate_content(
 			model=self.model,
 			config=types.GenerateContentConfig(
@@ -141,9 +141,15 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		if figures:
 			lines = ['# 利用可能な図の一覧\n']
 			for fig in figures:
-				label = f'Figure {fig.figure_number}' if fig.figure_number else f'図 (p.{fig.page_number})'
+				label = (
+					f'Figure {fig.figure_number}'
+					if fig.figure_number
+					else f'図 (p.{fig.page_number})'
+				)
 				caption_part = f': "{fig.caption}"' if fig.caption else ''
-				lines.append(f'- {label} (p.{fig.page_number}){caption_part} → ![{label}]({fig.url})')
+				lines.append(
+					f'- {label} (p.{fig.page_number}){caption_part} → ![{label}]({fig.url})'
+				)
 			lines.append('\n')
 			figure_section = '\n'.join(lines)
 
@@ -165,6 +171,8 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			file=pdf_path,
 			config=types.UploadFileConfig(mime_type='application/pdf'),
 		)
+		if uploaded_file.uri is None or uploaded_file.name is None:
+			raise RuntimeError(f'Gemini Files API returned incomplete file metadata for {pdf_path.name}')
 
 		try:
 			response = await self.client.aio.models.generate_content(
@@ -172,7 +180,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 				config=types.GenerateContentConfig(
 					system_instruction=self.system_prompt,
 				),
-				contents=[
+				contents=[  # type: ignore[arg-type]
 					types.Part.from_uri(file_uri=uploaded_file.uri, mime_type='application/pdf'),
 					user_prompt,
 				],

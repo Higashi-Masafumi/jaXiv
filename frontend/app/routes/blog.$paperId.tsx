@@ -21,7 +21,10 @@ export async function loader({ params }: Route.LoaderArgs) {
 
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: 'Blog Post | jaXiv' }]
-  return [{ title: `${loaderData.paper_id} | jaXiv` }]
+  return [
+    { title: loaderData.title },
+    { name: 'description', content: loaderData.summary },
+  ]
 }
 
 export default function BlogPage({ loaderData }: Route.ComponentProps) {
@@ -30,6 +33,26 @@ export default function BlogPage({ loaderData }: Route.ComponentProps) {
   }, [])
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
+      {(loaderData.authors.length > 0 || loaderData.source_url) && (
+        <header className="mb-8 space-y-2">
+          {loaderData.authors.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {loaderData.authors.join(', ')}
+            </p>
+          )}
+          {loaderData.source_url && (
+            <a
+              href={loaderData.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              {loaderData.source_url}
+            </a>
+          )}
+        </header>
+      )}
+
       <div
         className="znc"
         dangerouslySetInnerHTML={{ __html: loaderData.contentHtml }}

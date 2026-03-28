@@ -51,9 +51,7 @@ class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
 		result = await self._session.execute(statement)
 		existing = result.scalars().first()
 		if existing is not None:
-			self._logger.warning(
-				'Paper %s already exists', translated_paper_metadata.paper_id.root
-			)
+			self._logger.warning('Paper %s already exists', translated_paper_metadata.paper_id.root)
 			return
 		model = ArxivPaperMetadataWithTranslatedUrlModel(
 			paper_id=translated_paper_metadata.paper_id.root,

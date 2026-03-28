@@ -41,3 +41,10 @@ dev = [
     "ruff>=0.14.8",
     "types-pyyaml>=6.0.12.20250915",
 ]
+
+[tool.mypy]
+python_version = "3.13"
+
+[[tool.mypy.overrides]]
+module = ["fitz", "fitz.*", "doclayout_yolo", "doclayout_yolo.*"]
+ignore_missing_imports = true

@@ -27,7 +27,22 @@ class ArxivPaperMetadataWithTranslatedUrlModel(SQLModel, table=True):
 
 class BlogPostContentModel(SQLModel, table=True):
 	id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-	paper_id: str = Field(index=True, unique=True, description='The arXiv paper ID')
+	paper_id: str = Field(index=True, unique=True, description='The paper ID')
+	title: str = Field(
+		sa_column=Column(Text, nullable=False, server_default=''), description='Title of the paper'
+	)
+	summary: str = Field(
+		sa_column=Column(Text, nullable=False, server_default=''), description='Abstract or summary'
+	)
+	authors: list[str] = Field(
+		sa_column=Column(ARRAY(String), nullable=False, server_default='{}'),
+		description='Author names',
+	)
+	source_url: str | None = Field(
+		sa_column=Column(Text, nullable=True),
+		default=None,
+		description='URL of the original paper',
+	)
 	content: str = Field(sa_column=Column(Text), description='Blog post content in Markdown')
 	created_at: datetime = Field(
 		sa_column=Column(DateTime(timezone=True)),

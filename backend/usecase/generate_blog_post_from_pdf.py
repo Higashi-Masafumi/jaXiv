@@ -36,6 +36,15 @@ class GenerateBlogPostFromPdfUseCase:
 			self._logger.info('Returning cached blog post for %s', paper_id.root)
 			return existing
 
+		try:
+			source_url: str | None = await self._figure_storage_repository.upload_pdf(
+				paper_id=paper_id.root,
+				pdf_path=pdf_path,
+			)
+		except Exception:
+			self._logger.warning('Failed to upload PDF to storage; source_url will be None', exc_info=True)
+			source_url = None
+
 		extracted_figures = self._figure_extractor.extract_figures(pdf_path)
 
 		uploaded_figures: list[UploadedFigure] = []
@@ -57,7 +66,9 @@ class GenerateBlogPostFromPdfUseCase:
 					)
 				)
 			except Exception:
-				self._logger.warning('Failed to upload figure %s; skipping', filename, exc_info=True)
+				self._logger.warning(
+					'Failed to upload figure %s; skipping', filename, exc_info=True
+				)
 
 		self._logger.info(
 			'Uploaded %d/%d figures for paper %s',
@@ -75,6 +86,10 @@ class GenerateBlogPostFromPdfUseCase:
 		now = datetime.now(UTC)
 		blog_post = BlogPost(
 			paper_id=paper_id.root,
+			title=metadata.title,
+			summary=metadata.summary,
+			authors=metadata.authors,
+			source_url=source_url,
 			content=markdown_content,
 			created_at=now,
 			updated_at=now,
