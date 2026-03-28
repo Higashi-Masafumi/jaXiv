@@ -43,6 +43,18 @@ export type BlogPostResponseSchema = {
 }
 
 /**
+ * Body_generate_blog_from_pdf_api_v1_blog_pdf_post
+ */
+export type BodyGenerateBlogFromPdfApiV1BlogPdfPost = {
+  /**
+   * File
+   *
+   * PDF file of the paper
+   */
+  file: Blob | File
+}
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -50,6 +62,28 @@ export type HttpValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * PdfBlogPostResponseSchema
+ */
+export type PdfBlogPostResponseSchema = {
+  /**
+   * Paper Id
+   */
+  paper_id: string
+  /**
+   * Content
+   */
+  content: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Updated At
+   */
+  updated_at: string
 }
 
 /**
@@ -170,40 +204,6 @@ export type TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetResponses = {
   200: unknown
 }
 
-export type GetBlogApiV1BlogArxivArxivPaperIdGetData = {
-  body?: never
-  path: {
-    /**
-     * Arxiv Paper Id
-     *
-     * The arXiv paper ID
-     */
-    arxiv_paper_id: string
-  }
-  query?: never
-  url: '/api/v1/blog/arxiv/{arxiv_paper_id}'
-}
-
-export type GetBlogApiV1BlogArxivArxivPaperIdGetErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
-
-export type GetBlogApiV1BlogArxivArxivPaperIdGetError =
-  GetBlogApiV1BlogArxivArxivPaperIdGetErrors[keyof GetBlogApiV1BlogArxivArxivPaperIdGetErrors]
-
-export type GetBlogApiV1BlogArxivArxivPaperIdGetResponses = {
-  /**
-   * Successful Response
-   */
-  200: BlogPostResponseSchema
-}
-
-export type GetBlogApiV1BlogArxivArxivPaperIdGetResponse =
-  GetBlogApiV1BlogArxivArxivPaperIdGetResponses[keyof GetBlogApiV1BlogArxivArxivPaperIdGetResponses]
-
 export type GenerateBlogApiV1BlogArxivArxivPaperIdPostData = {
   body?: never
   path: {
@@ -237,6 +237,67 @@ export type GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses = {
 
 export type GenerateBlogApiV1BlogArxivArxivPaperIdPostResponse =
   GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses[keyof GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses]
+
+export type GetBlogApiV1BlogPaperIdGetData = {
+  body?: never
+  path: {
+    /**
+     * Paper Id
+     *
+     * The paper ID
+     */
+    paper_id: string
+  }
+  query?: never
+  url: '/api/v1/blog/{paper_id}'
+}
+
+export type GetBlogApiV1BlogPaperIdGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetBlogApiV1BlogPaperIdGetError =
+  GetBlogApiV1BlogPaperIdGetErrors[keyof GetBlogApiV1BlogPaperIdGetErrors]
+
+export type GetBlogApiV1BlogPaperIdGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: PdfBlogPostResponseSchema
+}
+
+export type GetBlogApiV1BlogPaperIdGetResponse =
+  GetBlogApiV1BlogPaperIdGetResponses[keyof GetBlogApiV1BlogPaperIdGetResponses]
+
+export type GenerateBlogFromPdfApiV1BlogPdfPostData = {
+  body: BodyGenerateBlogFromPdfApiV1BlogPdfPost
+  path?: never
+  query?: never
+  url: '/api/v1/blog/pdf'
+}
+
+export type GenerateBlogFromPdfApiV1BlogPdfPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GenerateBlogFromPdfApiV1BlogPdfPostError =
+  GenerateBlogFromPdfApiV1BlogPdfPostErrors[keyof GenerateBlogFromPdfApiV1BlogPdfPostErrors]
+
+export type GenerateBlogFromPdfApiV1BlogPdfPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: PdfBlogPostResponseSchema
+}
+
+export type GenerateBlogFromPdfApiV1BlogPdfPostResponse =
+  GenerateBlogFromPdfApiV1BlogPdfPostResponses[keyof GenerateBlogFromPdfApiV1BlogPdfPostResponses]
 
 export type RootGetData = {
   body?: never

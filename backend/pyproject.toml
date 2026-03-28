@@ -32,6 +32,7 @@ dependencies = [
     "uvicorn>=0.35.0",
     "doclayout-yolo>=0.0.3",
     "PyMuPDF>=1.25.0",
+    "huggingface-hub>=1.8.0",
 ]
 
 [dependency-groups]

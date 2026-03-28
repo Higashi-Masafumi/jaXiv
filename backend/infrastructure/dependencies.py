@@ -159,12 +159,8 @@ async def get_save_translated_arxiv(
 
 async def get_get_blog_post(
 	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
-	arxiv_source_fetcher: Annotated[IArxivSourceFetcher, Depends(get_arxiv_source_fetcher)],
 ) -> GetBlogPostUseCase:
-	return GetBlogPostUseCase(
-		blog_post_repository=blog_post_repository,
-		arxiv_source_fetcher=arxiv_source_fetcher,
-	)
+	return GetBlogPostUseCase(blog_post_repository=blog_post_repository)
 
 
 async def get_generate_blog_post(

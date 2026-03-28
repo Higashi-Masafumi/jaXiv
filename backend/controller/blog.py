@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
 
 from controller.schemas.blog_response import BlogPostResponseSchema
 from controller.schemas.pdf_blog_response import PdfBlogPostResponseSchema
+from domain.gateways import IArxivSourceFetcher
 from domain.value_objects import ArxivPaperId
 from infrastructure.dependencies import (
+	get_arxiv_source_fetcher,
 	get_generate_blog_post,
 	get_generate_blog_post_from_pdf,
 	get_get_blog_post,
@@ -25,44 +27,42 @@ def _get_output_dir() -> str:
 	return output_dir
 
 
-def _to_schema(result) -> BlogPostResponseSchema:
-	return BlogPostResponseSchema(
-		paper_id=result.blog_post.paper_id,
-		content=result.blog_post.content,
-		title=result.paper_metadata.title,
-		summary=result.paper_metadata.summary,
-		authors=[a.name for a in result.paper_metadata.authors],
-		source_url=str(result.paper_metadata.source_url),
-		created_at=result.blog_post.created_at,
-		updated_at=result.blog_post.updated_at,
-	)
-
-
 @router.post('/arxiv/{arxiv_paper_id}', response_model=BlogPostResponseSchema)
 async def generate_blog(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
 	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
-	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
+	arxiv_source_fetcher: Annotated[IArxivSourceFetcher, Depends(get_arxiv_source_fetcher)],
 ) -> BlogPostResponseSchema:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
-	await generate_blog_post.execute(arxiv_paper_id=paper_id, output_dir=output_dir)
-	result = await get_blog_post.execute(arxiv_paper_id=paper_id)
-	if result is None:
-		raise HTTPException(status_code=500, detail='Blog post generation failed.')
-	return _to_schema(result)
+	blog_post = await generate_blog_post.execute(arxiv_paper_id=paper_id, output_dir=output_dir)
+	paper_metadata = arxiv_source_fetcher.fetch_paper_metadata(paper_id=paper_id)
+	return BlogPostResponseSchema(
+		paper_id=blog_post.paper_id,
+		content=blog_post.content,
+		title=paper_metadata.title,
+		summary=paper_metadata.summary,
+		authors=[a.name for a in paper_metadata.authors],
+		source_url=str(paper_metadata.source_url),
+		created_at=blog_post.created_at,
+		updated_at=blog_post.updated_at,
+	)
 
 
-@router.get('/arxiv/{arxiv_paper_id}', response_model=BlogPostResponseSchema)
+@router.get('/{paper_id}', response_model=PdfBlogPostResponseSchema)
 async def get_blog(
-	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
+	paper_id: Annotated[str, Path(description='The paper ID')],
 	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
-) -> BlogPostResponseSchema:
-	paper_id = ArxivPaperId(arxiv_paper_id)
-	result = await get_blog_post.execute(arxiv_paper_id=paper_id)
-	if result is None:
-		raise HTTPException(status_code=404, detail=f'Blog post for {arxiv_paper_id} not found.')
-	return _to_schema(result)
+) -> PdfBlogPostResponseSchema:
+	blog_post = await get_blog_post.execute(paper_id=paper_id)
+	if blog_post is None:
+		raise HTTPException(status_code=404, detail=f'Blog post for {paper_id} not found.')
+	return PdfBlogPostResponseSchema(
+		paper_id=blog_post.paper_id,
+		content=blog_post.content,
+		created_at=blog_post.created_at,
+		updated_at=blog_post.updated_at,
+	)
 
 
 @router.post('/pdf', response_model=PdfBlogPostResponseSchema)

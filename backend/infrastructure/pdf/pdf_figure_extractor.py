@@ -6,6 +6,7 @@ from typing import ClassVar
 
 import fitz
 from doclayout_yolo import YOLOv10
+from huggingface_hub import hf_hub_download
 from PIL import Image
 
 from domain.entities.extracted_figure import ExtractedFigure
@@ -14,9 +15,11 @@ from domain.gateways import IPdfFigureExtractor
 
 FIGURE_NUMBER_RE: re.Pattern[str] = re.compile(r'(?:Fig(?:ure)?|図)\s*\.?\s*(\d+)', re.IGNORECASE)
 
-
 class PdfFigureExtractor(IPdfFigureExtractor):
-	"""Extracts figures and captions from PDFs using DocLayout-YOLO and PyMuPDF."""
+	"""Extracts figures and captions from PDFs using DocLayout-YOLO and PyMuPDF.
+
+	Requires model weights to be pre-downloaded via scripts/download_models.py.
+	"""
 
 	RENDER_DPI: ClassVar[int] = 200
 	CONFIDENCE_THRESHOLD: ClassVar[float] = 0.3
@@ -25,14 +28,21 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 	FIGURE_CLASS: ClassVar[str] = 'figure'
 	FIGURE_CAPTION_CLASS: ClassVar[str] = 'figure_caption'
 
-	def __init__(self) -> None:
+	def __init__(
+		self,
+		hf_repo_id: str = 'juliozhao/DocLayout-YOLO-DocStructBench',
+		hf_filename: str = 'doclayout_yolo_docstructbench_imgsz1024.pt',
+	) -> None:
 		self._logger = getLogger(__name__)
+		self._hf_repo_id = hf_repo_id
+		self._hf_filename = hf_filename
 		self._model: YOLOv10 | None = None
 
 	@property
 	def model(self) -> YOLOv10:
 		if self._model is None:
-			self._model = YOLOv10.from_pretrained('juliozhao/DocLayout-YOLO-DocStructBench')
+			model_path = hf_hub_download(repo_id=self._hf_repo_id, filename=self._hf_filename)
+			self._model = YOLOv10(model_path)
 		return self._model
 
 	def extract_figures(self, pdf_path: Path) -> list[ExtractedFigure]:
