@@ -13,7 +13,12 @@ from infrastructure.dependencies import (
 	get_get_blog_post,
 	get_list_blog_posts,
 )
-from usecase import GenerateBlogPostFromPdfUseCase, GenerateBlogPostUseCase, GetBlogPostUseCase, ListBlogPostsUseCase
+from usecase import (
+	GenerateBlogPostFromPdfUseCase,
+	GenerateBlogPostUseCase,
+	GetBlogPostUseCase,
+	ListBlogPostsUseCase,
+)
 
 router = APIRouter(prefix='/api/v1/blog')
 

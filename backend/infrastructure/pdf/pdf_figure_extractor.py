@@ -4,9 +4,10 @@ from logging import getLogger
 from pathlib import Path
 from typing import ClassVar
 
+import cv2
 import fitz
-from doclayout_yolo import YOLOv10
-from huggingface_hub import hf_hub_download
+import numpy as np
+import onnxruntime as ort
 from PIL import Image
 
 from domain.entities.extracted_figure import ExtractedFigure
@@ -17,34 +18,20 @@ FIGURE_NUMBER_RE: re.Pattern[str] = re.compile(r'(?:Fig(?:ure)?|図)\s*\.?\s*(\d
 
 
 class PdfFigureExtractor(IPdfFigureExtractor):
-	"""Extracts figures and captions from PDFs using DocLayout-YOLO and PyMuPDF.
-
-	Requires model weights to be pre-downloaded via scripts/download_models.py.
-	"""
+	"""Extracts figures and captions from PDFs using DocLayout-YOLO (ONNX) and PyMuPDF."""
 
 	RENDER_DPI: ClassVar[int] = 200
 	CONFIDENCE_THRESHOLD: ClassVar[float] = 0.3
 	CAPTION_DISTANCE_RATIO: ClassVar[float] = 0.20
 	MAX_FIGURES: ClassVar[int] = 20
-	FIGURE_CLASS: ClassVar[str] = 'figure'
-	FIGURE_CAPTION_CLASS: ClassVar[str] = 'figure_caption'
+	IMGSZ: ClassVar[int] = 1024
+	PAD_COLOR: ClassVar[tuple[int, int, int]] = (114, 114, 114)
+	FIGURE_CLASS_ID: ClassVar[int] = 3
+	FIGURE_CAPTION_CLASS_ID: ClassVar[int] = 4
 
-	def __init__(
-		self,
-		hf_repo_id: str = 'juliozhao/DocLayout-YOLO-DocStructBench',
-		hf_filename: str = 'doclayout_yolo_docstructbench_imgsz1024.pt',
-	) -> None:
+	def __init__(self, session: ort.InferenceSession) -> None:
 		self._logger = getLogger(__name__)
-		self._hf_repo_id = hf_repo_id
-		self._hf_filename = hf_filename
-		self._model: YOLOv10 | None = None
-
-	@property
-	def model(self) -> YOLOv10:
-		if self._model is None:
-			model_path = hf_hub_download(repo_id=self._hf_repo_id, filename=self._hf_filename)
-			self._model = YOLOv10(model_path)
-		return self._model
+		self._session = session
 
 	def extract_figures(self, pdf_path: Path) -> list[ExtractedFigure]:
 		"""Extract figures with captions from a PDF file."""
@@ -62,45 +49,93 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 					break
 
 				page = doc[page_num]
-				page_height = page.rect.height * scale
 
-				mat = fitz.Matrix(scale, scale)
-				pix = page.get_pixmap(matrix=mat)
-				img_bytes = pix.tobytes('png')
-				page_img = Image.open(io.BytesIO(img_bytes))
+				# --------------------------------------
+				# 1. render page
+				# --------------------------------------
+				pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale))
+				page_img = Image.open(io.BytesIO(pix.tobytes('png')))
 
-				det_res = self.model.predict(
-					page_img,
-					imgsz=1024,
-					conf=self.CONFIDENCE_THRESHOLD,
-					device='cpu',
-					verbose=False,
+				# --------------------------------------
+				# 2. letterbox preprocess
+				# --------------------------------------
+				img_bgr = cv2.cvtColor(np.array(page_img), cv2.COLOR_RGB2BGR)
+				h, w = img_bgr.shape[:2]
+				ratio = min(self.IMGSZ / h, self.IMGSZ / w)
+				new_w, new_h = int(round(w * ratio)), int(round(h * ratio))
+				img_bgr = cv2.resize(img_bgr, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+				pad_w = (self.IMGSZ - new_w) // 2
+				pad_h = (self.IMGSZ - new_h) // 2
+				img_bgr = cv2.copyMakeBorder(
+					img_bgr,
+					pad_h,
+					self.IMGSZ - new_h - pad_h,
+					pad_w,
+					self.IMGSZ - new_w - pad_w,
+					cv2.BORDER_CONSTANT,
+					value=self.PAD_COLOR,
 				)
+				blob = img_bgr.transpose(2, 0, 1)[np.newaxis].astype(np.float32) / 255.0
 
+				# --------------------------------------
+				# 3. ONNX inference → decode bboxes
+				# --------------------------------------
+				preds = self._session.run(None, {'images': blob})[0][
+					0
+				]  # (300, 6): [x1,y1,x2,y2,conf,cls]
 				figure_bboxes: list[list[float]] = []
 				caption_bboxes: list[list[float]] = []
+				for det in preds:
+					if det[4] <= self.CONFIDENCE_THRESHOLD:
+						continue
+					bbox = [
+						float((det[0] - pad_w) / ratio),
+						float((det[1] - pad_h) / ratio),
+						float((det[2] - pad_w) / ratio),
+						float((det[3] - pad_h) / ratio),
+					]
+					if int(det[5]) == self.FIGURE_CLASS_ID:
+						figure_bboxes.append(bbox)
+					elif int(det[5]) == self.FIGURE_CAPTION_CLASS_ID:
+						caption_bboxes.append(bbox)
 
-				for result in det_res:
-					for i in range(len(result.boxes)):
-						cls_name = result.names[int(result.boxes.cls[i])]
-						bbox = result.boxes.xyxy[i].tolist()
-						if cls_name == self.FIGURE_CLASS:
-							figure_bboxes.append(bbox)
-						elif cls_name == self.FIGURE_CAPTION_CLASS:
-							caption_bboxes.append(bbox)
+				# --------------------------------------
+				# 4. associate captions (greedy, prefer below)
+				# --------------------------------------
+				threshold = page.rect.height * scale * self.CAPTION_DISTANCE_RATIO
+				used_captions: set[int] = set()
+				associations: list[tuple[list[float], list[float] | None]] = []
+			for fig_bbox in figure_bboxes:
+				best_cap_idx: int | None = None
+				best_dist = float('inf')
+				for cap_idx, cap_item in enumerate(caption_bboxes):
+					if cap_idx in used_captions:
+						continue
+					# below figure: prefer; above figure: slight penalty
+					dist = (
+						abs(cap_item[1] - fig_bbox[3])
+						if cap_item[1] >= fig_bbox[1]
+						else abs(fig_bbox[1] - cap_item[3]) + threshold * 0.1
+					)
+					if dist < best_dist and dist < threshold:
+						best_dist, best_cap_idx = dist, cap_idx
+				if best_cap_idx is not None:
+					used_captions.add(best_cap_idx)
+					associations.append((fig_bbox, caption_bboxes[best_cap_idx]))
+				else:
+					associations.append((fig_bbox, None))
 
-				associations = self._associate_captions(figure_bboxes, caption_bboxes, page_height)
-
+				# --------------------------------------
+				# 5. crop figures & extract caption text
+				# --------------------------------------
 				for fig_bbox, cap_bbox in associations:
 					if len(all_figures) >= self.MAX_FIGURES:
 						break
 
-					cropped = page_img.crop(
-						(int(fig_bbox[0]), int(fig_bbox[1]), int(fig_bbox[2]), int(fig_bbox[3]))
-					)
 					buf = io.BytesIO()
-					cropped.save(buf, format='PNG')
-					figure_bytes = buf.getvalue()
+					page_img.crop(
+						(int(fig_bbox[0]), int(fig_bbox[1]), int(fig_bbox[2]), int(fig_bbox[3]))
+					).save(buf, format='PNG')
 
 					caption_text = ''
 					figure_number = None
@@ -111,15 +146,15 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 							cap_bbox[2] / scale,
 							cap_bbox[3] / scale,
 						)
-						caption_text = page.get_text('text', clip=pdf_rect).strip()
-						caption_text = ' '.join(caption_text.split())
-						match = FIGURE_NUMBER_RE.search(caption_text)
-						if match:
-							figure_number = int(match.group(1))
+						caption_text = ' '.join(
+							page.get_text('text', clip=pdf_rect).strip().split()
+						)
+						if m := FIGURE_NUMBER_RE.search(caption_text):
+							figure_number = int(m.group(1))
 
 					all_figures.append(
 						ExtractedFigure(
-							image_bytes=figure_bytes,
+							image_bytes=buf.getvalue(),
 							caption=caption_text,
 							figure_number=figure_number,
 							page_number=page_num + 1,
@@ -130,46 +165,3 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 
 		self._logger.info('Extracted %d figures from %s', len(all_figures), pdf_path.name)
 		return all_figures
-
-	@staticmethod
-	def _associate_captions(
-		figure_bboxes: list[list[float]],
-		caption_bboxes: list[list[float]],
-		page_height: float,
-	) -> list[tuple[list[float], list[float] | None]]:
-		"""Associate each figure with its nearest caption using spatial proximity.
-
-		Prefers captions below the figure, falls back to above.
-		Uses greedy 1:1 matching.
-		"""
-		threshold = page_height * PdfFigureExtractor.CAPTION_DISTANCE_RATIO
-		used_captions: set[int] = set()
-		associations: list[tuple[list[float], list[float] | None]] = []
-
-		for fig_bbox in figure_bboxes:
-			fig_bottom = fig_bbox[3]
-			fig_top = fig_bbox[1]
-			best_cap_idx: int | None = None
-			best_dist = float('inf')
-
-			for cap_idx, cap_bbox in enumerate(caption_bboxes):
-				if cap_idx in used_captions:
-					continue
-				cap_top = cap_bbox[1]
-
-				if cap_top >= fig_top:
-					dist = abs(cap_top - fig_bottom)
-				else:
-					dist = abs(fig_top - cap_bbox[3]) + threshold * 0.1
-
-				if dist < best_dist and dist < threshold:
-					best_dist = dist
-					best_cap_idx = cap_idx
-
-			if best_cap_idx is not None:
-				used_captions.add(best_cap_idx)
-				associations.append((fig_bbox, caption_bboxes[best_cap_idx]))
-			else:
-				associations.append((fig_bbox, None))
-
-		return associations

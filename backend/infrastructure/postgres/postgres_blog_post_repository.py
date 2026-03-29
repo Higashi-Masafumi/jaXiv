@@ -32,7 +32,9 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		)
 
 	async def find_all(self) -> list[BlogPost]:
-		statement = select(BlogPostContentModel).order_by(col(BlogPostContentModel.created_at).desc())
+		statement = select(BlogPostContentModel).order_by(
+			col(BlogPostContentModel.created_at).desc()
+		)
 		result = await self._session.execute(statement)
 		rows = result.scalars().all()
 		return [self._to_entity(row) for row in rows]
