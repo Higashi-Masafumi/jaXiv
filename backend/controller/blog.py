@@ -6,7 +6,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
 
 from controller.schemas.blog_response import BlogPostResponseSchema
-from domain.entities.blog import BlogPost
 from domain.value_objects import ArxivPaperId
 from infrastructure.dependencies import (
 	get_generate_blog_post,
@@ -26,25 +25,12 @@ def _get_output_dir() -> str:
 	return output_dir
 
 
-def _to_schema(blog_post: BlogPost) -> BlogPostResponseSchema:
-	return BlogPostResponseSchema(
-		paper_id=blog_post.paper_id,
-		title=blog_post.title,
-		summary=blog_post.summary,
-		authors=blog_post.authors,
-		source_url=blog_post.source_url,
-		content=blog_post.content,
-		created_at=blog_post.created_at,
-		updated_at=blog_post.updated_at,
-	)
-
-
 @router.get('/', response_model=list[BlogPostResponseSchema])
 async def list_blogs(
 	list_blog_posts: Annotated[ListBlogPostsUseCase, Depends(get_list_blog_posts)],
 ) -> list[BlogPostResponseSchema]:
 	blog_posts = await list_blog_posts.execute()
-	return [_to_schema(post) for post in blog_posts]
+	return [BlogPostResponseSchema.from_entity(post) for post in blog_posts]
 
 
 @router.post('/arxiv/{arxiv_paper_id}', response_model=BlogPostResponseSchema)
@@ -55,7 +41,7 @@ async def generate_blog(
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
 	blog_post = await generate_blog_post.execute(arxiv_paper_id=paper_id, output_dir=output_dir)
-	return _to_schema(blog_post)
+	return BlogPostResponseSchema.from_entity(blog_post)
 
 
 @router.get('/{paper_id}', response_model=BlogPostResponseSchema)
@@ -66,7 +52,7 @@ async def get_blog(
 	blog_post = await get_blog_post.execute(paper_id=paper_id)
 	if blog_post is None:
 		raise HTTPException(status_code=404, detail=f'Blog post for {paper_id} not found.')
-	return _to_schema(blog_post)
+	return BlogPostResponseSchema.from_entity(blog_post)
 
 
 @router.post('/pdf', response_model=BlogPostResponseSchema)
@@ -87,6 +73,6 @@ async def generate_blog_from_pdf(
 		tmp.close()
 
 		blog_post = await generate_blog_post_from_pdf.execute(pdf_path=pdf_path)
-		return _to_schema(blog_post)
+		return BlogPostResponseSchema.from_entity(blog_post)
 	finally:
 		pdf_path.unlink(missing_ok=True)
