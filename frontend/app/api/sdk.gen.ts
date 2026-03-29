@@ -17,6 +17,8 @@ import type {
   GetBlogApiV1BlogPaperIdGetData,
   GetBlogApiV1BlogPaperIdGetErrors,
   GetBlogApiV1BlogPaperIdGetResponses,
+  ListBlogsApiV1BlogGetData,
+  ListBlogsApiV1BlogGetResponses,
   RootGetData,
   RootGetResponses,
   TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetData,
@@ -45,6 +47,18 @@ export type Options<
    */
   meta?: Record<string, unknown>
 }
+
+/**
+ * List Blogs
+ */
+export const listBlogsApiV1BlogGet = <ThrowOnError extends boolean = false>(
+  options?: Options<ListBlogsApiV1BlogGetData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListBlogsApiV1BlogGetResponses,
+    unknown,
+    ThrowOnError
+  >({ url: '/api/v1/blog/', ...options })
 
 /**
  * Translate Sync

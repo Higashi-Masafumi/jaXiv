@@ -107,6 +107,25 @@ export type ValidationError = {
   type: string
 }
 
+export type ListBlogsApiV1BlogGetData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/blog/'
+}
+
+export type ListBlogsApiV1BlogGetResponses = {
+  /**
+   * Response List Blogs Api V1 Blog  Get
+   *
+   * Successful Response
+   */
+  200: Array<BlogPostResponseSchema>
+}
+
+export type ListBlogsApiV1BlogGetResponse =
+  ListBlogsApiV1BlogGetResponses[keyof ListBlogsApiV1BlogGetResponses]
+
 export type TranslateSyncApiV1TranslateArxivArxivPaperIdPostData = {
   body?: never
   path: {

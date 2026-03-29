@@ -100,6 +100,28 @@
         }
       }
     },
+    "/api/v1/blog/": {
+      "get": {
+        "summary": "List Blogs",
+        "operationId": "list_blogs_api_v1_blog__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BlogPostResponseSchema"
+                  },
+                  "type": "array",
+                  "title": "Response List Blogs Api V1 Blog  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/blog/arxiv/{arxiv_paper_id}": {
       "post": {
         "summary": "Generate Blog",

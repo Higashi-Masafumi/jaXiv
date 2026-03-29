@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
-import { ArchiveIcon, SparklesIcon } from 'lucide-react'
+import { ArchiveIcon, FileTextIcon, SparklesIcon } from 'lucide-react'
 
 import { Separator } from '~/components/ui/separator'
 import {
@@ -16,8 +16,9 @@ import {
 } from '~/components/ui/sidebar'
 
 const NAV_ITEMS = [
-  { title: 'ブログ生成', url: '/', icon: SparklesIcon },
-  { title: 'アーカイブ', url: '/archive', icon: ArchiveIcon },
+  { title: 'arXiv', url: '/', icon: SparklesIcon },
+  { title: 'PDF', url: '/pdf', icon: FileTextIcon },
+  { title: 'ブログ一覧', url: '/blog', icon: ArchiveIcon },
 ] as const
 
 function AppSidebar() {

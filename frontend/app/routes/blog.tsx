@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 
-import type { BlogPostResponseSchema } from '../api/types.gen'
-import type { Route } from './+types/archive'
+import { listBlogsApiV1BlogGet } from '../api/sdk.gen'
+import type { Route } from './+types/blog'
 
 const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8001'
 
@@ -13,13 +13,12 @@ export function meta() {
 }
 
 export async function loader() {
-  const response = await fetch(`${SERVER_API_BASE}/api/v1/blog/`)
-  if (!response.ok)
-    throw new Response('Failed to load archive', { status: 500 })
-  return (await response.json()) as BlogPostResponseSchema[]
+  const { data, error } = await listBlogsApiV1BlogGet({ baseUrl: SERVER_API_BASE })
+  if (error || !data) throw new Response('Failed to load archive', { status: 500 })
+  return data
 }
 
-export default function Archive({ loaderData }: Route.ComponentProps) {
+export default function BlogList({ loaderData }: Route.ComponentProps) {
   if (loaderData.length === 0) {
     return (
       <main className="px-4 py-12">
