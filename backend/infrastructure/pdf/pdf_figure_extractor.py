@@ -20,7 +20,7 @@ FIGURE_NUMBER_RE: re.Pattern[str] = re.compile(r'(?:Fig(?:ure)?|図)\s*\.?\s*(\d
 class PdfFigureExtractor(IPdfFigureExtractor):
 	"""Extracts figures and captions from PDFs using DocLayout-YOLO (ONNX) and PyMuPDF."""
 
-	RENDER_DPI: ClassVar[int] = 200
+	RENDER_DPI: ClassVar[int] = 150
 	CONFIDENCE_THRESHOLD: ClassVar[float] = 0.3
 	CAPTION_DISTANCE_RATIO: ClassVar[float] = 0.20
 	MAX_FIGURES: ClassVar[int] = 20
