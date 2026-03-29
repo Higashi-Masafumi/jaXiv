@@ -15,6 +15,8 @@ WORKDIR /app
 COPY . /app
 COPY pyproject.toml uv.lock ./
 # Install Python dependencies
+# Re-lock torch/torchvision to pick up CPU-only wheels from pytorch-cpu index
+RUN uv lock --upgrade-package torch --upgrade-package torchvision
 RUN uv sync
 # Pre-download ML model weights so they are baked into the image
 RUN uv run python scripts/download_models.py

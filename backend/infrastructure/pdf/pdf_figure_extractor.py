@@ -2,16 +2,18 @@ import io
 import re
 from logging import getLogger
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import fitz
-from doclayout_yolo import YOLOv10
 from huggingface_hub import hf_hub_download
 from PIL import Image
 
 from domain.entities.extracted_figure import ExtractedFigure
 from domain.errors.domain_error import PdfProcessingError
 from domain.gateways import IPdfFigureExtractor
+
+if TYPE_CHECKING:
+    from doclayout_yolo import YOLOv10
 
 FIGURE_NUMBER_RE: re.Pattern[str] = re.compile(r'(?:Fig(?:ure)?|図)\s*\.?\s*(\d+)', re.IGNORECASE)
 
@@ -37,11 +39,12 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 		self._logger = getLogger(__name__)
 		self._hf_repo_id = hf_repo_id
 		self._hf_filename = hf_filename
-		self._model: YOLOv10 | None = None
+		self._model: 'YOLOv10 | None' = None
 
 	@property
-	def model(self) -> YOLOv10:
+	def model(self) -> 'YOLOv10':
 		if self._model is None:
+			from doclayout_yolo import YOLOv10
 			model_path = hf_hub_download(repo_id=self._hf_repo_id, filename=self._hf_filename)
 			self._model = YOLOv10(model_path)
 		return self._model
