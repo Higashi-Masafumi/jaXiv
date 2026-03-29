@@ -19,4 +19,4 @@ RUN uv run python scripts/download_models.py
 # Expose the application port
 EXPOSE ${PORT}
 # Command to run the application
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
+CMD uv run uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
