@@ -10,14 +10,18 @@ const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8001'
 export function meta() {
   return [
     { title: 'PDF → ブログ生成 | jaXiv' },
-    { name: 'description', content: 'PDF ファイルからブログ記事を生成します。' },
+    {
+      name: 'description',
+      content: 'PDF ファイルからブログ記事を生成します。',
+    },
   ]
 }
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData()
   const file = formData.get('file') as File | null
-  if (!file || file.size === 0) return { error: 'PDFファイルを選択してください' }
+  if (!file || file.size === 0)
+    return { error: 'PDFファイルを選択してください' }
 
   const { data, error } = await generateBlogFromPdfApiV1BlogPdfPost({
     baseUrl: SERVER_API_BASE,
@@ -47,7 +51,9 @@ export default function Pdf({ actionData }: Route.ComponentProps) {
           <p className="mx-auto w-fit rounded-full border border-hero-accent/30 bg-hero-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-hero-accent">
             AI Research Companion
           </p>
-          <h1 className="text-5xl font-black tracking-tight sm:text-6xl">PDF 生成</h1>
+          <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
+            PDF 生成
+          </h1>
           <p className="mx-auto max-w-xl text-base leading-relaxed text-hero-muted sm:text-lg">
             PDF 論文をアップロードして、読みやすいブログ記事に変換します。
           </p>

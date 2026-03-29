@@ -13,8 +13,11 @@ export function meta() {
 }
 
 export async function loader() {
-  const { data, error } = await listBlogsApiV1BlogGet({ baseUrl: SERVER_API_BASE })
-  if (error || !data) throw new Response('Failed to load archive', { status: 500 })
+  const { data, error } = await listBlogsApiV1BlogGet({
+    baseUrl: SERVER_API_BASE,
+  })
+  if (error || !data)
+    throw new Response('Failed to load archive', { status: 500 })
   return data
 }
 

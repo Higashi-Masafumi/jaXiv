@@ -50,7 +50,9 @@ export default function Arxiv({ actionData }: Route.ComponentProps) {
           <p className="mx-auto w-fit rounded-full border border-hero-accent/30 bg-hero-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-hero-accent">
             AI Research Companion
           </p>
-          <h1 className="text-5xl font-black tracking-tight sm:text-6xl">jaXiv</h1>
+          <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
+            jaXiv
+          </h1>
           <p className="mx-auto max-w-xl text-base leading-relaxed text-hero-muted sm:text-lg">
             arXiv 論文を読みやすいブログ記事に変換します。まずは paper ID
             を入力して、要点をすぐに把握しましょう。
