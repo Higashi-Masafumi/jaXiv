@@ -6,8 +6,8 @@ Run this script once before starting the application:
 
 from huggingface_hub import hf_hub_download
 
-DOCLAYOUT_YOLO_REPO = 'juliozhao/DocLayout-YOLO-DocStructBench'
-DOCLAYOUT_YOLO_FILE = 'doclayout_yolo_docstructbench_imgsz1024.pt'
+DOCLAYOUT_YOLO_REPO = 'wybxc/DocLayout-YOLO-DocStructBench-onnx'
+DOCLAYOUT_YOLO_FILE = 'doclayout_yolo_docstructbench_imgsz1024.onnx'
 
 
 def download_doclayout_yolo() -> str:

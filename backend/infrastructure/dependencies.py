@@ -1,8 +1,11 @@
+import functools
 import os
 from typing import Annotated
 
+import onnxruntime as ort
 from dotenv import load_dotenv
 from fastapi import Depends
+from huggingface_hub import hf_hub_download
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.gateways import (
@@ -108,8 +111,17 @@ def get_pdf_blog_post_generator() -> IPdfBlogPostGenerator:
 	return GeminiBlogPostGenerator(api_key=_gemini_api_key)
 
 
+@functools.lru_cache(maxsize=1)
+def get_onnx_session() -> ort.InferenceSession:
+	model_path = hf_hub_download(
+		repo_id='wybxc/DocLayout-YOLO-DocStructBench-onnx',
+		filename='doclayout_yolo_docstructbench_imgsz1024.onnx',
+	)
+	return ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+
+
 def get_pdf_figure_extractor() -> IPdfFigureExtractor:
-	return PdfFigureExtractor()
+	return PdfFigureExtractor(session=get_onnx_session())
 
 
 # --------------------------------------
