@@ -14,7 +14,8 @@ export function meta() {
 
 export async function loader() {
   const response = await fetch(`${SERVER_API_BASE}/api/v1/blog/`)
-  if (!response.ok) throw new Response('Failed to load archive', { status: 500 })
+  if (!response.ok)
+    throw new Response('Failed to load archive', { status: 500 })
   return (await response.json()) as BlogPostResponseSchema[]
 }
 
@@ -23,7 +24,9 @@ export default function Archive({ loaderData }: Route.ComponentProps) {
     return (
       <main className="px-4 py-12">
         <div className="mx-auto max-w-3xl">
-          <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
+          <h1 className="mb-8 text-2xl font-bold text-foreground">
+            アーカイブ
+          </h1>
           <p className="text-muted-foreground">まだブログ記事がありません。</p>
         </div>
       </main>
@@ -35,7 +38,7 @@ export default function Archive({ loaderData }: Route.ComponentProps) {
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
         <ul className="flex flex-col gap-4">
-          {loaderData.map((post) => (
+          {loaderData.map(post => (
             <li key={post.paper_id}>
               <Link
                 to={`/blog/${post.paper_id}`}
@@ -45,11 +48,20 @@ export default function Archive({ loaderData }: Route.ComponentProps) {
                   {post.title}
                 </h2>
                 {post.summary && (
-                  <p className="mb-3 text-sm text-muted-foreground line-clamp-2">{post.summary}</p>
+                  <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
+                    {post.summary}
+                  </p>
                 )}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {post.authors.length > 0 && <span>{post.authors.slice(0, 2).join(', ')}{post.authors.length > 2 ? ' ほか' : ''}</span>}
-                  <span>{new Date(post.created_at).toLocaleDateString('ja-JP')}</span>
+                  {post.authors.length > 0 && (
+                    <span>
+                      {post.authors.slice(0, 2).join(', ')}
+                      {post.authors.length > 2 ? ' ほか' : ''}
+                    </span>
+                  )}
+                  <span>
+                    {new Date(post.created_at).toLocaleDateString('ja-JP')}
+                  </span>
                 </div>
               </Link>
             </li>

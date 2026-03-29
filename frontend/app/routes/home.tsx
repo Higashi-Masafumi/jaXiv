@@ -3,7 +3,6 @@ import { Form, redirect, useNavigation } from 'react-router'
 
 import {
   generateBlogApiV1BlogArxivArxivPaperIdPost,
-  generateBlogFromPdfApiV1BlogPdfPost,
 } from '../api/sdk.gen'
 import type { Route } from './+types/home'
 import { Button } from '../components/ui/button'
@@ -16,7 +15,8 @@ export function meta() {
     { title: 'jaXiv — arXiv paper to blog' },
     {
       name: 'description',
-      content: 'Convert arXiv papers into readable blog posts powered by Gemini.',
+      content:
+        'Convert arXiv papers into readable blog posts powered by Gemini.',
     },
   ]
 }
@@ -42,7 +42,8 @@ export async function action({ request }: Route.ActionArgs) {
 
   if (intent === 'pdf') {
     const file = formData.get('file') as File | null
-    if (!file || file.size === 0) return { error: 'PDFファイルを選択してください', intent }
+    if (!file || file.size === 0)
+      return { error: 'PDFファイルを選択してください', intent }
 
     const backendForm = new FormData()
     backendForm.append('file', file)
@@ -85,7 +86,9 @@ export default function Home({ actionData }: Route.ComponentProps) {
           <p className="mx-auto w-fit rounded-full border border-hero-accent/30 bg-hero-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-hero-accent">
             AI Research Companion
           </p>
-          <h1 className="text-5xl font-black tracking-tight sm:text-6xl">ブログ生成</h1>
+          <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
+            ブログ生成
+          </h1>
           <p className="mx-auto max-w-xl text-base leading-relaxed text-hero-muted sm:text-lg">
             arXiv ID または PDF ファイルから、読みやすいブログ記事を生成します。
           </p>
@@ -118,7 +121,11 @@ export default function Home({ actionData }: Route.ComponentProps) {
           </div>
 
           {tab === 'arxiv' && (
-            <Form method="post" encType="multipart/form-data" className="p-5 sm:p-6">
+            <Form
+              method="post"
+              encType="multipart/form-data"
+              className="p-5 sm:p-6"
+            >
               <input type="hidden" name="intent" value="arxiv" />
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Input
@@ -137,13 +144,19 @@ export default function Home({ actionData }: Route.ComponentProps) {
                 </Button>
               </div>
               {actionData?.intent === 'arxiv' && actionData.error && (
-                <p className="mt-3 text-sm text-destructive">{actionData.error}</p>
+                <p className="mt-3 text-sm text-destructive">
+                  {actionData.error}
+                </p>
               )}
             </Form>
           )}
 
           {tab === 'pdf' && (
-            <Form method="post" encType="multipart/form-data" className="p-5 sm:p-6">
+            <Form
+              method="post"
+              encType="multipart/form-data"
+              className="p-5 sm:p-6"
+            >
               <input type="hidden" name="intent" value="pdf" />
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Input
@@ -162,7 +175,9 @@ export default function Home({ actionData }: Route.ComponentProps) {
                 </Button>
               </div>
               {actionData?.intent === 'pdf' && actionData.error && (
-                <p className="mt-3 text-sm text-destructive">{actionData.error}</p>
+                <p className="mt-3 text-sm text-destructive">
+                  {actionData.error}
+                </p>
               )}
             </Form>
           )}
