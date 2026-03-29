@@ -12,8 +12,9 @@ from infrastructure.dependencies import (
 	get_generate_blog_post,
 	get_generate_blog_post_from_pdf,
 	get_get_blog_post,
+	get_list_blog_posts,
 )
-from usecase import GenerateBlogPostFromPdfUseCase, GenerateBlogPostUseCase, GetBlogPostUseCase
+from usecase import GenerateBlogPostFromPdfUseCase, GenerateBlogPostUseCase, GetBlogPostUseCase, ListBlogPostsUseCase
 
 router = APIRouter(prefix='/api/v1/blog')
 
@@ -36,6 +37,14 @@ def _to_schema(blog_post: BlogPost) -> BlogPostResponseSchema:
 		created_at=blog_post.created_at,
 		updated_at=blog_post.updated_at,
 	)
+
+
+@router.get('/', response_model=list[BlogPostResponseSchema])
+async def list_blogs(
+	list_blog_posts: Annotated[ListBlogPostsUseCase, Depends(get_list_blog_posts)],
+) -> list[BlogPostResponseSchema]:
+	blog_posts = await list_blog_posts.execute()
+	return [_to_schema(post) for post in blog_posts]
 
 
 @router.post('/arxiv/{arxiv_paper_id}', response_model=BlogPostResponseSchema)

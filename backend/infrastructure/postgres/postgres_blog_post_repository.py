@@ -31,6 +31,12 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			updated_at=row.updated_at,
 		)
 
+	async def find_all(self) -> list[BlogPost]:
+		statement = select(BlogPostContentModel).order_by(col(BlogPostContentModel.created_at).desc())
+		result = await self._session.execute(statement)
+		rows = result.scalars().all()
+		return [self._to_entity(row) for row in rows]
+
 	async def find_by_paper_id(self, paper_id: str) -> BlogPost | None:
 		statement = select(BlogPostContentModel).where(
 			col(BlogPostContentModel.paper_id) == paper_id

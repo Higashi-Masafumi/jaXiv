@@ -35,6 +35,7 @@ from usecase import (
 	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostUseCase,
 	GetBlogPostUseCase,
+	ListBlogPostsUseCase,
 	SaveTranslatedArxivUseCase,
 	TranslateArxivPaper,
 )
@@ -156,6 +157,12 @@ async def get_get_blog_post(
 	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
 ) -> GetBlogPostUseCase:
 	return GetBlogPostUseCase(blog_post_repository=blog_post_repository)
+
+
+async def get_list_blog_posts(
+	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
+) -> ListBlogPostsUseCase:
+	return ListBlogPostsUseCase(blog_post_repository=blog_post_repository)
 
 
 async def get_generate_blog_post(
