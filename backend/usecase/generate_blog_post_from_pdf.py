@@ -40,7 +40,9 @@ class GenerateBlogPostFromPdfUseCase:
 				pdf_path=pdf_path,
 			)
 		except Exception:
-			self._logger.warning('Failed to upload PDF to storage; source_url will be None', exc_info=True)
+			self._logger.warning(
+				'Failed to upload PDF to storage; source_url will be None', exc_info=True
+			)
 			source_url = None
 
 		extracted_figures = self._figure_extractor.extract_figures(pdf_path)

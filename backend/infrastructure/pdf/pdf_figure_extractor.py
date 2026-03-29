@@ -68,8 +68,10 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 				pad_h = (self.IMGSZ - new_h) // 2
 				img_bgr = cv2.copyMakeBorder(
 					img_bgr,
-					pad_h, self.IMGSZ - new_h - pad_h,
-					pad_w, self.IMGSZ - new_w - pad_w,
+					pad_h,
+					self.IMGSZ - new_h - pad_h,
+					pad_w,
+					self.IMGSZ - new_w - pad_w,
 					cv2.BORDER_CONSTANT,
 					value=self.PAD_COLOR,
 				)
@@ -78,15 +80,19 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 				# --------------------------------------
 				# 3. ONNX inference → decode bboxes
 				# --------------------------------------
-				preds = self._session.run(None, {'images': blob})[0][0]  # (300, 6): [x1,y1,x2,y2,conf,cls]
+				preds = self._session.run(None, {'images': blob})[0][
+					0
+				]  # (300, 6): [x1,y1,x2,y2,conf,cls]
 				figure_bboxes: list[list[float]] = []
 				caption_bboxes: list[list[float]] = []
 				for det in preds:
 					if det[4] <= self.CONFIDENCE_THRESHOLD:
 						continue
 					bbox = [
-						float((det[0] - pad_w) / ratio), float((det[1] - pad_h) / ratio),
-						float((det[2] - pad_w) / ratio), float((det[3] - pad_h) / ratio),
+						float((det[0] - pad_w) / ratio),
+						float((det[1] - pad_h) / ratio),
+						float((det[2] - pad_w) / ratio),
+						float((det[3] - pad_h) / ratio),
 					]
 					if int(det[5]) == self.FIGURE_CLASS_ID:
 						figure_bboxes.append(bbox)
@@ -99,22 +105,25 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 				threshold = page.rect.height * scale * self.CAPTION_DISTANCE_RATIO
 				used_captions: set[int] = set()
 				associations: list[tuple[list[float], list[float] | None]] = []
-				for fig_bbox in figure_bboxes:
-					best_cap_idx: int | None = None
-					best_dist = float('inf')
-					for cap_idx, cap_bbox in enumerate(caption_bboxes):
-						if cap_idx in used_captions:
-							continue
-						# below figure: prefer; above figure: slight penalty
-						dist = (abs(cap_bbox[1] - fig_bbox[3]) if cap_bbox[1] >= fig_bbox[1]
-								else abs(fig_bbox[1] - cap_bbox[3]) + threshold * 0.1)
-						if dist < best_dist and dist < threshold:
-							best_dist, best_cap_idx = dist, cap_idx
-					if best_cap_idx is not None:
-						used_captions.add(best_cap_idx)
-						associations.append((fig_bbox, caption_bboxes[best_cap_idx]))
-					else:
-						associations.append((fig_bbox, None))
+			for fig_bbox in figure_bboxes:
+				best_cap_idx: int | None = None
+				best_dist = float('inf')
+				for cap_idx, cap_item in enumerate(caption_bboxes):
+					if cap_idx in used_captions:
+						continue
+					# below figure: prefer; above figure: slight penalty
+					dist = (
+						abs(cap_item[1] - fig_bbox[3])
+						if cap_item[1] >= fig_bbox[1]
+						else abs(fig_bbox[1] - cap_item[3]) + threshold * 0.1
+					)
+					if dist < best_dist and dist < threshold:
+						best_dist, best_cap_idx = dist, cap_idx
+				if best_cap_idx is not None:
+					used_captions.add(best_cap_idx)
+					associations.append((fig_bbox, caption_bboxes[best_cap_idx]))
+				else:
+					associations.append((fig_bbox, None))
 
 				# --------------------------------------
 				# 5. crop figures & extract caption text
@@ -124,25 +133,33 @@ class PdfFigureExtractor(IPdfFigureExtractor):
 						break
 
 					buf = io.BytesIO()
-					page_img.crop((int(fig_bbox[0]), int(fig_bbox[1]), int(fig_bbox[2]), int(fig_bbox[3]))).save(buf, format='PNG')
+					page_img.crop(
+						(int(fig_bbox[0]), int(fig_bbox[1]), int(fig_bbox[2]), int(fig_bbox[3]))
+					).save(buf, format='PNG')
 
 					caption_text = ''
 					figure_number = None
 					if cap_bbox is not None:
 						pdf_rect = fitz.Rect(
-							cap_bbox[0] / scale, cap_bbox[1] / scale,
-							cap_bbox[2] / scale, cap_bbox[3] / scale,
+							cap_bbox[0] / scale,
+							cap_bbox[1] / scale,
+							cap_bbox[2] / scale,
+							cap_bbox[3] / scale,
 						)
-						caption_text = ' '.join(page.get_text('text', clip=pdf_rect).strip().split())
+						caption_text = ' '.join(
+							page.get_text('text', clip=pdf_rect).strip().split()
+						)
 						if m := FIGURE_NUMBER_RE.search(caption_text):
 							figure_number = int(m.group(1))
 
-					all_figures.append(ExtractedFigure(
-						image_bytes=buf.getvalue(),
-						caption=caption_text,
-						figure_number=figure_number,
-						page_number=page_num + 1,
-					))
+					all_figures.append(
+						ExtractedFigure(
+							image_bytes=buf.getvalue(),
+							caption=caption_text,
+							figure_number=figure_number,
+							page_number=page_num + 1,
+						)
+					)
 		finally:
 			doc.close()
 

@@ -49,5 +49,5 @@ dev = [
 python_version = "3.13"
 
 [[tool.mypy.overrides]]
-module = ["fitz", "fitz.*", "uuid6", "uuid6.*"]
+module = ["fitz", "fitz.*", "uuid6", "uuid6.*", "onnxruntime", "onnxruntime.*"]
 ignore_missing_imports = true

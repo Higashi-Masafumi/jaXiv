@@ -208,7 +208,9 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			config=types.UploadFileConfig(mime_type='application/pdf'),
 		)
 		if uploaded_file.uri is None or uploaded_file.name is None:
-			raise RuntimeError(f'Gemini Files API returned incomplete file metadata for {pdf_path.name}')
+			raise RuntimeError(
+				f'Gemini Files API returned incomplete file metadata for {pdf_path.name}'
+			)
 
 		try:
 			response = await self.client.aio.models.generate_content(
