@@ -41,7 +41,7 @@ async def translate_sync(
 	],
 ) -> TranslateResponseSchema:
 	output_dir = _get_output_dir()
-	paper_id = ArxivPaperId(value=arxiv_paper_id)
+	paper_id = ArxivPaperId(arxiv_paper_id)
 
 	# 1. Check if already translated
 	translated_paper_metadata = await arxiv_redirector.execute(arxiv_paper_id=paper_id)
@@ -91,7 +91,7 @@ async def translate_stream(
 	],
 ) -> EventSourceResponse:
 	output_dir = _get_output_dir()
-	paper_id = ArxivPaperId(value=arxiv_paper_id)
+	paper_id = ArxivPaperId(arxiv_paper_id)
 
 	async def run_workflow():
 		# 1. Check if already translated

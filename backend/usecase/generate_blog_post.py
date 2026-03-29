@@ -5,9 +5,8 @@ from pathlib import Path
 
 from domain.entities.blog import BlogPost
 from domain.gateways import IArxivSourceFetcher, IBlogPostGenerator
-from domain.repositories import IBlogPostRepository
+from domain.repositories import IBlogPostRepository, IFigureStorageRepository
 from domain.value_objects import ArxivPaperId
-from infrastructure.supabase import SupabaseFigureStorageRepository
 
 
 class GenerateBlogPostUseCase:
@@ -18,7 +17,7 @@ class GenerateBlogPostUseCase:
 		blog_post_repository: IBlogPostRepository,
 		blog_post_generator: IBlogPostGenerator,
 		arxiv_source_fetcher: IArxivSourceFetcher,
-		figure_storage_repository: SupabaseFigureStorageRepository,
+		figure_storage_repository: IFigureStorageRepository,
 	):
 		self._logger = getLogger(__name__)
 		self._blog_post_repository = blog_post_repository
@@ -38,21 +37,21 @@ class GenerateBlogPostUseCase:
 		    The generated (or cached) BlogPost.
 		"""
 		# 1. Return cached blog post if available
-		existing = await self._blog_post_repository.find_by_paper_id(arxiv_paper_id.value)
+		existing = await self._blog_post_repository.find_by_paper_id(arxiv_paper_id.root)
 		if existing is not None:
-			self._logger.info('Returning cached blog post for %s', arxiv_paper_id.value)
+			self._logger.info('Returning cached blog post for %s', arxiv_paper_id.root)
 			return existing
 
 		# 2. Fetch paper metadata
 		paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(paper_id=arxiv_paper_id)
 
 		# 3. Download LaTeX source
-		source_dir = Path(os.path.join(output_dir, arxiv_paper_id.value))
+		source_dir = Path(os.path.join(output_dir, arxiv_paper_id.root))
 		self._arxiv_source_fetcher.fetch_tex_source(paper_id=arxiv_paper_id, output_dir=output_dir)
 
 		# 4. Upload figures to Supabase Storage
 		figure_urls = await self._figure_storage_repository.upload_figures(
-			paper_id=arxiv_paper_id.value,
+			paper_id=arxiv_paper_id.root,
 			source_dir=source_dir,
 		)
 
@@ -66,7 +65,11 @@ class GenerateBlogPostUseCase:
 		# 6. Persist and return the blog post
 		now = datetime.now(UTC)
 		blog_post = BlogPost(
-			paper_id=arxiv_paper_id.value,
+			paper_id=arxiv_paper_id.root,
+			title=paper_metadata.title,
+			summary=paper_metadata.summary,
+			authors=[a.name for a in paper_metadata.authors],
+			source_url=str(paper_metadata.source_url),
 			content=markdown_content,
 			created_at=now,
 			updated_at=now,

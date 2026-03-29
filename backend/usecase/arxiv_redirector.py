@@ -31,7 +31,7 @@ class ArxivRedirector:
 		if translated_paper_metadata is None:
 			self._logger.info(
 				'Translated paper metadata not found for %s',
-				arxiv_paper_id.value,
+				arxiv_paper_id.root,
 			)
 			return None
 		return translated_paper_metadata

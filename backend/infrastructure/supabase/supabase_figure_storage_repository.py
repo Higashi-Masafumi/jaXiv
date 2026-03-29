@@ -2,15 +2,27 @@ import mimetypes
 import tempfile
 from logging import getLogger
 from pathlib import Path
+from typing import ClassVar
 
 from pdf2image import convert_from_path
 from supabase import create_async_client
 
-_FIGURE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.eps', '.pdf'}
+from domain.repositories import IFigureStorageRepository
 
 
-class SupabaseFigureStorageRepository:
+class SupabaseFigureStorageRepository(IFigureStorageRepository):
 	"""Uploads figures from a LaTeX source directory to Supabase Storage."""
+
+	FIGURE_EXTENSIONS: ClassVar[set[str]] = {
+		'.png',
+		'.jpg',
+		'.jpeg',
+		'.gif',
+		'.webp',
+		'.svg',
+		'.eps',
+		'.pdf',
+	}
 
 	def __init__(self, supabase_url: str, supabase_key: str, bucket_name: str):
 		self._supabase_url = supabase_url
@@ -29,7 +41,9 @@ class SupabaseFigureStorageRepository:
 		Returns:
 		    A dict mapping each figure's filename to its public URL.
 		"""
-		figure_files = [f for f in source_dir.rglob('*') if f.suffix.lower() in _FIGURE_EXTENSIONS]
+		figure_files = [
+			f for f in source_dir.rglob('*') if f.suffix.lower() in self.FIGURE_EXTENSIONS
+		]
 		if not figure_files:
 			self._logger.info('No figure files found in %s', source_dir)
 			return {}
@@ -88,3 +102,46 @@ class SupabaseFigureStorageRepository:
 					upload_file.unlink(missing_ok=True)
 
 		return figure_urls
+
+	async def upload_figure_bytes(
+		self,
+		paper_id: str,
+		filename: str,
+		data: bytes,
+		content_type: str = 'image/png',
+	) -> str:
+		"""Upload raw image bytes to Supabase Storage and return the public URL."""
+		storage_path = f'{paper_id}/{filename}'
+		supabase = await create_async_client(self._supabase_url, self._supabase_key)
+
+		await supabase.storage.from_(self._bucket_name).upload(
+			storage_path,
+			file=data,
+			file_options={
+				'content-type': content_type,
+				'cache-control': '3600',
+				'x-upsert': 'true',
+			},
+		)
+		public_url = await supabase.storage.from_(self._bucket_name).get_public_url(storage_path)
+		self._logger.info('Uploaded figure bytes %s → %s', filename, public_url)
+		return public_url
+
+	async def upload_pdf(self, paper_id: str, pdf_path: Path) -> str:
+		"""Upload a PDF file to Supabase Storage and return the public URL."""
+		storage_path = f'{paper_id}/source.pdf'
+		supabase = await create_async_client(self._supabase_url, self._supabase_key)
+
+		with open(pdf_path, 'rb') as f:
+			await supabase.storage.from_(self._bucket_name).upload(
+				storage_path,
+				file=f,
+				file_options={
+					'content-type': 'application/pdf',
+					'cache-control': '3600',
+					'x-upsert': 'true',
+				},
+			)
+		public_url = await supabase.storage.from_(self._bucket_name).get_public_url(storage_path)
+		self._logger.info('Uploaded PDF %s → %s', pdf_path.name, public_url)
+		return public_url

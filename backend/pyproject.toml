@@ -30,6 +30,10 @@ dependencies = [
     "supabase>=2.16.0",
     "types-requests>=2.32.4.20250611",
     "uvicorn>=0.35.0",
+    "doclayout-yolo>=0.0.3",
+    "PyMuPDF>=1.25.0",
+    "huggingface-hub>=1.8.0",
+    "uuid6>=2025.0.1",
 ]
 
 [dependency-groups]
@@ -38,3 +42,10 @@ dev = [
     "ruff>=0.14.8",
     "types-pyyaml>=6.0.12.20250915",
 ]
+
+[tool.mypy]
+python_version = "3.13"
+
+[[tool.mypy.overrides]]
+module = ["fitz", "fitz.*", "doclayout_yolo", "doclayout_yolo.*", "uuid6", "uuid6.*"]
+ignore_missing_imports = true

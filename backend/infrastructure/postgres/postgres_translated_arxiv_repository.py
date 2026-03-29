@@ -26,14 +26,14 @@ class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
 		self, paper_id: ArxivPaperId
 	) -> ArxivPaperMetadataWithTranslatedUrl | None:
 		statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
-			col(ArxivPaperMetadataWithTranslatedUrlModel.paper_id) == paper_id.value
+			col(ArxivPaperMetadataWithTranslatedUrlModel.paper_id) == paper_id.root
 		)
 		result = await self._session.execute(statement)
 		row = result.scalars().first()
 		if row is None:
 			return None
 		return ArxivPaperMetadataWithTranslatedUrl(
-			paper_id=ArxivPaperId(value=row.paper_id),
+			paper_id=ArxivPaperId(row.paper_id),
 			title=row.title,
 			summary=row.summary,
 			published_date=row.published_date,
@@ -46,17 +46,15 @@ class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):
 	async def save(self, translated_paper_metadata: ArxivPaperMetadataWithTranslatedUrl) -> None:
 		statement = select(ArxivPaperMetadataWithTranslatedUrlModel).where(
 			col(ArxivPaperMetadataWithTranslatedUrlModel.paper_id)
-			== translated_paper_metadata.paper_id.value
+			== translated_paper_metadata.paper_id.root
 		)
 		result = await self._session.execute(statement)
 		existing = result.scalars().first()
 		if existing is not None:
-			self._logger.warning(
-				'Paper %s already exists', translated_paper_metadata.paper_id.value
-			)
+			self._logger.warning('Paper %s already exists', translated_paper_metadata.paper_id.root)
 			return
 		model = ArxivPaperMetadataWithTranslatedUrlModel(
-			paper_id=translated_paper_metadata.paper_id.value,
+			paper_id=translated_paper_metadata.paper_id.root,
 			title=translated_paper_metadata.title,
 			summary=translated_paper_metadata.summary,
 			published_date=translated_paper_metadata.published_date,

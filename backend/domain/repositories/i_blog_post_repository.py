@@ -20,6 +20,11 @@ class IBlogPostRepository(ABC):
 		...
 
 	@abstractmethod
+	async def find_all(self) -> list[BlogPost]:
+		"""Find all blog posts ordered by created_at descending."""
+		...
+
+	@abstractmethod
 	async def save(self, blog_post: BlogPost) -> BlogPost:
 		"""
 		Save a blog post.

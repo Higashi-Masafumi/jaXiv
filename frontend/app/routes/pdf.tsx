@@ -1,47 +1,45 @@
 import { Form, redirect, useNavigation } from 'react-router'
 
-import { generateBlogApiV1BlogArxivArxivPaperIdPost } from '../api/sdk.gen'
-import type { Route } from './+types/home'
+import { generateBlogFromPdfApiV1BlogPdfPost } from '../api/sdk.gen'
+import type { Route } from './+types/pdf'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 
-// SSR action はサーバーで動くので process.env を参照する
 const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8001'
 
 export function meta() {
   return [
-    { title: 'jaXiv — arXiv paper to blog' },
+    { title: 'PDF → ブログ生成 | jaXiv' },
     {
       name: 'description',
-      content:
-        'Convert arXiv papers into readable blog posts powered by Gemini.',
+      content: 'PDF ファイルからブログ記事を生成します。',
     },
   ]
 }
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData()
-  const paperId = (formData.get('paperId') as string | null)?.trim() ?? ''
-  if (!paperId) return { error: 'arXiv ID を入力してください' }
+  const file = formData.get('file') as File | null
+  if (!file || file.size === 0)
+    return { error: 'PDFファイルを選択してください' }
 
-  const { error } = await generateBlogApiV1BlogArxivArxivPaperIdPost({
+  const { data, error } = await generateBlogFromPdfApiV1BlogPdfPost({
     baseUrl: SERVER_API_BASE,
-    path: { arxiv_paper_id: paperId },
+    body: { file },
   })
   if (error) {
     const detail = (error as { detail?: string }).detail
-    return { error: detail ?? 'ブログの生成に失敗しました' }
+    return { error: detail ?? 'PDFからのブログ生成に失敗しました' }
   }
-
-  return redirect(`/blog/${paperId}`)
+  return redirect(`/blog/${data.paper_id}`)
 }
 
-export default function Home({ actionData }: Route.ComponentProps) {
+export default function Pdf({ actionData }: Route.ComponentProps) {
   const navigation = useNavigation()
   const isSubmitting = navigation.state === 'submitting'
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-hero-background px-4 py-16 text-hero-foreground">
+    <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-hero-background px-4 py-16 text-hero-foreground">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-hero-accent-soft/20 blur-3xl" />
         <div className="absolute -right-24 bottom-12 h-80 w-80 rounded-full bg-hero-accent-secondary-soft/20 blur-3xl" />
@@ -54,25 +52,25 @@ export default function Home({ actionData }: Route.ComponentProps) {
             AI Research Companion
           </p>
           <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
-            jaXiv
+            PDF 生成
           </h1>
           <p className="mx-auto max-w-xl text-base leading-relaxed text-hero-muted sm:text-lg">
-            arXiv 論文を読みやすいブログ記事に変換します。まずは paper ID
-            を入力して、要点をすぐに把握しましょう。
+            PDF 論文をアップロードして、読みやすいブログ記事に変換します。
           </p>
         </div>
 
         <Form
           method="post"
+          encType="multipart/form-data"
           className="w-full rounded-2xl border border-hero-card-border/70 bg-hero-card/80 p-5 shadow-2xl backdrop-blur-sm sm:p-6"
         >
           <div className="flex flex-col gap-3 sm:flex-row">
             <Input
-              type="text"
-              name="paperId"
-              placeholder="arXiv ID（例: 2301.00001）"
+              type="file"
+              name="file"
+              accept=".pdf"
               disabled={isSubmitting}
-              className="border-input bg-background text-foreground placeholder:text-muted-foreground sm:flex-1"
+              className="border-input bg-background text-foreground sm:flex-1"
             />
             <Button
               type="submit"

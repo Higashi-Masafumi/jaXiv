@@ -4,7 +4,9 @@ from .arxiv import (
 	ArxivPaperMetadataWithTranslatedUrl,
 )
 from .blog import BlogPost
+from .extracted_figure import ExtractedFigure, UploadedFigure
 from .latex_file import LatexFile, TranslatedLatexFile
+from .pdf_paper import PdfPaperMetadata
 from .stream import (
 	CompleteTranslateChunk,
 	ErrorTranslateChunk,
@@ -17,10 +19,13 @@ __all__ = [
 	'ArxivPaperMetadata',
 	'ArxivPaperMetadataWithTranslatedUrl',
 	'BlogPost',
+	'ExtractedFigure',
 	'LatexFile',
+	'PdfPaperMetadata',
 	'TranslatedLatexFile',
 	'TypedTranslateChunk',
 	'IntermediateTranslateChunk',
 	'CompleteTranslateChunk',
 	'ErrorTranslateChunk',
+	'UploadedFigure',
 ]

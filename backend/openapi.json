@@ -100,6 +100,28 @@
         }
       }
     },
+    "/api/v1/blog/": {
+      "get": {
+        "summary": "List Blogs",
+        "operationId": "list_blogs_api_v1_blog__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BlogPostResponseSchema"
+                  },
+                  "type": "array",
+                  "title": "Response List Blogs Api V1 Blog  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/blog/arxiv/{arxiv_paper_id}": {
       "post": {
         "summary": "Generate Blog",
@@ -139,23 +161,63 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/v1/blog/{paper_id}": {
       "get": {
         "summary": "Get Blog",
-        "operationId": "get_blog_api_v1_blog_arxiv__arxiv_paper_id__get",
+        "operationId": "get_blog_api_v1_blog__paper_id__get",
         "parameters": [
           {
-            "name": "arxiv_paper_id",
+            "name": "paper_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The arXiv paper ID",
-              "title": "Arxiv Paper Id"
+              "description": "The paper ID",
+              "title": "Paper Id"
             },
-            "description": "The arXiv paper ID"
+            "description": "The paper ID"
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlogPostResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blog/pdf": {
+      "post": {
+        "summary": "Generate Blog From Pdf",
+        "operationId": "generate_blog_from_pdf_api_v1_blog_pdf_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_generate_blog_from_pdf_api_v1_blog_pdf_post"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -221,10 +283,6 @@
             "type": "string",
             "title": "Paper Id"
           },
-          "content": {
-            "type": "string",
-            "title": "Content"
-          },
           "title": {
             "type": "string",
             "title": "Title"
@@ -241,8 +299,19 @@
             "title": "Authors"
           },
           "source_url": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Source Url"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
           },
           "created_at": {
             "type": "string",
@@ -258,15 +327,30 @@
         "type": "object",
         "required": [
           "paper_id",
-          "content",
           "title",
           "summary",
           "authors",
           "source_url",
+          "content",
           "created_at",
           "updated_at"
         ],
         "title": "BlogPostResponseSchema"
+      },
+      "Body_generate_blog_from_pdf_api_v1_blog_pdf_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File",
+            "description": "PDF file of the paper"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_generate_blog_from_pdf_api_v1_blog_pdf_post"
       },
       "HTTPValidationError": {
         "properties": {

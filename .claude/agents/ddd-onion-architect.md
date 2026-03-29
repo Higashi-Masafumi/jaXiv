@@ -24,24 +24,51 @@ Dependencies ALWAYS point inward. The domain layer has ZERO dependencies on oute
 
 ### 1. Value Object
 - Immutable, identity-less objects defined by their attributes
-- Implement with Pydantic `BaseModel` with `model_config = ConfigDict(frozen=True)`
-- Encapsulate validation logic using Pydantic's `@field_validator` or `@model_validator`
 - Raise `DomainError` on invalid state
 - Provide meaningful equality and comparison
 
+**パターン A — プリミティブ・ラッパー（単一プリミティブをラップする場合）**
+
+`RootModel[StrictStr]`（または `RootModel[StrictInt]` など）を使用する。
+値には `.root` でアクセスし、`__str__` を実装しておくとログで自動展開できて便利。
+
 ```python
-# Example
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import ConfigDict, RootModel, StrictStr, field_validator
 
-class Email(BaseModel):
+class Email(RootModel[StrictStr]):
     model_config = ConfigDict(frozen=True)
-    value: str
 
-    @field_validator("value")
+    @field_validator("root")
     @classmethod
     def validate_email(cls, v: str) -> str:
         if not re.match(r'^[\w.-]+@[\w.-]+\.\w+$', v):
-            raise InvalidEmailError(f"Invalid email: {v}")
+            raise InvalidEmailError(v)
+        return v
+
+    def __str__(self) -> str:
+        return self.root
+
+# 生成: Email("user@example.com")
+# アクセス: email.root
+```
+
+**パターン B — 複合 Value Object（複数フィールドを持つ場合）**
+
+`BaseModel` + `ConfigDict(frozen=True)` を使用する。
+
+```python
+from pydantic import BaseModel, ConfigDict, field_validator
+
+class Money(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    amount: int
+    currency: str
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, v: int) -> int:
+        if v < 0:
+            raise NegativeAmountError(v)
         return v
 ```
 
