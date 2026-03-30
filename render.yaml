@@ -12,11 +12,10 @@ services:
   - name: jaxiv-frontend
     type: web
     plan: free
-    runtime: static
+    runtime: docker
     repo: https://github.com/Higashi-Masafumi/jaXiv
-    buildCommand: "npm ci && npm run build"
-    startCommand: "npm run start"
+    dockerfilePath: Dockerfile
     rootDir: ./frontend
     envVars:
-      - key: API_BASE_URL
+      - key: VITE_API_BASE_URL
         value: https://arxiv-translation-service.onrender.com
