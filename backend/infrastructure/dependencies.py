@@ -1,11 +1,8 @@
-import functools
 import os
 from typing import Annotated
 
-import onnxruntime as ort
 from dotenv import load_dotenv
 from fastapi import Depends
-from huggingface_hub import hf_hub_download
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.gateways import (
@@ -26,12 +23,12 @@ from infrastructure.arxiv_api import ArxivSourceFetcher
 from infrastructure.gemini import GeminiBlogPostGenerator
 from infrastructure.latex_subprocess import LatexCompiler
 from infrastructure.mistral import MistralLatexTranslator
-from infrastructure.pdf import PdfFigureExtractor
 from infrastructure.postgres import (
 	PostgresBlogPostRepository,
 	PostgresTranslatedArxivRepository,
 	get_async_session,
 )
+from infrastructure.pdf import HttpPdfFigureExtractor
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
 from usecase import (
 	ArxivRedirector,
@@ -54,6 +51,7 @@ _bucket_name = os.getenv('BUCKET_NAME', '')
 _mistral_api_key = os.getenv('MISTRAL_API_KEY', '')
 _gemini_api_key = os.getenv('GEMINI_API_KEY', '')
 _blog_figures_bucket_name = os.getenv('BLOG_FIGURES_BUCKET_NAME', '')
+_layout_analysis_url = os.getenv('LAYOUT_ANALYSIS_URL', 'http://localhost:8001')
 
 if not all([_supabase_url, _supabase_key, _bucket_name, _mistral_api_key, _gemini_api_key]):
 	raise ValueError('One or more required environment variables are not set')
@@ -111,17 +109,8 @@ def get_pdf_blog_post_generator() -> IPdfBlogPostGenerator:
 	return GeminiBlogPostGenerator(api_key=_gemini_api_key)
 
 
-@functools.lru_cache(maxsize=1)
-def get_onnx_session() -> ort.InferenceSession:
-	model_path = hf_hub_download(
-		repo_id='wybxc/DocLayout-YOLO-DocStructBench-onnx',
-		filename='doclayout_yolo_docstructbench_imgsz1024.onnx',
-	)
-	return ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-
-
 def get_pdf_figure_extractor() -> IPdfFigureExtractor:
-	return PdfFigureExtractor(session=get_onnx_session())
+	return HttpPdfFigureExtractor(service_url=_layout_analysis_url)
 
 
 # --------------------------------------

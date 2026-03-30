@@ -1,4 +1,61 @@
 steps:
+  # Layout Analysis: Build Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/layout-analysis:${COMMIT_SHA}",
+        "-t",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/layout-analysis:latest",
+        ".",
+      ]
+    dir: "layout-analysis"
+    id: "build-layout-analysis"
+
+  # Layout Analysis: Push to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "--all-tags",
+        "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/layout-analysis",
+      ]
+    id: "push-layout-analysis"
+    waitFor: ["build-layout-analysis"]
+
+  # Layout Analysis: Deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "deploy",
+        "${_LAYOUT_ANALYSIS_SERVICE_NAME}",
+        "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/layout-analysis:${COMMIT_SHA}",
+        "--region=${_REGION}",
+        "--platform=managed",
+        "--allow-unauthenticated",
+        "--service-account=${_CLOUD_RUN_SA}",
+        "--memory=4Gi",
+        "--cpu=2",
+        "--max-instances=5",
+        "--min-instances=0",
+      ]
+    id: "deploy-layout-analysis"
+    waitFor: ["push-layout-analysis"]
+
+  # Get Layout Analysis URL for Backend
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        LAYOUT_URL=$$(gcloud run services describe ${_LAYOUT_ANALYSIS_SERVICE_NAME} --region=${_REGION} --format="value(status.url)")
+        echo "LAYOUT_ANALYSIS_URL=$$LAYOUT_URL" > /workspace/layout_url.env
+    id: "get-layout-url"
+    waitFor: ["deploy-layout-analysis"]
+
   # Backend: Build Docker image using pre-built base image
   - name: "gcr.io/cloud-builders/docker"
     args:
@@ -26,26 +83,26 @@ steps:
     id: "push-backend"
     waitFor: ["build-backend"]
 
-  # Deploy Backend to Cloud Run
+  # Deploy Backend to Cloud Run (with Layout Analysis URL)
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
-    entrypoint: gcloud
+    entrypoint: "bash"
     args:
-      [
-        "run",
-        "deploy",
-        "${_BACKEND_SERVICE_NAME}",
-        "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:${COMMIT_SHA}",
-        "--region=${_REGION}",
-        "--platform=managed",
-        "--allow-unauthenticated",
-        "--service-account=${_CLOUD_RUN_SA}",
-        "--memory=4Gi",
-        "--cpu=2",
-        "--max-instances=10",
-        "--min-instances=0",
-      ]
+      - "-c"
+      - |
+        source /workspace/layout_url.env
+        gcloud run deploy ${_BACKEND_SERVICE_NAME} \
+          --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:${COMMIT_SHA} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --service-account=${_CLOUD_RUN_SA} \
+          --memory=4Gi \
+          --cpu=2 \
+          --max-instances=10 \
+          --min-instances=0 \
+          --set-env-vars="LAYOUT_ANALYSIS_URL=$$LAYOUT_ANALYSIS_URL"
     id: "deploy-backend"
-    waitFor: ["push-backend"]
+    waitFor: ["push-backend", "get-layout-url"]
 
   # Get Backend URL for Frontend build
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
@@ -110,6 +167,7 @@ steps:
 
 # Images to be stored
 images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/layout-analysis:${COMMIT_SHA}"
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/backend:${COMMIT_SHA}"
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/frontend:${COMMIT_SHA}"
 
