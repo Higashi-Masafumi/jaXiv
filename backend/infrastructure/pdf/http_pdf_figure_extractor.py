@@ -36,6 +36,7 @@ class HttpPdfFigureExtractor(IPdfFigureExtractor):
 			)
 
 	def extract_figures(self, pdf_path: Path) -> list[ExtractedFigure]:
+		logger.info('Starting layout detection for %s', pdf_path)
 		try:
 			response = self._post(pdf_path)
 		except httpx.ConnectError as e:
