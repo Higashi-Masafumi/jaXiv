@@ -9,6 +9,7 @@ dependencies = [
     "python-multipart>=0.0.20",
     "onnxruntime>=1.18.0",
     "opencv-python-headless>=4.9.0",
+    "pillow>=10.0.0",
     "PyMuPDF>=1.25.0",
     "huggingface-hub>=1.8.0",
 ]
