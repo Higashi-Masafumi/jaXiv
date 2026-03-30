@@ -1,7 +1,6 @@
 import { Link } from 'react-router'
 
 import { listBlogsApiV1BlogGet } from '../api/sdk.gen'
-import { CLIENT_API_BASE } from '../lib/api-config'
 import { Skeleton } from '../components/ui/skeleton'
 import type { Route } from './+types/blog'
 
@@ -14,7 +13,7 @@ export function meta() {
 
 export async function clientLoader() {
   const { data, error } = await listBlogsApiV1BlogGet({
-    baseUrl: CLIENT_API_BASE,
+    baseUrl: import.meta.env.VITE_API_BASE_URL,
   })
   if (error || !data)
     throw new Response('Failed to load archive', { status: 500 })

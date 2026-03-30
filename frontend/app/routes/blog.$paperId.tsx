@@ -2,13 +2,12 @@ import markdownToHtml from 'zenn-markdown-html'
 import { useEffect } from 'react'
 
 import { getBlogApiV1BlogPaperIdGet } from '../api/sdk.gen'
-import { CLIENT_API_BASE } from '../lib/api-config'
 import type { Route } from './+types/blog.$paperId'
 import { Skeleton } from '../components/ui/skeleton'
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
   const { data, error } = await getBlogApiV1BlogPaperIdGet({
-    baseUrl: CLIENT_API_BASE,
+    baseUrl: import.meta.env.VITE_API_BASE_URL,
     path: { paper_id: params.paperId! },
   })
   if (error) throw new Response('Blog post not found', { status: 404 })
