@@ -12,9 +12,10 @@ services:
   - name: jaxiv-frontend
     type: web
     plan: free
-    runtime: docker
+    runtime: static
     repo: https://github.com/Higashi-Masafumi/jaXiv
-    dockerfilePath: Dockerfile
+    buildCommand: "npm ci && npm run build"
+    startCommand: "npm run start"
     rootDir: ./frontend
     envVars:
       - key: API_BASE_URL
