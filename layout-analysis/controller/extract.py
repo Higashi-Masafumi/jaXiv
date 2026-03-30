@@ -2,9 +2,10 @@ import base64
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Request, UploadFile
+from fastapi import APIRouter, Depends, UploadFile
 
 from controller.schemas import ExtractFiguresResponse, FigureResponse
+from dependencies import get_extract_figures_use_case
 from domain.errors.extraction_error import FigureExtractionError
 from usecase.extract_figures import ExtractFiguresUseCase
 
@@ -12,9 +13,10 @@ router = APIRouter()
 
 
 @router.post("/extract-figures", response_model=ExtractFiguresResponse)
-def extract_figures(file: UploadFile, request: Request) -> ExtractFiguresResponse:
-    use_case: ExtractFiguresUseCase = request.app.state.extract_figures_use_case
-
+def extract_figures(
+    file: UploadFile,
+    use_case: ExtractFiguresUseCase = Depends(get_extract_figures_use_case),
+) -> ExtractFiguresResponse:
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:
         tmp.write(file.file.read())
         tmp.flush()
@@ -43,7 +45,5 @@ def extract_figures(file: UploadFile, request: Request) -> ExtractFiguresRespons
 
 
 @router.get("/health")
-def health(request: Request) -> dict[str, str]:
-    if not hasattr(request.app.state, "extract_figures_use_case"):
-        return {"status": "not_ready"}
+def health() -> dict[str, str]:
     return {"status": "ok"}
