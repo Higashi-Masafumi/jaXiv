@@ -75,7 +75,11 @@ export function useBlogStream() {
     (file: File) => {
       const body = new FormData()
       body.append('file', file)
-      consume(`${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/pdf/stream`, 'POST', body)
+      consume(
+        `${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/pdf/stream`,
+        'POST',
+        body,
+      )
     },
     [consume],
   )
