@@ -107,10 +107,7 @@ class GenerateBlogPostFromPdfUseCase:
 				updated_at=now,
 			)
 			saved = await self._blog_post_repository.save(blog_post)
-			yield CompleteBlogChunk(
-				message='ブログの生成が完了しました。',
-				paper_id=saved.paper_id,
-			)
+			yield CompleteBlogChunk(message='ブログの生成が完了しました。', paper_id=saved.paper_id)
 		except Exception as e:
 			self._logger.exception('Blog generation from PDF failed')
 			yield ErrorBlogChunk(

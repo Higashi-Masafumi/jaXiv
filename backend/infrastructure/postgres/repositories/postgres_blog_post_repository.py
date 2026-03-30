@@ -8,7 +8,7 @@ from sqlmodel import col
 from domain.entities.blog import BlogPost
 from domain.repositories import IBlogPostRepository
 
-from .models import BlogPostContentModel
+from ..models import BlogPostContentModel
 
 
 class PostgresBlogPostRepository(IBlogPostRepository):

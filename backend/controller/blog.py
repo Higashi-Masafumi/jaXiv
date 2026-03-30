@@ -16,10 +16,14 @@ from infrastructure.dependencies import (
 	get_generate_blog_post_from_pdf,
 	get_get_blog_post,
 	get_list_blog_posts,
+	get_sse_generate_blog_post,
+	get_sse_generate_blog_post_from_pdf,
 )
-from usecase import (
+from application.usecase import (
 	GenerateBlogPostFromPdfUseCase,
+	GenerateBlogPostFromPdfSSEUseCase,
 	GenerateBlogPostUseCase,
+	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
 	ListBlogPostsUseCase,
 )
@@ -70,7 +74,7 @@ async def generate_blog(
 @router.get('/arxiv/{arxiv_paper_id}/stream', response_class=EventSourceResponse)
 async def generate_blog_stream(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
-	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
+	generate_blog_post: Annotated[GenerateBlogPostSSEUseCase, Depends(get_sse_generate_blog_post)],
 ) -> EventSourceResponse:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
@@ -142,7 +146,7 @@ async def generate_blog_from_pdf(
 async def generate_blog_from_pdf_stream(
 	file: Annotated[UploadFile, File(description='PDF file of the paper')],
 	generate_blog_post_from_pdf: Annotated[
-		GenerateBlogPostFromPdfUseCase, Depends(get_generate_blog_post_from_pdf)
+		GenerateBlogPostFromPdfSSEUseCase, Depends(get_sse_generate_blog_post_from_pdf)
 	],
 ) -> EventSourceResponse:
 	if not file.filename or not file.filename.lower().endswith('.pdf'):

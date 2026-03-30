@@ -53,12 +53,16 @@ class GenerateBlogPostUseCase:
 
 			# 2. Fetch paper metadata
 			yield IntermediateBlogChunk(message='メタデータを取得しています...')
-			paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(paper_id=arxiv_paper_id)
+			paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
+				paper_id=arxiv_paper_id
+			)
 
 			# 3. Download LaTeX source
 			yield IntermediateBlogChunk(message='LaTeXソースを取得しています...')
 			source_dir = Path(os.path.join(output_dir, arxiv_paper_id.root))
-			self._arxiv_source_fetcher.fetch_tex_source(paper_id=arxiv_paper_id, output_dir=output_dir)
+			self._arxiv_source_fetcher.fetch_tex_source(
+				paper_id=arxiv_paper_id, output_dir=output_dir
+			)
 
 			# 4. Upload figures to Supabase Storage
 			yield IntermediateBlogChunk(message='レイアウト分析中...')

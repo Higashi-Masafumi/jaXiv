@@ -1,11 +1,9 @@
-import { Form, redirect, useNavigation } from 'react-router'
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router'
 
-import { generateBlogFromPdfApiV1BlogPdfPost } from '../api/sdk.gen'
-import type { Route } from './+types/pdf'
+import { useBlogStream } from '../hooks/use-blog-stream'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
-
-const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8001'
 
 export function meta() {
   return [
@@ -17,26 +15,24 @@ export function meta() {
   ]
 }
 
-export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData()
-  const file = formData.get('file') as File | null
-  if (!file || file.size === 0)
-    return { error: 'PDFファイルを選択してください' }
+export default function Pdf() {
+  const navigate = useNavigate()
+  const { status, steps, error, paperId, startPdfStream } = useBlogStream()
 
-  const { data, error } = await generateBlogFromPdfApiV1BlogPdfPost({
-    baseUrl: SERVER_API_BASE,
-    body: { file },
-  })
-  if (error) {
-    const detail = (error as { detail?: string }).detail
-    return { error: detail ?? 'PDFからのブログ生成に失敗しました' }
+  useEffect(() => {
+    if (status === 'complete' && paperId) {
+      navigate(`/blog/${paperId}`)
+    }
+  }, [status, paperId, navigate])
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const file = new FormData(e.currentTarget).get('file')
+    if (!(file instanceof File)) return
+    startPdfStream(file)
   }
-  return redirect(`/blog/${data.paper_id}`)
-}
 
-export default function Pdf({ actionData }: Route.ComponentProps) {
-  const navigation = useNavigation()
-  const isSubmitting = navigation.state === 'submitting'
+  const isStreaming = status === 'streaming'
 
   return (
     <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-hero-background px-4 py-16 text-hero-foreground">
@@ -59,9 +55,8 @@ export default function Pdf({ actionData }: Route.ComponentProps) {
           </p>
         </div>
 
-        <Form
-          method="post"
-          encType="multipart/form-data"
+        <form
+          onSubmit={handleSubmit}
           className="w-full rounded-2xl border border-hero-card-border/70 bg-hero-card/80 p-5 shadow-2xl backdrop-blur-sm sm:p-6"
         >
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -69,21 +64,40 @@ export default function Pdf({ actionData }: Route.ComponentProps) {
               type="file"
               name="file"
               accept=".pdf"
-              disabled={isSubmitting}
+              disabled={isStreaming}
               className="border-input bg-background text-foreground sm:flex-1"
             />
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isStreaming}
               className="bg-hero-accent font-semibold text-primary-foreground transition-colors hover:bg-hero-accent/90 sm:w-40"
             >
-              {isSubmitting ? '生成中...' : 'ブログを生成'}
+              {isStreaming ? '生成中...' : 'ブログを生成'}
             </Button>
           </div>
-          {actionData?.error && (
-            <p className="mt-3 text-sm text-destructive">{actionData.error}</p>
+
+          {steps.length > 0 && (
+            <ul className="mt-4 space-y-1.5 text-sm">
+              {steps.map((step, i) => (
+                <li
+                  key={i}
+                  className={`flex items-center gap-2 transition-opacity ${step.done ? 'text-muted-foreground' : 'text-foreground'}`}
+                >
+                  {step.done ? (
+                    <span className="text-hero-accent">✓</span>
+                  ) : (
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-hero-accent border-t-transparent" />
+                  )}
+                  <span className={step.done ? 'line-through' : ''}>
+                    {step.message}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
-        </Form>
+
+          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+        </form>
       </section>
     </main>
   )

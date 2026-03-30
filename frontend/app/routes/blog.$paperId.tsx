@@ -2,14 +2,13 @@ import markdownToHtml from 'zenn-markdown-html'
 import { useEffect } from 'react'
 
 import { getBlogApiV1BlogPaperIdGet } from '../api/sdk.gen'
+import { CLIENT_API_BASE } from '../lib/api-config'
 import type { Route } from './+types/blog.$paperId'
+import { Skeleton } from '../components/ui/skeleton'
 
-// SSR loader はサーバーで動くので process.env を参照する
-const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8001'
-
-export async function loader({ params }: Route.LoaderArgs) {
+export async function clientLoader({ params }: Route.LoaderArgs) {
   const { data, error } = await getBlogApiV1BlogPaperIdGet({
-    baseUrl: SERVER_API_BASE,
+    baseUrl: CLIENT_API_BASE,
     path: { paper_id: params.paperId! },
   })
   if (error) throw new Response('Blog post not found', { status: 404 })
@@ -19,6 +18,13 @@ export async function loader({ params }: Route.LoaderArgs) {
   }
 }
 
+export function HydrateFallback() {
+  return (
+    <main className="max-w-3xl mx-auto px-4 py-8">
+      <Skeleton className="h-10 w-full" />
+    </main>
+  )
+}
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: 'Blog Post | jaXiv' }]
   return [

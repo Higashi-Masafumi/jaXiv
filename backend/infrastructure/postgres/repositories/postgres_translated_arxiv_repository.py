@@ -12,7 +12,7 @@ from domain.entities.arxiv import (
 from domain.repositories import ITranslatedArxivRepository
 from domain.value_objects import ArxivPaperId
 
-from .models import ArxivPaperMetadataWithTranslatedUrlModel
+from ..models import ArxivPaperMetadataWithTranslatedUrlModel
 
 
 class PostgresTranslatedArxivRepository(ITranslatedArxivRepository):

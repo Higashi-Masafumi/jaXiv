@@ -1,9 +1,9 @@
 import { Link } from 'react-router'
 
 import { listBlogsApiV1BlogGet } from '../api/sdk.gen'
+import { CLIENT_API_BASE } from '../lib/api-config'
+import { Skeleton } from '../components/ui/skeleton'
 import type { Route } from './+types/blog'
-
-const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8001'
 
 export function meta() {
   return [
@@ -12,13 +12,30 @@ export function meta() {
   ]
 }
 
-export async function loader() {
+export async function clientLoader() {
   const { data, error } = await listBlogsApiV1BlogGet({
-    baseUrl: SERVER_API_BASE,
+    baseUrl: CLIENT_API_BASE,
   })
   if (error || !data)
     throw new Response('Failed to load archive', { status: 500 })
   return data
+}
+
+export function HydrateFallback() {
+  return (
+    <main className="px-4 py-12">
+      <div className="mx-auto max-w-3xl">
+        <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
+        <Skeleton className="h-10 w-full" />
+      </div>
+      <div className="mx-auto max-w-3xl">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    </main>
+  )
 }
 
 export default function BlogList({ loaderData }: Route.ComponentProps) {
