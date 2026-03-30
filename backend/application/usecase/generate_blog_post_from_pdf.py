@@ -1,15 +1,8 @@
-from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from logging import getLogger
 from pathlib import Path
 
 from domain.entities.blog import BlogPost
-from domain.entities.blog_stream import (
-	CompleteBlogChunk,
-	ErrorBlogChunk,
-	IntermediateBlogChunk,
-	TypedBlogChunk,
-)
 from domain.entities.extracted_figure import UploadedFigure
 from domain.gateways import IPdfBlogPostGenerator, IPdfFigureExtractor
 from domain.repositories import IBlogPostRepository, IFigureStorageRepository
@@ -38,10 +31,9 @@ class GenerateBlogPostFromPdfUseCase:
 		self._figure_extractor = figure_extractor
 		self._figure_storage_repository = figure_storage_repository
 
-	async def execute(self, pdf_path: Path) -> AsyncIterator[TypedBlogChunk]:
+	async def execute(self, pdf_path: Path) -> BlogPost:
 		paper_id = PdfPaperId.generate()
 		try:
-			yield IntermediateBlogChunk(message='PDFをアップロードしています...')
 			source_url: str | None
 			try:
 				source_url = await self._figure_storage_repository.upload_pdf(
@@ -54,10 +46,8 @@ class GenerateBlogPostFromPdfUseCase:
 				)
 				source_url = None
 
-			yield IntermediateBlogChunk(message='レイアウト分析中...')
 			extracted_figures = self._figure_extractor.extract_figures(pdf_path)
 
-			yield IntermediateBlogChunk(message='図をアップロードしています...')
 			uploaded_figures: list[UploadedFigure] = []
 			for idx, fig in enumerate(extracted_figures):
 				fig_label = fig.figure_number if fig.figure_number is not None else idx
@@ -88,13 +78,11 @@ class GenerateBlogPostFromPdfUseCase:
 				paper_id.root,
 			)
 
-			yield IntermediateBlogChunk(message='ブログを生成しています...')
 			metadata, markdown_content = await self._blog_post_generator.generate_from_pdf(
 				pdf_path=pdf_path,
 				figures=uploaded_figures,
 			)
 
-			yield IntermediateBlogChunk(message='保存しています...')
 			now = datetime.now(UTC)
 			blog_post = BlogPost(
 				paper_id=paper_id.root,
@@ -106,11 +94,7 @@ class GenerateBlogPostFromPdfUseCase:
 				created_at=now,
 				updated_at=now,
 			)
-			saved = await self._blog_post_repository.save(blog_post)
-			yield CompleteBlogChunk(message='ブログの生成が完了しました。', paper_id=saved.paper_id)
-		except Exception as e:
+			return await self._blog_post_repository.save(blog_post)
+		except Exception:
 			self._logger.exception('Blog generation from PDF failed')
-			yield ErrorBlogChunk(
-				message='ブログの生成に失敗しました。',
-				error_details=str(e),
-			)
+			raise

@@ -1,6 +1,5 @@
 import os
 import tempfile
-from collections.abc import AsyncIterator
 from pathlib import Path as FilePath
 from typing import Annotated
 
@@ -9,7 +8,6 @@ from sse_starlette import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
 from controller.schemas.blog_response import BlogPostResponseSchema
-from domain.entities import TypedBlogChunk
 from domain.value_objects import ArxivPaperId
 from infrastructure.dependencies import (
 	get_generate_blog_post,
@@ -50,25 +48,16 @@ async def list_blogs(
 async def generate_blog(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
 	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
-	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
 ) -> BlogPostResponseSchema:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
-	iterator: AsyncIterator[TypedBlogChunk] = generate_blog_post.execute(
-		arxiv_paper_id=paper_id, output_dir=output_dir
-	)
-	async for chunk in iterator:
-		if chunk.type == 'complete':
-			blog_post = await get_blog_post.execute(chunk.paper_id)
-			if blog_post is None:
-				raise HTTPException(
-					status_code=500,
-					detail='Blog post missing after generation.',
-				)
-			return BlogPostResponseSchema.from_entity(blog_post)
-		if chunk.type == 'error':
-			raise HTTPException(status_code=500, detail=chunk.error_details)
-	raise HTTPException(status_code=500, detail='Blog generation did not complete.')
+	try:
+		blog_post = await generate_blog_post.execute(
+			arxiv_paper_id=paper_id, output_dir=output_dir
+		)
+		return BlogPostResponseSchema.from_entity(blog_post)
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get('/arxiv/{arxiv_paper_id}/stream', response_class=EventSourceResponse)
@@ -111,7 +100,6 @@ async def generate_blog_from_pdf(
 	generate_blog_post_from_pdf: Annotated[
 		GenerateBlogPostFromPdfUseCase, Depends(get_generate_blog_post_from_pdf)
 	],
-	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
 ) -> BlogPostResponseSchema:
 	if not file.filename or not file.filename.lower().endswith('.pdf'):
 		raise HTTPException(status_code=400, detail='Uploaded file must be a PDF.')
@@ -123,21 +111,11 @@ async def generate_blog_from_pdf(
 		tmp.write(content)
 		tmp.close()
 
-		iterator: AsyncIterator[TypedBlogChunk] = generate_blog_post_from_pdf.execute(
-			pdf_path=pdf_path
-		)
-		async for chunk in iterator:
-			if chunk.type == 'complete':
-				blog_post = await get_blog_post.execute(chunk.paper_id)
-				if blog_post is None:
-					raise HTTPException(
-						status_code=500,
-						detail='Blog post missing after generation.',
-					)
-				return BlogPostResponseSchema.from_entity(blog_post)
-			if chunk.type == 'error':
-				raise HTTPException(status_code=500, detail=chunk.error_details)
-		raise HTTPException(status_code=500, detail='Blog generation did not complete.')
+		try:
+			blog_post = await generate_blog_post_from_pdf.execute(pdf_path=pdf_path)
+			return BlogPostResponseSchema.from_entity(blog_post)
+		except Exception as e:
+			raise HTTPException(status_code=500, detail=str(e)) from e
 	finally:
 		pdf_path.unlink(missing_ok=True)
 
