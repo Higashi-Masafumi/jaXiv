@@ -4,7 +4,8 @@
       "Bash(grep -E \"\\\\.py$\")",
       "Bash(ls -la /Users/higa4/dev/jaxiv/backend/*.py)",
       "WebFetch(domain:docs.ultralytics.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(uv lock:*)"
     ]
   },
   "hooks": {

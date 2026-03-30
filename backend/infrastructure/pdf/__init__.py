@@ -1,3 +1,3 @@
-from .pdf_figure_extractor import PdfFigureExtractor
+from .http_pdf_figure_extractor import HttpPdfFigureExtractor
 
-__all__ = ['PdfFigureExtractor']
+__all__ = ['HttpPdfFigureExtractor']

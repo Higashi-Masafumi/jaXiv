@@ -6,6 +6,9 @@ services:
     repo: https://github.com/Higashi-Masafumi/jaXiv
     dockerfilePath: Dockerfile.render
     rootDir: ./backend
+    envVars:
+      - key: LAYOUT_ANALYSIS_URL
+        value: https://masamasa4-layout-detection.hf.space
   - name: jaxiv-frontend
     type: web
     plan: free

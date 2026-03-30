@@ -9,10 +9,6 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync
 
-# Pre-download ML model weights so they are baked into the image
-COPY scripts/download_models.py scripts/download_models.py
-RUN uv run python scripts/download_models.py
-
 # Application code
 COPY . .
 
