@@ -1,0 +1,27 @@
+[project]
+name = "layout-analysis"
+version = "0.1.0"
+description = "PDF layout analysis microservice using DocLayout-YOLO (ONNX)"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.14",
+    "uvicorn>=0.35.0",
+    "python-multipart>=0.0.20",
+    "onnxruntime>=1.18.0",
+    "opencv-python-headless>=4.9.0",
+    "PyMuPDF>=1.25.0",
+    "huggingface-hub>=1.8.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.0",
+    "ruff>=0.14.8",
+]
+
+[tool.mypy]
+python_version = "3.13"
+
+[[tool.mypy.overrides]]
+module = ["fitz", "fitz.*", "onnxruntime", "onnxruntime.*"]
+ignore_missing_imports = true
