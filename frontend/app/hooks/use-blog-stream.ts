@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { createSseClient } from '~/api/core/serverSentEvents.gen'
 import type { HttpMethod } from '~/api/core/types.gen'
-import { CLIENT_API_BASE } from '~/lib/api-config'
 
 type BlogChunk =
   | { type: 'intermediate'; message: string }
@@ -65,7 +64,7 @@ export function useBlogStream() {
   const startArxivStream = useCallback(
     (arxivPaperId: string) => {
       consume(
-        `${CLIENT_API_BASE}/api/v1/blog/arxiv/${arxivPaperId}/stream`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/arxiv/${arxivPaperId}/stream`,
         'GET',
       )
     },
@@ -76,7 +75,7 @@ export function useBlogStream() {
     (file: File) => {
       const body = new FormData()
       body.append('file', file)
-      consume(`${CLIENT_API_BASE}/api/v1/blog/pdf/stream`, 'POST', body)
+      consume(`${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/pdf/stream`, 'POST', body)
     },
     [consume],
   )
