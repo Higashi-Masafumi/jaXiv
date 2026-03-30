@@ -3,7 +3,13 @@ from logging import getLogger
 from pathlib import Path
 
 import httpx
-from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (
+	before_sleep_log,
+	retry,
+	retry_if_exception_type,
+	stop_after_attempt,
+	wait_exponential,
+)
 
 from domain.entities.extracted_figure import ExtractedFigure
 from domain.errors.domain_error import PdfProcessingError
@@ -18,7 +24,7 @@ class HttpPdfFigureExtractor(IPdfFigureExtractor):
 	TIMEOUT: float = 120.0
 
 	def __init__(self, service_url: str) -> None:
-		self._url = f"{service_url.rstrip('/')}/extract-figures"
+		self._url = f'{service_url.rstrip("/")}/extract-figures'
 
 	@retry(
 		retry=retry_if_exception_type((httpx.ConnectError, httpx.TimeoutException)),

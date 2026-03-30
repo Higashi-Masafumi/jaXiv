@@ -13,9 +13,17 @@ from domain.value_objects import ArxivPaperId, TargetLanguage
 from infrastructure.dependencies import (
 	get_arxiv_redirector,
 	get_save_translated_arxiv,
+	get_sse_arxiv_redirector,
+	get_sse_save_translated_arxiv,
 	get_translate_arxiv_paper,
 )
-from usecase import ArxivRedirector, SaveTranslatedArxivUseCase, TranslateArxivPaper
+from application.usecase import (
+	ArxivRedirector,
+	ArxivRedirectorSSEUseCase,
+	SaveTranslatedArxivSSEUseCase,
+	SaveTranslatedArxivUseCase,
+	TranslateArxivPaper,
+)
 
 router = APIRouter(prefix='/api/v1/translate')
 
@@ -84,10 +92,10 @@ async def translate_sync(
 async def translate_stream(
 	arxiv_paper_id: Annotated[str, Path(description='The ID of the paper')],
 	target_language: Annotated[TargetLanguage, Query(description='The target language')],
-	arxiv_redirector: Annotated[ArxivRedirector, Depends(get_arxiv_redirector)],
+	arxiv_redirector: Annotated[ArxivRedirectorSSEUseCase, Depends(get_sse_arxiv_redirector)],
 	translate_arxiv_paper: Annotated[TranslateArxivPaper, Depends(get_translate_arxiv_paper)],
 	save_translated_arxiv: Annotated[
-		SaveTranslatedArxivUseCase, Depends(get_save_translated_arxiv)
+		SaveTranslatedArxivSSEUseCase, Depends(get_sse_save_translated_arxiv)
 	],
 ) -> EventSourceResponse:
 	output_dir = _get_output_dir()

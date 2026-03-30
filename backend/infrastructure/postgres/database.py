@@ -1,12 +1,17 @@
 from collections.abc import AsyncGenerator
+from functools import lru_cache
+from logging import getLogger
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from .config import get_postgres_config
 
+logger = getLogger(__name__)
+
 config = get_postgres_config()
 
 
+@lru_cache(maxsize=1)
 def create_async_session_factory() -> async_sessionmaker[AsyncSession]:
 	"""Create an async session factory from a PostgreSQL URL."""
 	postgres_url = config.postgres_url
@@ -20,12 +25,13 @@ def create_async_session_factory() -> async_sessionmaker[AsyncSession]:
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession]:
-	"""Yield an AsyncSession that is committed on success and rolled back on failure."""
+	"""Yield a request-scoped AsyncSession committed on success and rolled back on failure."""
 	session_factory = create_async_session_factory()
 	async with session_factory() as session:
 		try:
 			yield session
 			await session.commit()
 		except Exception:
+			logger.exception('Failed to commit session')
 			await session.rollback()
 			raise

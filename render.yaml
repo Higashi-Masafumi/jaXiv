@@ -17,5 +17,5 @@ services:
     dockerfilePath: Dockerfile
     rootDir: ./frontend
     envVars:
-      - key: API_BASE_URL
+      - key: VITE_API_BASE_URL
         value: https://arxiv-translation-service.onrender.com

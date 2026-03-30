@@ -1,0 +1,150 @@
+name: jaxiv
+
+services:
+  db:
+    container_name: jaxiv-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jaxiv
+      POSTGRES_PASSWORD: jaxiv
+      POSTGRES_DB: jaxiv
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jaxiv -d jaxiv"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      # ホスト側の PostgreSQL と衝突しにくいよう 5433 に割り当て（コンテナ内は 5432）
+      - "5434:5432"
+    networks:
+      - jaxiv
+
+  layout-analysis:
+    container_name: jaxiv-layout-analysis
+    build:
+      context: ./layout-analysis
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "7860:7860"
+    volumes:
+      - layout-analysis-venv:/app/.venv
+    command: >
+      sh -c "uv sync &&
+             uv run uvicorn main:app --host 0.0.0.0 --port 7860 --reload"
+    networks:
+      - jaxiv
+    develop:
+      watch:
+        - action: sync
+          path: ./layout-analysis
+          target: /app
+          ignore:
+            - .venv/
+            - __pycache__/
+            - .git/
+            - .pytest_cache/
+            - "*.pyc"
+        - action: rebuild
+          path: ./layout-analysis/pyproject.toml
+        - action: rebuild
+          path: ./layout-analysis/uv.lock
+
+  api:
+    container_name: jaxiv-api
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.render
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+      layout-analysis:
+        condition: service_started
+    ports:
+      - "8001:8000"
+    environment:
+      # ローカル用に固定（ホストからは localhost:5433 / DBeaver 等）
+      POSTGRES_URL: postgresql://jaxiv:jaxiv@db:5432/jaxiv
+      LAYOUT_ANALYSIS_URL: http://layout-analysis:7860
+      OUTPUT_DIR: /app/output
+      # 機密値は env_file(./backend/.env) からコンテナ環境変数へ注入
+    volumes:
+      - api-venv:/app/.venv
+      - ./backend/output:/app/output
+    env_file:
+      - ./backend/.env
+    command: >
+      sh -c "uv sync &&
+             uv run alembic upgrade head &&
+             uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - jaxiv
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+          ignore:
+            - .venv/
+            - __pycache__/
+            - .git/
+            - .pytest_cache/
+            - output/
+            - "*.pyc"
+        - action: rebuild
+          path: ./backend/pyproject.toml
+        - action: rebuild
+          path: ./backend/uv.lock
+
+  web:
+    container_name: jaxiv-web
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - api
+    ports:
+      - "5173:5173"
+    environment:
+      # SSR / サーバー側 fetch 用（コンテナ間）
+      API_BASE_URL: http://api:8000
+      # ブラウザから API へ（ホストの公開ポート）
+      VITE_API_BASE_URL: http://localhost:8001
+    volumes:
+      - ./frontend:/app
+      - web-node-modules:/app/node_modules
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    networks:
+      - jaxiv
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+          ignore:
+            - node_modules/
+            - .git/
+            - build/
+            - "**/.git"
+        - action: sync+restart
+          path: ./frontend/package.json
+          target: /app/package.json
+        - action: sync+restart
+          path: ./frontend/package-lock.json
+          target: /app/package-lock.json
+
+volumes:
+  pg-data:
+  api-venv:
+  layout-analysis-venv:
+  web-node-modules:
+
+networks:
+  jaxiv:
+    name: jaxiv_local_net
