@@ -163,6 +163,40 @@
         }
       }
     },
+    "/api/v1/blog/arxiv/{arxiv_paper_id}/stream": {
+      "get": {
+        "summary": "Generate Blog Stream",
+        "operationId": "generate_blog_stream_api_v1_blog_arxiv__arxiv_paper_id__stream_get",
+        "parameters": [
+          {
+            "name": "arxiv_paper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The arXiv paper ID",
+              "title": "Arxiv Paper Id"
+            },
+            "description": "The arXiv paper ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/blog/{paper_id}": {
       "get": {
         "summary": "Get Blog",
@@ -228,6 +262,37 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blog/pdf/stream": {
+      "post": {
+        "summary": "Generate Blog From Pdf Stream",
+        "operationId": "generate_blog_from_pdf_stream_api_v1_blog_pdf_stream_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_generate_blog_from_pdf_stream_api_v1_blog_pdf_stream_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -351,6 +416,21 @@
           "file"
         ],
         "title": "Body_generate_blog_from_pdf_api_v1_blog_pdf_post"
+      },
+      "Body_generate_blog_from_pdf_stream_api_v1_blog_pdf_stream_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File",
+            "description": "PDF file of the paper"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_generate_blog_from_pdf_stream_api_v1_blog_pdf_stream_post"
       },
       "HTTPValidationError": {
         "properties": {
