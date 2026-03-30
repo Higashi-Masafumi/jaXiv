@@ -11,8 +11,10 @@ from controller import router
 load_dotenv()
 
 logging.basicConfig(
-	level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+	level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+logger = logging.getLogger(__name__)
+logger.debug('Application has started successfully.')
 
 app = FastAPI(title='Translate Arxiv Paper', version='0.1.0')
 app.include_router(router)
