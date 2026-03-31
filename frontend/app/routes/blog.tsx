@@ -1,4 +1,5 @@
-import { Link } from 'react-router'
+import { Suspense } from 'react'
+import { Await, Link } from 'react-router'
 
 import { listBlogsApiV1BlogGet } from '../api/sdk.gen'
 import {
@@ -39,13 +40,15 @@ export function meta() {
   ]
 }
 
-export async function clientLoader() {
-  const { data, error } = await listBlogsApiV1BlogGet({
+export function clientLoader() {
+  const blogs = listBlogsApiV1BlogGet({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
+  }).then(({ data, error }) => {
+    if (error || !data)
+      throw new Response('Failed to load archive', { status: 500 })
+    return data
   })
-  if (error || !data)
-    throw new Response('Failed to load archive', { status: 500 })
-  return data
+  return { blogs }
 }
 
 export function HydrateFallback() {
@@ -53,66 +56,76 @@ export function HydrateFallback() {
     <main className="px-4 py-12" aria-busy="true">
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
-        <ul className="flex flex-col gap-4">
-          {Array.from({ length: 4 }, (_, i) => (
-            <li key={i}>
-              <BlogArchiveCardSkeleton />
-            </li>
-          ))}
-        </ul>
+        <BlogArchiveListSkeleton />
       </div>
     </main>
   )
 }
 
-export default function BlogList({ loaderData }: Route.ComponentProps) {
-  if (loaderData.length === 0) {
-    return (
-      <main className="px-4 py-12">
-        <div className="mx-auto max-w-3xl">
-          <h1 className="mb-8 text-2xl font-bold text-foreground">
-            アーカイブ
-          </h1>
-          <p className="text-muted-foreground">まだブログ記事がありません。</p>
-        </div>
-      </main>
-    )
-  }
+function BlogArchiveListSkeleton() {
+  return (
+    <ul className="flex flex-col gap-4">
+      {Array.from({ length: 4 }, (_, i) => (
+        <li key={i}>
+          <BlogArchiveCardSkeleton />
+        </li>
+      ))}
+    </ul>
+  )
+}
 
+export default function BlogList({ loaderData }: Route.ComponentProps) {
   return (
     <main className="px-4 py-12">
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
-        <ul className="flex flex-col gap-4">
-          {loaderData.map(post => (
-            <li key={post.paper_id}>
-              <Link
-                to={`/blog/${post.paper_id}`}
-                className="block rounded-xl border border-border bg-card p-5 transition-colors hover:bg-accent"
-              >
-                <h2 className="mb-1 font-semibold text-card-foreground line-clamp-2">
-                  {post.title}
-                </h2>
-                {post.summary && (
-                  <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
-                    {post.summary}
+        <Suspense fallback={<BlogArchiveListSkeleton />}>
+          <Await resolve={loaderData.blogs}>
+            {blogs => {
+              if (blogs.length === 0) {
+                return (
+                  <p className="text-muted-foreground">
+                    まだブログ記事がありません。
                   </p>
-                )}
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {post.authors.length > 0 && (
-                    <span>
-                      {post.authors.slice(0, 2).join(', ')}
-                      {post.authors.length > 2 ? ' ほか' : ''}
-                    </span>
-                  )}
-                  <span>
-                    {new Date(post.created_at).toLocaleDateString('ja-JP')}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                )
+              }
+              return (
+                <ul className="flex flex-col gap-4">
+                  {blogs.map(post => (
+                    <li key={post.paper_id}>
+                      <Link
+                        to={`/blog/${post.paper_id}`}
+                        className="block rounded-xl border border-border bg-card p-5 transition-colors hover:bg-accent"
+                      >
+                        <h2 className="mb-1 font-semibold text-card-foreground line-clamp-2">
+                          {post.title}
+                        </h2>
+                        {post.summary && (
+                          <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
+                            {post.summary}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {post.authors.length > 0 && (
+                            <span>
+                              {post.authors.slice(0, 2).join(', ')}
+                              {post.authors.length > 2 ? ' ほか' : ''}
+                            </span>
+                          )}
+                          <span>
+                            {new Date(post.created_at).toLocaleDateString(
+                              'ja-JP',
+                            )}
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )
+            }}
+          </Await>
+        </Suspense>
       </div>
     </main>
   )
