@@ -5,6 +5,7 @@ export default {
   // Config options...
   // Server-side render by default, to enable SPA mode set this to `false`
   ssr: true,
+
   /**
    * Prerender the blog pages for performance
    * @returns The blog pages to prerender
@@ -17,5 +18,9 @@ export default {
       return []
     }
     return blogs.map(blog => `/blog/${blog.paper_id}`)
+  },
+
+  future: {
+    unstable_viteEnvironmentApi: true,
   },
 } satisfies Config
