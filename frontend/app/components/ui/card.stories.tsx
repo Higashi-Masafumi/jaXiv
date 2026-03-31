@@ -73,7 +73,9 @@ export const HeaderAndContentOnly: Story = {
     <Card {...args} className="w-full max-w-md">
       <CardHeader>
         <CardTitle>フッターなし</CardTitle>
-        <CardDescription>ヘッダーとコンテンツだけの最小構成です。</CardDescription>
+        <CardDescription>
+          ヘッダーとコンテンツだけの最小構成です。
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-sm">CardFooter を省略した例です。</p>
@@ -93,7 +95,9 @@ export const ShadowNone: Story = {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">className に shadow-none</p>
+        <p className="text-sm text-muted-foreground">
+          className に shadow-none
+        </p>
       </CardContent>
     </Card>
   ),
