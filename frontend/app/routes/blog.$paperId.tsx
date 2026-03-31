@@ -1,9 +1,9 @@
 import markdownToHtml from 'zenn-markdown-html'
+import { BookOpenIcon } from 'lucide-react'
 import { useEffect } from 'react'
 
 import { getBlogApiV1BlogPaperIdGet } from '../api/sdk.gen'
 import type { Route } from './+types/blog.$paperId'
-import { Skeleton } from '../components/ui/skeleton'
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
   const { data, error } = await getBlogApiV1BlogPaperIdGet({
@@ -19,8 +19,15 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
 
 export function HydrateFallback() {
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8">
-      <Skeleton className="h-10 w-full" />
+    <main
+      className="mx-auto flex min-h-[50vh] max-w-3xl items-center justify-center px-4 py-8"
+      aria-busy="true"
+    >
+      <p className="sr-only">読み込み中</p>
+      <BookOpenIcon
+        className="size-14 shrink-0 text-muted-foreground animate-pulse"
+        aria-hidden
+      />
     </main>
   )
 }

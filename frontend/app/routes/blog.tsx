@@ -1,8 +1,36 @@
 import { Link } from 'react-router'
 
 import { listBlogsApiV1BlogGet } from '../api/sdk.gen'
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
 import type { Route } from './+types/blog'
+
+function BlogArchiveCardSkeleton() {
+  return (
+    <Card aria-hidden className="shadow-none">
+      <CardHeader className="flex flex-col gap-2">
+        <CardTitle className="flex flex-col gap-2 font-normal">
+          <Skeleton className="h-5 w-11/12" />
+          <Skeleton className="h-5 w-full" />
+        </CardTitle>
+        <CardDescription className="flex flex-col gap-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </CardDescription>
+      </CardHeader>
+      <CardFooter className="flex w-full gap-3">
+        <Skeleton className="h-3.5 flex-1" />
+        <Skeleton className="h-3.5 flex-1" />
+      </CardFooter>
+    </Card>
+  )
+}
 
 export function meta() {
   return [
@@ -22,16 +50,16 @@ export async function clientLoader() {
 
 export function HydrateFallback() {
   return (
-    <main className="px-4 py-12">
+    <main className="px-4 py-12" aria-busy="true">
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
-        <Skeleton className="h-10 w-full" />
-      </div>
-      <div className="mx-auto max-w-3xl">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
+        <ul className="flex flex-col gap-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <li key={i}>
+              <BlogArchiveCardSkeleton />
+            </li>
+          ))}
+        </ul>
       </div>
     </main>
   )
