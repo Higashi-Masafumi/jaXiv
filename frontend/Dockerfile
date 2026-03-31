@@ -14,7 +14,9 @@ COPY --from=development-dependencies-env /app/node_modules /app/node_modules
 WORKDIR /app
 # Vite: VITE_* はビルド時に埋め込まれる（Render はサービス env を build-arg として渡す）
 ARG VITE_API_BASE_URL
+ARG API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV API_BASE_URL=$API_BASE_URL
 RUN npm run build
 
 FROM node:20-alpine
