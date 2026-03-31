@@ -5,7 +5,8 @@
       "Bash(ls -la /Users/higa4/dev/jaxiv/backend/*.py)",
       "WebFetch(domain:docs.ultralytics.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(uv lock:*)"
+      "Bash(uv lock:*)",
+      "Bash(git push:*)"
     ]
   },
   "hooks": {
