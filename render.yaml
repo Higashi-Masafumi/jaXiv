@@ -9,15 +9,15 @@ services:
     envVars:
       - key: LAYOUT_ANALYSIS_URL
         value: https://masamasa4-layout-detection.hf.space
-  - name: jaxiv-frontend
-    type: web
-    plan: free
-    runtime: docker
-    repo: https://github.com/Higashi-Masafumi/jaXiv
-    dockerfilePath: Dockerfile
-    rootDir: ./frontend
-    envVars:
-      - key: VITE_API_BASE_URL
-        value: https://arxiv-translation-service.onrender.com
-      - key: API_BASE_URL
-        value: https://arxiv-translation-service.onrender.com
+  # - name: jaxiv-frontend
+  #   type: web
+  #   plan: free
+  #   runtime: docker
+  #   repo: https://github.com/Higashi-Masafumi/jaXiv
+  #   dockerfilePath: Dockerfile
+  #   rootDir: ./frontend
+  #   envVars:
+  #     - key: VITE_API_BASE_URL
+  #       value: https://arxiv-translation-service.onrender.com
+  #     - key: API_BASE_URL
+  #       value: https://arxiv-translation-service.onrender.com
