@@ -5,9 +5,9 @@ import { useEffect } from 'react'
 import { getBlogApiV1BlogPaperIdGet } from '../api/sdk.gen'
 import type { Route } from './+types/blog.$paperId'
 
-export async function clientLoader({ params }: Route.LoaderArgs) {
+export async function loader({ params }: Route.LoaderArgs) {
   const { data, error } = await getBlogApiV1BlogPaperIdGet({
-    baseUrl: import.meta.env.VITE_API_BASE_URL,
+    baseUrl: process.env.API_BASE_URL,
     path: { paper_id: params.paperId! },
   })
   if (error) throw new Response('Blog post not found', { status: 404 })
