@@ -12,7 +12,6 @@ from application.usecase import (
 	GenerateBlogPostUseCase,
 	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
-	IndexPdfChunksUseCase,
 	ListBlogPostsUseCase,
 	SaveTranslatedArxivUseCase,
 	SaveTranslatedArxivSSEUseCase,
@@ -32,7 +31,6 @@ from domain.gateways import (
 )
 from domain.repositories import (
 	IBlogPostRepository,
-	IDocumentChunkRepository,
 	IFigureStorageRepository,
 	IFileStorageRepository,
 	ITranslatedArxivRepository,
@@ -281,18 +279,4 @@ def get_sse_generate_blog_post_from_pdf(
 		blog_post_generator=blog_post_generator,
 		figure_extractor=figure_extractor,
 		figure_storage_repository=figure_storage_repository,
-	)
-
-
-def get_index_pdf_chunks_use_case(
-	chunk_analyzer: Annotated[IPdfChunkAnalyzer, Depends(get_pdf_chunk_analyzer)],
-	figure_analyzer: Annotated[IPdfFigureAnalyzer, Depends(get_pdf_figure_analyzer)],
-	figure_storage: Annotated[IFigureStorageRepository, Depends(get_figure_storage_repository)],
-	chunk_repository: Annotated[IDocumentChunkRepository, Depends()],
-) -> IndexPdfChunksUseCase:
-	return IndexPdfChunksUseCase(
-		chunk_analyzer=chunk_analyzer,
-		figure_analyzer=figure_analyzer,
-		figure_storage=figure_storage,
-		chunk_repository=chunk_repository,
 	)

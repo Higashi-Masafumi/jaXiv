@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from domain.entities.figure import UploadedPdfFigure
+from domain.entities.figure import UploadedFigure
 from domain.entities.pdf_paper import PdfPaperMetadata
 
 
@@ -16,7 +16,7 @@ class IPdfBlogPostGenerator(ABC):
 	async def generate_from_pdf(
 		self,
 		pdf_path: Path,
-		figures: list[UploadedPdfFigure],
+		figures: list[UploadedFigure],
 	) -> tuple[PdfPaperMetadata, str]:
 		"""Return ``(metadata, markdown_content)`` extracted from the PDF."""
 		...

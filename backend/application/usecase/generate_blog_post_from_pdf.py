@@ -3,7 +3,7 @@ from logging import getLogger
 from pathlib import Path
 
 from domain.entities.blog import BlogPost
-from domain.entities.extracted_figure import UploadedFigure
+from domain.entities.figure import UploadedFigure
 from domain.gateways import IPdfBlogPostGenerator, IPdfFigureExtractor
 from domain.repositories import IBlogPostRepository, IFigureStorageRepository
 from domain.value_objects import PdfPaperId

@@ -11,7 +11,7 @@ from domain.entities.blog_stream import (
 	IntermediateBlogChunk,
 	TypedBlogChunk,
 )
-from domain.entities.extracted_figure import UploadedFigure
+from domain.entities.figure import UploadedFigure
 from domain.gateways import IPdfBlogPostGenerator, IPdfFigureExtractor
 from domain.repositories import IFigureStorageRepository
 from domain.value_objects import PdfPaperId
