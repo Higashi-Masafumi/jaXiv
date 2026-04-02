@@ -11,20 +11,21 @@ from tenacity import (
 	wait_exponential,
 )
 
-from domain.entities.figure import ExtractedFigure
+from domain.entities.figure import FigureWithEmbedding
 from domain.errors.domain_error import PdfProcessingError
-from domain.gateways import IPdfFigureExtractor
+from domain.gateways.i_pdf_figure_analyzer import IPdfFigureAnalyzer
+from domain.value_objects.embedding import Embedding
 
 logger = getLogger(__name__)
 
 
-class HttpPdfFigureExtractor(IPdfFigureExtractor):
-	"""Calls the layout-analysis microservice to extract figures from PDFs."""
+class HttpPdfFigureAnalyzer(IPdfFigureAnalyzer):
+	"""Calls the layout-analysis microservice to extract and embed PDF figures."""
 
-	TIMEOUT: float = 120.0
+	TIMEOUT: float = 300.0
 
 	def __init__(self, service_url: str) -> None:
-		self._url = f'{service_url.rstrip("/")}/extract-figures'
+		self._url = f'{service_url.rstrip("/")}/analyze/figures'
 
 	@retry(
 		retry=retry_if_exception_type((httpx.ConnectError, httpx.TimeoutException)),
@@ -41,7 +42,7 @@ class HttpPdfFigureExtractor(IPdfFigureExtractor):
 				timeout=self.TIMEOUT,
 			)
 
-	def extract_figures(self, pdf_path: Path) -> list[ExtractedFigure]:
+	def analyze_figures(self, pdf_path: Path) -> list[FigureWithEmbedding]:
 		try:
 			response = self._post(pdf_path)
 		except httpx.ConnectError as e:
@@ -56,11 +57,12 @@ class HttpPdfFigureExtractor(IPdfFigureExtractor):
 
 		data = response.json()
 		return [
-			ExtractedFigure(
+			FigureWithEmbedding(
 				image_bytes=base64.b64decode(item['image_base64']),
 				caption=item['caption'],
 				figure_number=item['figure_number'],
 				page_number=item['page_number'],
+				embeddings=Embedding(item['image_embeddings']),
 			)
 			for item in data['figures']
 		]

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from domain.entities.extracted_figure import ExtractedFigure
+from domain.entities.figure import ExtractedFigure
 
 
 class IPdfFigureExtractor(ABC):

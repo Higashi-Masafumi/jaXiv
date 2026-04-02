@@ -10,7 +10,8 @@ from .blog_stream import (
 	IntermediateBlogChunk,
 	TypedBlogChunk,
 )
-from .extracted_figure import ExtractedFigure, UploadedFigure
+from .document_chunk import DocumentChunk, DocumentFigureChunk, DocumentTextChunk
+from .figure import ExtractedFigure, FigureWithEmbedding, UploadedFigure
 from .latex_file import LatexFile, TranslatedLatexFile
 from .pdf_paper import PdfPaperMetadata
 from .stream import (
@@ -19,6 +20,7 @@ from .stream import (
 	IntermediateTranslateChunk,
 	TypedTranslateChunk,
 )
+from .text_chunk import TextChunkWithEmbedding
 
 __all__ = [
 	'ArxivPaperAuthor',
@@ -26,11 +28,16 @@ __all__ = [
 	'ArxivPaperMetadataWithTranslatedUrl',
 	'BlogPost',
 	'CompleteBlogChunk',
+	'DocumentChunk',
+	'DocumentFigureChunk',
+	'DocumentTextChunk',
 	'ErrorBlogChunk',
 	'ExtractedFigure',
+	'FigureWithEmbedding',
 	'IntermediateBlogChunk',
 	'LatexFile',
 	'PdfPaperMetadata',
+	'TextChunkWithEmbedding',
 	'TranslatedLatexFile',
 	'TypedBlogChunk',
 	'TypedTranslateChunk',

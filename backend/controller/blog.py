@@ -52,9 +52,7 @@ async def generate_blog(
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
 	try:
-		blog_post = await generate_blog_post.execute(
-			arxiv_paper_id=paper_id, output_dir=output_dir
-		)
+		blog_post = await generate_blog_post.execute(arxiv_paper_id=paper_id, output_dir=output_dir)
 		return BlogPostResponseSchema.from_entity(blog_post)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e)) from e
