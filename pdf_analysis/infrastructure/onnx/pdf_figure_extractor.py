@@ -12,13 +12,14 @@ from PIL import Image
 
 from domain.entities.figure import ExtractedFigure
 from domain.errors.extraction_error import FigureExtractionError
+from domain.gateways.figure_extractor import FigureExtractorGateway
 
 FIGURE_NUMBER_RE: re.Pattern[str] = re.compile(
     r"(?:Fig(?:ure)?|図)\s*\.?\s*(\d+)", re.IGNORECASE
 )
 
 
-class PdfFigureExtractor:
+class PdfFigureExtractor(FigureExtractorGateway):
     """Extracts figures and captions from PDFs using DocLayout-YOLO (ONNX) and PyMuPDF."""
 
     RENDER_DPI: ClassVar[int] = 150
