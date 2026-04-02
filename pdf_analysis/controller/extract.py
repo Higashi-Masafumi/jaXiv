@@ -86,6 +86,7 @@ def analyze_figures(
                 figure_number=fig.figure_number,
                 page_number=fig.page_number,
                 image_embeddings=fig.image_embeddings.root,
+                caption_embeddings=fig.caption_embeddings.root,
             )
             for fig in figures
         ]

@@ -19,11 +19,17 @@ class ExtractFiguresWithEmbeddingsUseCase:
         if not figures:
             return []
 
-        embeddings = self._embedding.embed_image_batch(
+        image_embeddings = self._embedding.embed_image_batch(
             [fig.image_bytes for fig in figures]
         )
+        captions = [fig.caption or "figure" for fig in figures]
+        caption_embeddings = self._embedding.embed_text_batch(captions)
 
         return [
-            ExtractedFigureWithEmbeddings(**fig.model_dump(), image_embeddings=emb)
-            for fig, emb in zip(figures, embeddings)
+            ExtractedFigureWithEmbeddings(
+                **fig.model_dump(),
+                image_embeddings=img_emb,
+                caption_embeddings=cap_emb,
+            )
+            for fig, img_emb, cap_emb in zip(figures, image_embeddings, caption_embeddings)
         ]

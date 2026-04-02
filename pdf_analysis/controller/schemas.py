@@ -24,6 +24,7 @@ class FigureWithEmbeddingsResponse(BaseModel):
     figure_number: int | None
     page_number: int
     image_embeddings: list[float]
+    caption_embeddings: list[float]
 
 
 class AnalyzeFiguresResponse(BaseModel):

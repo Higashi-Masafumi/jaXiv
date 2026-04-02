@@ -10,7 +10,7 @@ from domain.gateways.pdf_chunker import PdfChunkerGateway
 from infrastructure.huggingface.embedding import HuggingFaceEmbeddingGateway
 from infrastructure.onnx.model_loader import load_onnx_session
 from infrastructure.onnx.pdf_figure_extractor import PdfFigureExtractor
-from infrastructure.pdf_parse.pdf_chunker import PyMuPdfChunker
+from infrastructure.pdf_parse import PyMuPdfChunker
 from usecase.chunk_and_embed import ChunkAndEmbedUseCase
 from usecase.extract_figures import ExtractFiguresUseCase
 from usecase.extract_figures_with_embeddings import ExtractFiguresWithEmbeddingsUseCase
@@ -22,8 +22,13 @@ def get_onnx_session() -> InferenceSession:
 
 
 @lru_cache
-def get_embedding_model() -> HuggingFaceEmbedding:
+def get_figure_embedding_model() -> HuggingFaceEmbedding:
     return HuggingFaceEmbedding(model_name="llamaindex/vdr-2b-multi-v1", device="cpu")
+
+
+@lru_cache
+def get_text_embedding_model() -> HuggingFaceEmbedding:
+    return HuggingFaceEmbedding(model_name="BAAI/bge-base-en-v1.5", device="cpu")
 
 
 def get_extractor(
@@ -32,8 +37,14 @@ def get_extractor(
     return PdfFigureExtractor(session=session)
 
 
-def get_embedding_gateway(
-    model: HuggingFaceEmbedding = Depends(get_embedding_model),
+def get_figure_embedding_gateway(
+    model: HuggingFaceEmbedding = Depends(get_figure_embedding_model),
+) -> EmbeddingGateway:
+    return HuggingFaceEmbeddingGateway(model=model)
+
+
+def get_text_embedding_gateway(
+    model: HuggingFaceEmbedding = Depends(get_text_embedding_model),
 ) -> EmbeddingGateway:
     return HuggingFaceEmbeddingGateway(model=model)
 
@@ -50,13 +61,13 @@ def get_extract_figures_use_case(
 
 def get_extract_figures_with_embeddings_use_case(
     extractor: FigureExtractorGateway = Depends(get_extractor),
-    embedding: EmbeddingGateway = Depends(get_embedding_gateway),
+    embedding: EmbeddingGateway = Depends(get_figure_embedding_gateway),
 ) -> ExtractFiguresWithEmbeddingsUseCase:
     return ExtractFiguresWithEmbeddingsUseCase(extractor=extractor, embedding=embedding)
 
 
 def get_chunk_and_embed_use_case(
     chunker: PdfChunkerGateway = Depends(get_pdf_chunker),
-    embedding: EmbeddingGateway = Depends(get_embedding_gateway),
+    embedding: EmbeddingGateway = Depends(get_text_embedding_gateway),
 ) -> ChunkAndEmbedUseCase:
     return ChunkAndEmbedUseCase(chunker=chunker, embedding=embedding)

@@ -27,5 +27,13 @@ dev = [
 python_version = "3.13"
 
 [[tool.mypy.overrides]]
-module = ["fitz", "fitz.*", "onnxruntime", "onnxruntime.*"]
+module = [
+    "fitz",
+    "fitz.*",
+    "onnxruntime",
+    "onnxruntime.*",
+    "pymupdf4llm",
+    "llama_index",
+    "llama_index.*",
+]
 ignore_missing_imports = true
