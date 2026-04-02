@@ -1,4 +1,4 @@
-"""Deploy layout-analysis service to Hugging Face Spaces.
+"""Deploy pdf_analysis service to Hugging Face Spaces.
 
 Requires HUGGINGFACE_TOKEN and HF_SPACE_REPO_ID environment variables.
 
@@ -22,7 +22,7 @@ def main() -> None:
     api = HfApi(token=TOKEN)
 
     api.create_repo(
-        repo_id="masamasa4/layout-detection",
+        repo_id="masamasa4/jaxiv-pdf-analysis",
         repo_type="space",
         space_sdk="docker",
         exist_ok=True,
@@ -30,13 +30,13 @@ def main() -> None:
 
     api.upload_folder(
         folder_path=str(FOLDER),
-        repo_id="masamasa4/layout-detection",
+        repo_id="masamasa4/jaxiv-pdf-analysis",
         repo_type="space",
-        commit_message="Deploy layout-analysis from monorepo",
+        commit_message="Deploy pdf_analysis from monorepo",
         ignore_patterns=["scripts/deploy_to_hf_space.py", ".venv/", "__pycache__/"],
     )
 
-    logger.info("Deployed to https://huggingface.co/spaces/masamasa4/layout-detection")
+    logger.info("Deployed to https://huggingface.co/spaces/masamasa4/jaxiv-pdf-analysis")
 
 
 if __name__ == "__main__":
