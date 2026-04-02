@@ -14,7 +14,9 @@ def get_onnx_session() -> InferenceSession:
     return load_onnx_session()
 
 
-def get_extractor(session: InferenceSession = Depends(get_onnx_session)) -> FigureExtractorGateway:
+def get_extractor(
+    session: InferenceSession = Depends(get_onnx_session),
+) -> FigureExtractorGateway:
     return PdfFigureExtractor(session=session)
 
 

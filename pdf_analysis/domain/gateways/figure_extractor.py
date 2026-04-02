@@ -9,4 +9,5 @@ class FigureExtractorGateway(ABC):
 
     @abstractmethod
     def extract_figures(self, pdf_path: Path) -> list[ExtractedFigure]:
-        ...
+        """Extract figures with captions from a PDF file."""
+        raise NotImplementedError
