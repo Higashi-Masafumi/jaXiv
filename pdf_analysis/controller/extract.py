@@ -60,7 +60,9 @@ def extract_figures(
 @router.post("/analyze/figures", response_model=AnalyzeFiguresResponse)
 def analyze_figures(
     file: UploadFile,
-    use_case: ExtractFiguresWithEmbeddingsUseCase = Depends(get_extract_figures_with_embeddings_use_case),
+    use_case: ExtractFiguresWithEmbeddingsUseCase = Depends(
+        get_extract_figures_with_embeddings_use_case
+    ),
 ) -> AnalyzeFiguresResponse:
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:
         tmp.write(file.file.read())

@@ -30,7 +30,9 @@ class PyMuPdfChunker(PdfChunkerGateway):
             for chunk in raw_chunks
         ]
 
-        section_nodes = MarkdownNodeParser(include_metadata=True).get_nodes_from_documents(llama_docs)
+        section_nodes = MarkdownNodeParser(
+            include_metadata=True
+        ).get_nodes_from_documents(llama_docs)
         final_nodes = SentenceSplitter(
             chunk_size=self.CHUNK_SIZE,
             chunk_overlap=self.CHUNK_OVERLAP,

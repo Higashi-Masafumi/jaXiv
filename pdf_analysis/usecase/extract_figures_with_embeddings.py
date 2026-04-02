@@ -8,7 +8,9 @@ from domain.gateways.figure_extractor import FigureExtractorGateway
 class ExtractFiguresWithEmbeddingsUseCase:
     """Orchestrates figure extraction and embedding from a PDF file."""
 
-    def __init__(self, extractor: FigureExtractorGateway, embedding: EmbeddingGateway) -> None:
+    def __init__(
+        self, extractor: FigureExtractorGateway, embedding: EmbeddingGateway
+    ) -> None:
         self._extractor = extractor
         self._embedding = embedding
 
@@ -17,7 +19,9 @@ class ExtractFiguresWithEmbeddingsUseCase:
         if not figures:
             return []
 
-        embeddings = self._embedding.embed_image_batch([fig.image_bytes for fig in figures])
+        embeddings = self._embedding.embed_image_batch(
+            [fig.image_bytes for fig in figures]
+        )
 
         return [
             ExtractedFigureWithEmbeddings(**fig.model_dump(), image_embeddings=emb)
