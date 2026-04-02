@@ -1,5 +1,11 @@
-from domain.entities.figure import ExtractedFigure
+from domain.entities.figure import ExtractedFigure, ExtractedFigureWithEmbeddings
 from domain.entities.embedding import Embedding
-from domain.entities.chunk import TextChunk
+from domain.entities.text_chunk import TextChunk, TextChunkWithEmbeddings
 
-__all__ = ["ExtractedFigure", "Embedding", "TextChunk"]
+__all__ = [
+    "ExtractedFigure",
+    "ExtractedFigureWithEmbeddings",
+    "Embedding",
+    "TextChunk",
+    "TextChunkWithEmbeddings",
+]

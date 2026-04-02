@@ -7,4 +7,7 @@ class TextChunk(BaseModel):
 
     text: str
     page_number: int
+
+
+class TextChunkWithEmbeddings(TextChunk):
     text_embeddings: Embedding

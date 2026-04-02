@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from domain.entities.chunk import TextChunk
+from domain.entities.text_chunk import TextChunk
 
 
 class PdfChunkerGateway(ABC):
