@@ -1,16 +1,16 @@
-name: Deploy Layout Detection to HF Spaces
+name: Deploy PDF Analysis to HF Spaces
 
 on:
   push:
     branches:
       - main
     paths:
-      - layout-analysis/**
-      - .github/workflows/deploy-layout-detection.yml
+      - pdf_analysis/**
+      - .github/workflows/deploy_pdf_analysis.yml
 
 defaults:
   run:
-    working-directory: layout-analysis
+    working-directory: pdf_analysis
 
 jobs:
   deploy:

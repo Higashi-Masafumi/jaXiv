@@ -23,7 +23,7 @@ services:
       - jaxiv
 
   layout-analysis:
-    container_name: jaxiv-layout-analysis
+    container_name: pdf-analysis
     build:
       context: ./layout-analysis
       dockerfile: Dockerfile
