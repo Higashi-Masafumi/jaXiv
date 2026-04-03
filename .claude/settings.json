@@ -9,7 +9,9 @@
     ],
     "allow": [
       "WebFetch",
-      "Bash"
+      "Bash",
+      "Write",
+      "Edit"
     ]
   },
   "hooks": {
