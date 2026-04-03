@@ -12,13 +12,14 @@ dependencies = [
     "opencv-python-headless>=4.9.0",
     "pillow>=10.0.0",
     "PyMuPDF>=1.25.0",
-    "huggingface-hub>=1.8.0",
     "pymupdf4llm>=1.27.2.2",
     "langchain-text-splitters>=1.1.1",
-    "llama-index-embeddings-huggingface>=0.7.0",
+    "llama-index-core>=0.12.0",
+    "transformers>=4.35.0,<5.0.0",
     # Linux は PyPI だと CUDA 付き wheel が選ばれやすく、CPU の Docker で libcusparse 等が必要になる。全環境で CPU ビルドを使う
     "torch>=2.11.0",
     "torchvision>=0.26.0",
+    "einops>=0.8.2",
 ]
 
 [[tool.uv.index]]
@@ -48,5 +49,7 @@ module = [
     "pymupdf4llm",
     "llama_index",
     "llama_index.*",
+    "transformers",
+    "transformers.*",
 ]
 ignore_missing_imports = true
