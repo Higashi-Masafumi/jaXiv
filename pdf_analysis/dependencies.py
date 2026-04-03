@@ -1,19 +1,18 @@
 from functools import lru_cache
 
-from fastapi import Depends
-from onnxruntime import InferenceSession
-from transformers import AutoImageProcessor, AutoModel, AutoTokenizer
-
 from domain.gateways.figure_extractor import FigureExtractorGateway
 from domain.gateways.image_embedding import ImageEmbeddingGateway
 from domain.gateways.pdf_chunker import PdfChunkerGateway
 from domain.gateways.text_embedding import TextEmbeddingGateway
+from fastapi import Depends
 from infrastructure.bge.text_embedding import BgeTextEmbeddingGateway
 from infrastructure.nomic.image_embedding import NomicImageEmbeddingGateway
 from infrastructure.nomic.text_embedding import NomicTextEmbeddingGateway
 from infrastructure.onnx.model_loader import load_onnx_session
 from infrastructure.onnx.pdf_figure_extractor import PdfFigureExtractor
 from infrastructure.pdf_parse import PyMuPdfChunker
+from onnxruntime import InferenceSession
+from transformers import AutoImageProcessor, AutoModel, AutoTokenizer
 from usecase.chunk_and_embed import ChunkAndEmbedUseCase
 from usecase.embed_images import EmbedImagesUseCase
 from usecase.extract_figures import ExtractFiguresUseCase
