@@ -11,3 +11,8 @@ class IPdfFigureAnalyzer(ABC):
 	def analyze_figures(self, pdf_path: Path) -> list[FigureWithEmbedding]:
 		"""Extract and embed figures from a PDF file."""
 		...
+
+	@abstractmethod
+	def analyze_figures_from_url(self, pdf_url: str) -> list[FigureWithEmbedding]:
+		"""Extract and embed figures from a PDF fetched by HTTPS URL."""
+		...

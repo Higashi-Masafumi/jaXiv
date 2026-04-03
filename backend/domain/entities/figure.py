@@ -15,7 +15,7 @@ class ExtractedFigure(BaseModel):
 
 
 class FigureWithEmbedding(BaseModel):
-	"""A figure extracted from a PDF with its embedding."""
+	"""A figure extracted from a PDF with image and caption embeddings."""
 
 	model_config = ConfigDict(frozen=True)
 
@@ -23,7 +23,8 @@ class FigureWithEmbedding(BaseModel):
 	caption: str
 	figure_number: int | None
 	page_number: int
-	embeddings: Embedding
+	image_embeddings: Embedding
+	caption_embeddings: Embedding
 
 
 class UploadedFigure(BaseModel):

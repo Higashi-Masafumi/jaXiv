@@ -1,7 +1,9 @@
 import os
+from functools import lru_cache
 from typing import Annotated
 
 from dotenv import load_dotenv
+from qdrant_client import QdrantClient
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from application.usecase import (
@@ -31,8 +33,10 @@ from domain.gateways import (
 )
 from domain.repositories import (
 	IBlogPostRepository,
+	IFigureChunkRepository,
 	IFigureStorageRepository,
 	IFileStorageRepository,
+	ITextChunkRepository,
 	ITranslatedArxivRepository,
 )
 from infrastructure.arxiv_api import ArxivSourceFetcher
@@ -50,6 +54,7 @@ from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
 	PostgresTranslatedArxivRepository,
 )
+from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
 
 load_dotenv()
@@ -64,6 +69,7 @@ MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 BLOG_FIGURES_BUCKET_NAME = os.getenv('BLOG_FIGURES_BUCKET_NAME', '')
 LAYOUT_ANALYSIS_URL = os.getenv('LAYOUT_ANALYSIS_URL', 'http://localhost:8001')
+QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
 
 if not all([SUPABASE_URL, SUPABASE_KEY, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY]):
 	raise ValueError('One or more required environment variables are not set')
@@ -104,6 +110,23 @@ def get_figure_storage_repository() -> IFigureStorageRepository:
 		supabase_key=SUPABASE_KEY,
 		bucket_name=BLOG_FIGURES_BUCKET_NAME,
 	)
+
+
+@lru_cache
+def get_qdrant_client() -> QdrantClient:
+	return QdrantClient(url=QDRANT_URL)
+
+
+def get_figure_chunk_repository(
+	client: Annotated[QdrantClient, Depends(get_qdrant_client)],
+) -> IFigureChunkRepository:
+	return QdrantFigureChunkRepository(client=client)
+
+
+def get_text_chunk_repository(
+	client: Annotated[QdrantClient, Depends(get_qdrant_client)],
+) -> ITextChunkRepository:
+	return QdrantTextChunkRepository(client=client)
 
 
 # --------------------------------------

@@ -8,11 +8,12 @@ RUN pip install uv
 
 WORKDIR /app
 
+# 実行時は compose の HF_HOME=/app/.cache/hf と揃える（未設定だと ~/.cache/huggingface になりパスがずれる）
+# HF の重いモデルはビルドで取得しない。compose で ./pdf_analysis/.cache をマウントするためイメージに焼いても無駄になりやすく、ビルド失敗の原因にもなる
+ENV HF_HOME=/app/.cache/hf
+
 COPY pyproject.toml uv.lock ./
 RUN uv sync
-
-COPY scripts/download_models.py scripts/download_models.py
-RUN uv run python scripts/download_models.py
 
 COPY . .
 

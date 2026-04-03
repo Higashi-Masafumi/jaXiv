@@ -1,0 +1,17 @@
+# キャッシュ・仮想環境（compose でホストと共有。イメージビルドには不要）
+.cache/
+.venv/
+
+# Python / ツール
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# エディタ・メタ
+.git/
+.claude/

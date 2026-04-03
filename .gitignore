@@ -35,3 +35,6 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# pdf_analysis: Hugging Face / LlamaIndex キャッシュ（docker-compose バインド）
+pdf_analysis/.cache/

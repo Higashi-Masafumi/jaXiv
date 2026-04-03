@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "PDF layout analysis microservice using DocLayout-YOLO (ONNX)"
 requires-python = ">=3.13"
 dependencies = [
+    "httpx>=0.28.0",
     "fastapi>=0.115.14",
     "uvicorn>=0.35.0",
     "python-multipart>=0.0.20",
@@ -15,7 +16,19 @@ dependencies = [
     "pymupdf4llm>=1.27.2.2",
     "langchain-text-splitters>=1.1.1",
     "llama-index-embeddings-huggingface>=0.7.0",
+    # Linux は PyPI だと CUDA 付き wheel が選ばれやすく、CPU の Docker で libcusparse 等が必要になる。全環境で CPU ビルドを使う
+    "torch>=2.11.0",
+    "torchvision>=0.26.0",
 ]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+torchvision = [{ index = "pytorch-cpu" }]
 
 [dependency-groups]
 dev = [

@@ -23,7 +23,13 @@ def get_onnx_session() -> InferenceSession:
 
 @lru_cache
 def get_figure_embedding_model() -> HuggingFaceEmbedding:
-    return HuggingFaceEmbedding(model_name="llamaindex/vdr-2b-multi-v1", device="cpu")
+    # VDR は ST の max_seq_length が None になり得るが、HuggingFaceEmbedding は int 必須（llama-index 実装）
+    return HuggingFaceEmbedding(
+        model_name="llamaindex/vdr-2b-multi-v1",
+        device="cpu",
+        trust_remote_code=True,
+        max_length=32768,
+    )
 
 
 @lru_cache

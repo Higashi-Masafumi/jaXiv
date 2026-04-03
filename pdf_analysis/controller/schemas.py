@@ -45,3 +45,4 @@ class AnalyzeChunksResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     chunks: list[TextChunkResponse]
+

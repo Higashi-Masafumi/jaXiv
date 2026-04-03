@@ -24,7 +24,8 @@ class DocumentFigureChunk(BaseModel):
 	image_url: ImageUrl
 	caption: StrictStr | None
 	page_number: int
-	embeddings: Embedding
+	image_embeddings: Embedding
+	caption_embeddings: Embedding
 
 
 DocumentChunk = Annotated[
