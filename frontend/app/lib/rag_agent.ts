@@ -42,12 +42,14 @@ export async function createRagChatResponse(options: {
           query: z.string().describe('検索クエリ（自然言語）'),
         }),
         execute: async ({ query }) => {
-          const { data, error } = await ragSearchTextApiV1BlogPaperIdRagTextPost({
-            baseUrl: apiBaseUrl,
-            path: { paper_id: paperId },
-            body: { query, limit: 5 },
-          })
-          if (error) throw new Error(`textSearch failed: ${JSON.stringify(error)}`)
+          const { data, error } =
+            await ragSearchTextApiV1BlogPaperIdRagTextPost({
+              baseUrl: apiBaseUrl,
+              path: { paper_id: paperId },
+              body: { query, limit: 5 },
+            })
+          if (error)
+            throw new Error(`textSearch failed: ${JSON.stringify(error)}`)
           return data
         },
       }),
@@ -58,12 +60,14 @@ export async function createRagChatResponse(options: {
           query: z.string().describe('検索クエリ（自然言語）'),
         }),
         execute: async ({ query }) => {
-          const { data, error } = await ragSearchImageApiV1BlogPaperIdRagImagePost({
-            baseUrl: apiBaseUrl,
-            path: { paper_id: paperId },
-            body: { query, limit: 5 },
-          })
-          if (error) throw new Error(`imageSearch failed: ${JSON.stringify(error)}`)
+          const { data, error } =
+            await ragSearchImageApiV1BlogPaperIdRagImagePost({
+              baseUrl: apiBaseUrl,
+              path: { paper_id: paperId },
+              body: { query, limit: 5 },
+            })
+          if (error)
+            throw new Error(`imageSearch failed: ${JSON.stringify(error)}`)
           return data
         },
       }),

@@ -33,8 +33,8 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
       <CardHeader className="shrink-0 space-y-1 border-b pb-3">
         <CardTitle className="text-base font-semibold">アシスタント</CardTitle>
         <p className="text-muted-foreground text-xs leading-snug">
-          この論文のインデックスに対して質問できます。検索はモデルが text / image
-          ツールで実行します。
+          この論文のインデックスに対して質問できます。検索はモデルが text /
+          image ツールで実行します。
         </p>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
@@ -56,7 +56,9 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
                 <div className="text-muted-foreground mb-1 text-[10px] font-medium uppercase">
                   {m.role === 'user' ? 'あなた' : 'アシスタント'}
                 </div>
-                <div className="whitespace-pre-wrap break-words">{messageText(m)}</div>
+                <div className="whitespace-pre-wrap break-words">
+                  {messageText(m)}
+                </div>
               </div>
             ))
           )}

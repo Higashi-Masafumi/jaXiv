@@ -8,10 +8,10 @@ from sse_starlette import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
 from application.usecase import (
-	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostFromPdfSSEUseCase,
-	GenerateBlogPostUseCase,
+	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostSSEUseCase,
+	GenerateBlogPostUseCase,
 	GetBlogPostUseCase,
 	ListBlogPostsUseCase,
 	RagSearchImageUseCase,
@@ -24,8 +24,8 @@ from controller.schemas.rag_response import (
 	RagSearchTextResponseSchema,
 )
 from domain.errors.domain_error import PdfProcessingError
-from domain.value_objects import ArxivPaperId
-from domain.value_objects.pdf_paper_id import PdfPaperId
+from domain.value_objects.arxiv_paper_id import ArxivPaperId
+from domain.value_objects.blog_paper_id import InvalidBlogPaperIdError
 from infrastructure.dependencies import (
 	get_generate_blog_post,
 	get_generate_blog_post_from_pdf,
@@ -105,6 +105,8 @@ async def rag_search_text(
 			limit=body.limit,
 		)
 		return RagSearchTextResponseSchema.from_result(result)
+	except InvalidBlogPaperIdError as e:
+		raise HTTPException(status_code=400, detail=str(e)) from e
 	except PdfProcessingError as e:
 		raise HTTPException(status_code=502, detail=str(e)) from e
 
@@ -122,6 +124,8 @@ async def rag_search_image(
 			limit=body.limit,
 		)
 		return RagSearchImageResponseSchema.from_result(result)
+	except InvalidBlogPaperIdError as e:
+		raise HTTPException(status_code=400, detail=str(e)) from e
 	except PdfProcessingError as e:
 		raise HTTPException(status_code=502, detail=str(e)) from e
 
@@ -131,7 +135,6 @@ async def get_blog(
 	paper_id: Annotated[str, Path(description='The paper ID')],
 	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
 ) -> BlogPostResponseSchema:
-	paper_id = ArxivPaperId(paper_id) | PdfPaperId(paper_id)
 	blog_post = await get_blog_post.execute(paper_id=paper_id)
 	if blog_post is None:
 		raise HTTPException(status_code=404, detail=f'Blog post for {paper_id} not found.')
