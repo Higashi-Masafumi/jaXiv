@@ -1,6 +1,7 @@
 from .i_arxiv_source_fetcher import IArxivSourceFetcher
 from .i_blog_post_generator import IBlogPostGenerator
 from .i_image_embedder import IImageEmbedder, ImageEmbedItem, ImageWithEmbedding
+from .i_query_embedding_gateway import IQueryEmbeddingGateway
 from .i_latex_compiler import ILatexCompiler
 from .i_latex_translator import ILatexTranslator
 from .i_pdf_blog_post_generator import IPdfBlogPostGenerator
@@ -14,6 +15,7 @@ __all__ = [
 	'IImageEmbedder',
 	'ImageEmbedItem',
 	'ImageWithEmbedding',
+	'IQueryEmbeddingGateway',
 	'ILatexCompiler',
 	'ILatexTranslator',
 	'IPdfBlogPostGenerator',

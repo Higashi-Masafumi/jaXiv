@@ -197,6 +197,108 @@
         }
       }
     },
+    "/api/v1/blog/{paper_id}/rag/text": {
+      "post": {
+        "summary": "Rag Search Text",
+        "operationId": "rag_search_text_api_v1_blog__paper_id__rag_text_post",
+        "parameters": [
+          {
+            "name": "paper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The paper ID",
+              "title": "Paper Id"
+            },
+            "description": "The paper ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RagSearchRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RagSearchTextResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blog/{paper_id}/rag/image": {
+      "post": {
+        "summary": "Rag Search Image",
+        "operationId": "rag_search_image_api_v1_blog__paper_id__rag_image_post",
+        "parameters": [
+          {
+            "name": "paper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The paper ID",
+              "title": "Paper Id"
+            },
+            "description": "The paper ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RagSearchRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RagSearchImageResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/blog/{paper_id}": {
       "get": {
         "summary": "Get Blog",
@@ -444,6 +546,107 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "RagImageItemSchema": {
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "title": "Image Url"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "page_number": {
+            "type": "integer",
+            "title": "Page Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_url",
+          "caption",
+          "page_number"
+        ],
+        "title": "RagImageItemSchema"
+      },
+      "RagSearchImageResponseSchema": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RagImageItemSchema"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "RagSearchImageResponseSchema"
+      },
+      "RagSearchRequestSchema": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "RagSearchRequestSchema"
+      },
+      "RagSearchTextResponseSchema": {
+        "properties": {
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/RagTextChunkSchema"
+            },
+            "type": "array",
+            "title": "Chunks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunks"
+        ],
+        "title": "RagSearchTextResponseSchema"
+      },
+      "RagTextChunkSchema": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "page_number": {
+            "type": "integer",
+            "title": "Page Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "page_number"
+        ],
+        "title": "RagTextChunkSchema"
       },
       "TargetLanguage": {
         "type": "string",

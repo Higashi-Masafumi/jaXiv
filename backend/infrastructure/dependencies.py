@@ -15,6 +15,8 @@ from application.usecase import (
 	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
 	ListBlogPostsUseCase,
+	RagSearchImageUseCase,
+	RagSearchTextUseCase,
 	SaveTranslatedArxivUseCase,
 	SaveTranslatedArxivSSEUseCase,
 	TranslateArxivPaper,
@@ -31,6 +33,7 @@ from domain.gateways import (
 	IPdfChunkAnalyzer,
 	IPdfFigureAnalyzer,
 	IPdfFigureExtractor,
+	IQueryEmbeddingGateway,
 )
 from domain.repositories import (
 	IBlogPostRepository,
@@ -60,6 +63,7 @@ from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
 	PostgresTranslatedArxivRepository,
 )
+from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
 
@@ -133,6 +137,32 @@ def get_text_chunk_repository(
 	client: Annotated[QdrantClient, Depends(get_qdrant_client)],
 ) -> ITextChunkRepository:
 	return QdrantTextChunkRepository(client=client)
+
+
+def get_query_embedding_gateway() -> IQueryEmbeddingGateway:
+	return HttpQueryEmbeddingGateway(service_url=LAYOUT_ANALYSIS_URL)
+
+
+def get_rag_search_text_use_case(
+	query_embedding: Annotated[IQueryEmbeddingGateway, Depends(get_query_embedding_gateway)],
+	text_chunk_repository: Annotated[ITextChunkRepository, Depends(get_text_chunk_repository)],
+) -> RagSearchTextUseCase:
+	return RagSearchTextUseCase(
+		query_embedding=query_embedding,
+		text_chunk_repository=text_chunk_repository,
+	)
+
+
+def get_rag_search_image_use_case(
+	query_embedding: Annotated[IQueryEmbeddingGateway, Depends(get_query_embedding_gateway)],
+	figure_chunk_repository: Annotated[
+		IFigureChunkRepository, Depends(get_figure_chunk_repository)
+	],
+) -> RagSearchImageUseCase:
+	return RagSearchImageUseCase(
+		query_embedding=query_embedding,
+		figure_chunk_repository=figure_chunk_repository,
+	)
 
 
 # --------------------------------------

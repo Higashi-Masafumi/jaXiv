@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FigureResponse(BaseModel):
@@ -71,3 +73,18 @@ class EmbedImagesResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     items: list[EmbedImageItemResponse]
+
+
+class EmbedQueryRequest(BaseModel):
+    """Single-text embedding for RAG query vectors (must match Qdrant index models)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    text: str = Field(min_length=1)
+    kind: Literal["bge", "nomic"]
+
+
+class EmbedQueryResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    embedding: list[float]

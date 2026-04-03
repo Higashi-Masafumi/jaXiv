@@ -1,6 +1,7 @@
 import base64
 import tempfile
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import HttpUrl
@@ -11,17 +12,23 @@ from controller.schemas import (
     EmbedImagesRequest,
     EmbedImagesResponse,
     EmbedImageItemResponse,
+    EmbedQueryRequest,
+    EmbedQueryResponse,
     ExtractFiguresResponse,
     FigureResponse,
     FigureWithEmbeddingsResponse,
     TextChunkResponse,
 )
 from dependencies import (
+    get_bge_text_embedding_gateway,
     get_chunk_and_embed_use_case,
     get_embed_images_use_case,
     get_extract_figures_use_case,
     get_extract_figures_with_embeddings_use_case,
+    get_nomic_text_embedding_gateway,
 )
+from infrastructure.bge.text_embedding import BgeTextEmbeddingGateway
+from infrastructure.nomic.text_embedding import NomicTextEmbeddingGateway
 from domain.errors.extraction_error import FigureExtractionError
 from libs.pdf_download import pdf_temp_path_from_url
 from usecase.chunk_and_embed import ChunkAndEmbedUseCase
@@ -238,6 +245,24 @@ def embed_images(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/embed/query", response_model=EmbedQueryResponse)
+def embed_query(
+    body: EmbedQueryRequest,
+    bge_gateway: Annotated[
+        BgeTextEmbeddingGateway, Depends(get_bge_text_embedding_gateway)
+    ],
+    nomic_gateway: Annotated[
+        NomicTextEmbeddingGateway, Depends(get_nomic_text_embedding_gateway)
+    ],
+) -> EmbedQueryResponse:
+    """Return a single query embedding (BGE or Nomic) for jaxiv RAG against Qdrant."""
+    if body.kind == "bge":
+        vec = bge_gateway.embed_text_batch([body.text])[0].root
+    else:
+        vec = nomic_gateway.embed_query_batch([body.text])[0].root
+    return EmbedQueryResponse(embedding=vec)
 
 
 @router.get("/health")

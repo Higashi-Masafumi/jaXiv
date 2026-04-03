@@ -7,16 +7,6 @@ from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
 from sse_starlette import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
-from controller.schemas.blog_response import BlogPostResponseSchema
-from domain.value_objects import ArxivPaperId
-from infrastructure.dependencies import (
-	get_generate_blog_post,
-	get_generate_blog_post_from_pdf,
-	get_get_blog_post,
-	get_list_blog_posts,
-	get_sse_generate_blog_post,
-	get_sse_generate_blog_post_from_pdf,
-)
 from application.usecase import (
 	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostFromPdfSSEUseCase,
@@ -24,6 +14,27 @@ from application.usecase import (
 	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
 	ListBlogPostsUseCase,
+	RagSearchImageUseCase,
+	RagSearchTextUseCase,
+)
+from controller.schemas.blog_response import BlogPostResponseSchema
+from controller.schemas.rag_response import (
+	RagSearchImageResponseSchema,
+	RagSearchRequestSchema,
+	RagSearchTextResponseSchema,
+)
+from domain.errors.domain_error import PdfProcessingError
+from domain.value_objects import ArxivPaperId
+from domain.value_objects.pdf_paper_id import PdfPaperId
+from infrastructure.dependencies import (
+	get_generate_blog_post,
+	get_generate_blog_post_from_pdf,
+	get_get_blog_post,
+	get_list_blog_posts,
+	get_rag_search_image_use_case,
+	get_rag_search_text_use_case,
+	get_sse_generate_blog_post,
+	get_sse_generate_blog_post_from_pdf,
 )
 
 router = APIRouter(prefix='/api/v1/blog')
@@ -81,11 +92,46 @@ async def generate_blog_stream(
 	return EventSourceResponse(run_workflow(), ping=10)
 
 
+@router.post('/{paper_id}/rag/text', response_model=RagSearchTextResponseSchema)
+async def rag_search_text(
+	paper_id: Annotated[str, Path(description='The paper ID')],
+	body: RagSearchRequestSchema,
+	use_case: Annotated[RagSearchTextUseCase, Depends(get_rag_search_text_use_case)],
+) -> RagSearchTextResponseSchema:
+	try:
+		result = await use_case.execute(
+			paper_id=paper_id,
+			query=body.query,
+			limit=body.limit,
+		)
+		return RagSearchTextResponseSchema.from_result(result)
+	except PdfProcessingError as e:
+		raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+@router.post('/{paper_id}/rag/image', response_model=RagSearchImageResponseSchema)
+async def rag_search_image(
+	paper_id: Annotated[str, Path(description='The paper ID')],
+	body: RagSearchRequestSchema,
+	use_case: Annotated[RagSearchImageUseCase, Depends(get_rag_search_image_use_case)],
+) -> RagSearchImageResponseSchema:
+	try:
+		result = await use_case.execute(
+			paper_id=paper_id,
+			query=body.query,
+			limit=body.limit,
+		)
+		return RagSearchImageResponseSchema.from_result(result)
+	except PdfProcessingError as e:
+		raise HTTPException(status_code=502, detail=str(e)) from e
+
+
 @router.get('/{paper_id}', response_model=BlogPostResponseSchema)
 async def get_blog(
 	paper_id: Annotated[str, Path(description='The paper ID')],
 	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
 ) -> BlogPostResponseSchema:
+	paper_id = ArxivPaperId(paper_id) | PdfPaperId(paper_id)
 	blog_post = await get_blog_post.execute(paper_id=paper_id)
 	if blog_post is None:
 		raise HTTPException(status_code=404, detail=f'Blog post for {paper_id} not found.')

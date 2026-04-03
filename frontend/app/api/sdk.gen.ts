@@ -14,11 +14,23 @@ import type {
   GenerateBlogFromPdfApiV1BlogPdfPostData,
   GenerateBlogFromPdfApiV1BlogPdfPostErrors,
   GenerateBlogFromPdfApiV1BlogPdfPostResponses,
+  GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostData,
+  GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostErrors,
+  GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostResponses,
+  GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetData,
+  GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetErrors,
+  GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetResponses,
   GetBlogApiV1BlogPaperIdGetData,
   GetBlogApiV1BlogPaperIdGetErrors,
   GetBlogApiV1BlogPaperIdGetResponses,
   ListBlogsApiV1BlogGetData,
   ListBlogsApiV1BlogGetResponses,
+  RagSearchImageApiV1BlogPaperIdRagImagePostData,
+  RagSearchImageApiV1BlogPaperIdRagImagePostErrors,
+  RagSearchImageApiV1BlogPaperIdRagImagePostResponses,
+  RagSearchTextApiV1BlogPaperIdRagTextPostData,
+  RagSearchTextApiV1BlogPaperIdRagTextPostErrors,
+  RagSearchTextApiV1BlogPaperIdRagTextPostResponses,
   RootGetData,
   RootGetResponses,
   TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetData,
@@ -47,18 +59,6 @@ export type Options<
    */
   meta?: Record<string, unknown>
 }
-
-/**
- * List Blogs
- */
-export const listBlogsApiV1BlogGet = <ThrowOnError extends boolean = false>(
-  options?: Options<ListBlogsApiV1BlogGetData, ThrowOnError>,
-) =>
-  (options?.client ?? client).get<
-    ListBlogsApiV1BlogGetResponses,
-    unknown,
-    ThrowOnError
-  >({ url: '/api/v1/blog/', ...options })
 
 /**
  * Translate Sync
@@ -95,6 +95,18 @@ export const translateStreamApiV1TranslateArxivArxivPaperIdStreamGet = <
   >({ url: '/api/v1/translate/arxiv/{arxiv_paper_id}/stream', ...options })
 
 /**
+ * List Blogs
+ */
+export const listBlogsApiV1BlogGet = <ThrowOnError extends boolean = false>(
+  options?: Options<ListBlogsApiV1BlogGetData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListBlogsApiV1BlogGetResponses,
+    unknown,
+    ThrowOnError
+  >({ url: '/api/v1/blog/', ...options })
+
+/**
  * Generate Blog
  */
 export const generateBlogApiV1BlogArxivArxivPaperIdPost = <
@@ -110,6 +122,68 @@ export const generateBlogApiV1BlogArxivArxivPaperIdPost = <
     GenerateBlogApiV1BlogArxivArxivPaperIdPostErrors,
     ThrowOnError
   >({ url: '/api/v1/blog/arxiv/{arxiv_paper_id}', ...options })
+
+/**
+ * Generate Blog Stream
+ */
+export const generateBlogStreamApiV1BlogArxivArxivPaperIdStreamGet = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<
+    GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetData,
+    ThrowOnError
+  >,
+) =>
+  (options.client ?? client).get<
+    GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetResponses,
+    GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetErrors,
+    ThrowOnError
+  >({ url: '/api/v1/blog/arxiv/{arxiv_paper_id}/stream', ...options })
+
+/**
+ * Rag Search Text
+ */
+export const ragSearchTextApiV1BlogPaperIdRagTextPost = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<RagSearchTextApiV1BlogPaperIdRagTextPostData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    RagSearchTextApiV1BlogPaperIdRagTextPostResponses,
+    RagSearchTextApiV1BlogPaperIdRagTextPostErrors,
+    ThrowOnError
+  >({
+    url: '/api/v1/blog/{paper_id}/rag/text',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Rag Search Image
+ */
+export const ragSearchImageApiV1BlogPaperIdRagImagePost = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<
+    RagSearchImageApiV1BlogPaperIdRagImagePostData,
+    ThrowOnError
+  >,
+) =>
+  (options.client ?? client).post<
+    RagSearchImageApiV1BlogPaperIdRagImagePostResponses,
+    RagSearchImageApiV1BlogPaperIdRagImagePostErrors,
+    ThrowOnError
+  >({
+    url: '/api/v1/blog/{paper_id}/rag/image',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
 
 /**
  * Get Blog
@@ -140,6 +214,31 @@ export const generateBlogFromPdfApiV1BlogPdfPost = <
   >({
     ...formDataBodySerializer,
     url: '/api/v1/blog/pdf',
+    ...options,
+    headers: {
+      'Content-Type': null,
+      ...options.headers,
+    },
+  })
+
+/**
+ * Generate Blog From Pdf Stream
+ */
+export const generateBlogFromPdfStreamApiV1BlogPdfStreamPost = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<
+    GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostData,
+    ThrowOnError
+  >,
+) =>
+  (options.client ?? client).post<
+    GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostResponses,
+    GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostErrors,
+    ThrowOnError
+  >({
+    ...formDataBodySerializer,
+    url: '/api/v1/blog/pdf/stream',
     ...options,
     headers: {
       'Content-Type': null,

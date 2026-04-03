@@ -5,6 +5,12 @@
   "observability": {
     "enabled": true,
   },
+  "ai": {
+    "binding": "AI"
+  },
+  "vars": {
+    "API_BASE_URL": "http://arxiv-translation-service.onrender.com"
+  },
   "main": "./workers/app.ts",
   "compatibility_flags": ["nodejs_compat"],
 }

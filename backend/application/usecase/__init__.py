@@ -6,6 +6,8 @@ from .generate_blog_post_from_pdf_sse import GenerateBlogPostFromPdfSSEUseCase
 from .generate_blog_post_sse import GenerateBlogPostSSEUseCase
 from .get_blog_post import GetBlogPostUseCase
 from .list_blog_posts import ListBlogPostsUseCase
+from .rag_search_image import RagSearchImageUseCase
+from .rag_search_text import RagSearchTextUseCase
 from .save_translated_arxiv import SaveTranslatedArxivUseCase
 from .save_translated_arxiv_sse import SaveTranslatedArxivSSEUseCase
 from .translate_arxiv_paper import TranslateArxivPaper
@@ -19,6 +21,8 @@ __all__ = [
 	'GenerateBlogPostSSEUseCase',
 	'GetBlogPostUseCase',
 	'ListBlogPostsUseCase',
+	'RagSearchImageUseCase',
+	'RagSearchTextUseCase',
 	'SaveTranslatedArxivUseCase',
 	'SaveTranslatedArxivSSEUseCase',
 	'TranslateArxivPaper',

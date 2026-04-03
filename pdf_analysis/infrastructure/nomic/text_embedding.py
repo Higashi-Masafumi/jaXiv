@@ -14,6 +14,14 @@ class NomicTextEmbeddingGateway(TextEmbeddingGateway):
     def embed_text_batch(self, texts: list[str]) -> list[Embedding]:
         # nomic-embed-text requires task prefix for document embedding
         prefixed = [f"search_document: {t}" for t in texts]
+        return self._embed_prefixed(prefixed)
+
+    def embed_query_batch(self, texts: list[str]) -> list[Embedding]:
+        """Embeddings for retrieval queries (asymmetric with search_document chunks)."""
+        prefixed = [f"search_query: {t}" for t in texts]
+        return self._embed_prefixed(prefixed)
+
+    def _embed_prefixed(self, prefixed: list[str]) -> list[Embedding]:
         encoded = self._tokenizer(
             prefixed, padding=True, truncation=True, return_tensors="pt"
         )
