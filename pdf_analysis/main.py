@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from controller.extract import router
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -20,4 +20,4 @@ app = FastAPI(
 )
 app.include_router(router)
 
-logger.debug("Layout Analysis Service application started successfully.")
+logger.info("Layout Analysis Service application started successfully.")
