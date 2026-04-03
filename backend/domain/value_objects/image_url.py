@@ -6,5 +6,5 @@ class ImageUrl(RootModel[HttpUrl]):
 
 	model_config = ConfigDict(frozen=True)
 
-	def __init__(self, url: HttpUrl):
-		super().__init__(root=url)
+	def __init__(self, url: str | HttpUrl) -> None:
+		super().__init__(root=HttpUrl(url))

@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from logging import getLogger
@@ -11,10 +12,16 @@ from domain.entities.blog_stream import (
 	IntermediateBlogChunk,
 	TypedBlogChunk,
 )
+from domain.entities.document_chunk import DocumentFigureChunk, DocumentTextChunk
 from domain.entities.figure import UploadedFigure
-from domain.gateways import IPdfBlogPostGenerator, IPdfFigureExtractor
-from domain.repositories import IFigureStorageRepository
+from domain.gateways import IPdfBlogPostGenerator, IPdfChunkAnalyzer, IPdfFigureAnalyzer
+from domain.repositories import (
+	IFigureChunkRepository,
+	IFigureStorageRepository,
+	ITextChunkRepository,
+)
 from domain.value_objects import PdfPaperId
+from domain.value_objects.image_url import ImageUrl
 
 
 class GenerateBlogPostFromPdfSSEUseCase:
@@ -24,14 +31,20 @@ class GenerateBlogPostFromPdfSSEUseCase:
 		self,
 		blog_post_unit_of_work: BlogPostUnitOfWork,
 		blog_post_generator: IPdfBlogPostGenerator,
-		figure_extractor: IPdfFigureExtractor,
+		figure_analyzer: IPdfFigureAnalyzer,
 		figure_storage_repository: IFigureStorageRepository,
+		chunk_analyzer: IPdfChunkAnalyzer,
+		text_chunk_repository: ITextChunkRepository,
+		figure_chunk_repository: IFigureChunkRepository,
 	):
 		self._logger = getLogger(__name__)
 		self._uow = blog_post_unit_of_work
 		self._blog_post_generator = blog_post_generator
-		self._figure_extractor = figure_extractor
+		self._figure_analyzer = figure_analyzer
 		self._figure_storage_repository = figure_storage_repository
+		self._chunk_analyzer = chunk_analyzer
+		self._text_chunk_repository = text_chunk_repository
+		self._figure_chunk_repository = figure_chunk_repository
 
 	async def execute(self, pdf_path: Path) -> AsyncIterator[TypedBlogChunk]:
 		paper_id = PdfPaperId.generate()
@@ -49,12 +62,15 @@ class GenerateBlogPostFromPdfSSEUseCase:
 				)
 				source_url = None
 
-			yield IntermediateBlogChunk(message='レイアウト分析中...')
-			extracted_figures = self._figure_extractor.extract_figures(pdf_path)
+			yield IntermediateBlogChunk(message='テキスト・図を並列解析中...')
+			figures_with_embedding, text_chunks = await asyncio.gather(
+				self._figure_analyzer.analyze_figures(pdf_path),
+				self._chunk_analyzer.analyze_chunks(pdf_path),
+			)
 
 			yield IntermediateBlogChunk(message='図をアップロードしています...')
 			uploaded_figures: list[UploadedFigure] = []
-			for idx, fig in enumerate(extracted_figures):
+			for idx, fig in enumerate(figures_with_embedding):
 				fig_label = fig.figure_number if fig.figure_number is not None else idx
 				filename = f'fig_p{fig.page_number}_{fig_label}.png'
 				try:
@@ -79,9 +95,34 @@ class GenerateBlogPostFromPdfSSEUseCase:
 			self._logger.info(
 				'Uploaded %d/%d figures for paper %s',
 				len(uploaded_figures),
-				len(extracted_figures),
+				len(figures_with_embedding),
 				paper_id.root,
 			)
+
+			yield IntermediateBlogChunk(message='インデックスを登録しています...')
+			for chunk in text_chunks:
+				await self._text_chunk_repository.save(
+					DocumentTextChunk(
+						chunk_type='text',
+						paper_id=paper_id,
+						text=chunk.text,
+						page_number=chunk.page_number,
+						embeddings=chunk.embeddings,
+					)
+				)
+
+			for fig, uploaded in zip(figures_with_embedding, uploaded_figures, strict=False):
+				await self._figure_chunk_repository.save(
+					DocumentFigureChunk(
+						chunk_type='figure',
+						paper_id=paper_id,
+						image_url=ImageUrl(uploaded.url),
+						caption=fig.caption,
+						page_number=fig.page_number,
+						image_embeddings=fig.image_embeddings,
+						caption_embeddings=fig.caption_embeddings,
+					)
+				)
 
 			yield IntermediateBlogChunk(message='ブログを生成しています...')
 			metadata, markdown_content = await self._blog_post_generator.generate_from_pdf(
