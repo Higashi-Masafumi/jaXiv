@@ -8,6 +8,9 @@ from pydantic import HttpUrl
 from controller.schemas import (
     AnalyzeChunksResponse,
     AnalyzeFiguresResponse,
+    EmbedImagesRequest,
+    EmbedImagesResponse,
+    EmbedImageItemResponse,
     ExtractFiguresResponse,
     FigureResponse,
     FigureWithEmbeddingsResponse,
@@ -15,12 +18,14 @@ from controller.schemas import (
 )
 from dependencies import (
     get_chunk_and_embed_use_case,
+    get_embed_images_use_case,
     get_extract_figures_use_case,
     get_extract_figures_with_embeddings_use_case,
 )
 from domain.errors.extraction_error import FigureExtractionError
 from libs.pdf_download import pdf_temp_path_from_url
 from usecase.chunk_and_embed import ChunkAndEmbedUseCase
+from usecase.embed_images import EmbedImagesIn, EmbedImagesInItem, EmbedImagesUseCase
 from usecase.extract_figures import ExtractFiguresUseCase
 from usecase.extract_figures_with_embeddings import ExtractFiguresWithEmbeddingsUseCase
 
@@ -205,6 +210,34 @@ def analyze_chunks_by_url(
             for chunk in chunks
         ]
     )
+
+
+@router.post("/embed/images", response_model=EmbedImagesResponse)
+def embed_images(
+    body: EmbedImagesRequest,
+    use_case: EmbedImagesUseCase = Depends(get_embed_images_use_case),
+) -> EmbedImagesResponse:
+    """Embed images (+ captions) only; same Nomic models as ``/analyze/figures``."""
+    try:
+        out = use_case.execute(
+            EmbedImagesIn(
+                items=[
+                    EmbedImagesInItem(image_base64=i.image_base64, caption=i.caption)
+                    for i in body.items
+                ]
+            )
+        )
+        return EmbedImagesResponse(
+            items=[
+                EmbedImageItemResponse(
+                    image_embeddings=i.image_embeddings,
+                    caption_embeddings=i.caption_embeddings,
+                )
+                for i in out.items
+            ]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/health")

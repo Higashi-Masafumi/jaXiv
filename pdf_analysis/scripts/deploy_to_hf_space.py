@@ -36,7 +36,9 @@ def main() -> None:
         ignore_patterns=["scripts/deploy_to_hf_space.py", ".venv/", "__pycache__/"],
     )
 
-    logger.info("Deployed to https://huggingface.co/spaces/masamasa4/jaxiv-pdf-analysis")
+    logger.info(
+        "Deployed to https://huggingface.co/spaces/masamasa4/jaxiv-pdf-analysis"
+    )
 
 
 if __name__ == "__main__":

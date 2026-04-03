@@ -36,5 +36,7 @@ class ExtractFiguresWithEmbeddingsUseCase:
                 image_embeddings=img_emb,
                 caption_embeddings=cap_emb,
             )
-            for fig, img_emb, cap_emb in zip(figures, image_embeddings, caption_embeddings)
+            for fig, img_emb, cap_emb in zip(
+                figures, image_embeddings, caption_embeddings
+            )
         ]

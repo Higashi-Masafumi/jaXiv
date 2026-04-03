@@ -21,7 +21,9 @@ def pdf_temp_path_from_url(url: str) -> Iterator[Path]:
     os.close(fd)
     path = Path(name)
     try:
-        with httpx.Client(timeout=httpx.Timeout(300.0), follow_redirects=True) as client:
+        with httpx.Client(
+            timeout=httpx.Timeout(300.0), follow_redirects=True
+        ) as client:
             with client.stream("GET", url) as response:
                 response.raise_for_status()
                 with path.open("wb") as f:

@@ -15,6 +15,7 @@ from infrastructure.onnx.model_loader import load_onnx_session
 from infrastructure.onnx.pdf_figure_extractor import PdfFigureExtractor
 from infrastructure.pdf_parse import PyMuPdfChunker
 from usecase.chunk_and_embed import ChunkAndEmbedUseCase
+from usecase.embed_images import EmbedImagesUseCase
 from usecase.extract_figures import ExtractFiguresUseCase
 from usecase.extract_figures_with_embeddings import ExtractFiguresWithEmbeddingsUseCase
 
@@ -83,3 +84,13 @@ def get_chunk_and_embed_use_case(
     text_embedding: TextEmbeddingGateway = Depends(get_bge_text_embedding_gateway),
 ) -> ChunkAndEmbedUseCase:
     return ChunkAndEmbedUseCase(chunker=chunker, text_embedding=text_embedding)
+
+
+def get_embed_images_use_case(
+    image_embedding: ImageEmbeddingGateway = Depends(get_nomic_image_embedding_gateway),
+    caption_embedding: TextEmbeddingGateway = Depends(get_nomic_text_embedding_gateway),
+) -> EmbedImagesUseCase:
+    return EmbedImagesUseCase(
+        image_embedding=image_embedding,
+        caption_embedding=caption_embedding,
+    )

@@ -23,14 +23,14 @@ class QdrantFigureChunkRepository(IFigureChunkRepository):
 	"""Qdrant implementation of IFigureChunkRepository.
 
 	Stores each figure as a single Qdrant point with named vectors:
-	  - "image": image embedding from vdr-2b-multi-v1
-	  - "caption": caption embedding from vdr-2b-multi-v1
+	  - "image": image embedding from nomic-embed-vision-v1.5
+	  - "caption": caption embedding from nomic-embed-text-v1.5
 	"""
 
 	COLLECTION_NAME = 'figures'
-	# llamaindex/vdr-2b-multi-v1 output dimension
-	IMAGE_DIM = 2048
-	CAPTION_DIM = 2048
+	# nomic-ai/nomic-embed-vision-v1.5 and nomic-ai/nomic-embed-text-v1.5 output dimension
+	IMAGE_DIM = 768
+	CAPTION_DIM = 768
 
 	def __init__(self, client: QdrantClient) -> None:
 		self._client = client

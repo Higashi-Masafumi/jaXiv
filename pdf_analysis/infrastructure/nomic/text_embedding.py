@@ -14,7 +14,9 @@ class NomicTextEmbeddingGateway(TextEmbeddingGateway):
     def embed_text_batch(self, texts: list[str]) -> list[Embedding]:
         # nomic-embed-text requires task prefix for document embedding
         prefixed = [f"search_document: {t}" for t in texts]
-        encoded = self._tokenizer(prefixed, padding=True, truncation=True, return_tensors="pt")
+        encoded = self._tokenizer(
+            prefixed, padding=True, truncation=True, return_tensors="pt"
+        )
         with torch.no_grad():
             output = self._model(**encoded)
         token_emb = output.last_hidden_state

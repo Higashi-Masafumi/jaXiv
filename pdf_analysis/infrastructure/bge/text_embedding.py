@@ -12,7 +12,9 @@ class BgeTextEmbeddingGateway(TextEmbeddingGateway):
         self._tokenizer = tokenizer
 
     def embed_text_batch(self, texts: list[str]) -> list[Embedding]:
-        encoded = self._tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+        encoded = self._tokenizer(
+            texts, padding=True, truncation=True, return_tensors="pt"
+        )
         with torch.no_grad():
             output = self._model(**encoded)
         # BGE uses CLS token pooling
