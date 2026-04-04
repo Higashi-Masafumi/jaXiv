@@ -45,7 +45,7 @@ class HttpPdfChunkAnalyzer(IPdfChunkAnalyzer):
 		try:
 			response = await self._client.post(
 				'/analyze/chunks/by-url',
-				json={'pdf_url': pdf_url},
+				params={'pdf_url': pdf_url},
 			)
 		except (httpx.ConnectError, httpx.TimeoutException) as e:
 			raise PdfProcessingError(f'Layout analysis service error: {e}') from e
