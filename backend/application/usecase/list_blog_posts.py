@@ -1,6 +1,6 @@
 import asyncio
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 
 from domain.entities.blog import BlogPost
 from domain.repositories import IBlogPostRepository
@@ -11,13 +11,7 @@ class PaginatedBlogPosts(BaseModel):
 	total: int
 	page: int
 	page_size: int
-
-	@computed_field
-	@property
-	def total_pages(self) -> int:
-		if self.page_size == 0:
-			return 0
-		return (self.total + self.page_size - 1) // self.page_size
+	total_pages: int
 
 
 class ListBlogPostsUseCase:
@@ -31,4 +25,11 @@ class ListBlogPostsUseCase:
 			self._blog_post_repository.find_all(page=page, page_size=page_size),
 			self._blog_post_repository.count_all(),
 		)
-		return PaginatedBlogPosts(items=items, total=total, page=page, page_size=page_size)
+		total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
+		return PaginatedBlogPosts(
+			items=items,
+			total=total,
+			page=page,
+			page_size=page_size,
+			total_pages=total_pages,
+		)

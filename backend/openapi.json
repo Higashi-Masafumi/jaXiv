@@ -112,8 +112,8 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "default": 1,
               "description": "Page number",
+              "default": 1,
               "title": "Page"
             },
             "description": "Page number"
@@ -124,10 +124,10 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "minimum": 1,
               "maximum": 100,
-              "default": 10,
+              "minimum": 1,
               "description": "Items per page",
+              "default": 10,
               "title": "Page Size"
             },
             "description": "Items per page"
@@ -479,36 +479,6 @@
   },
   "components": {
     "schemas": {
-      "PaginatedBlogPostResponseSchema": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/BlogPostResponseSchema"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "page": {
-            "type": "integer",
-            "title": "Page"
-          },
-          "page_size": {
-            "type": "integer",
-            "title": "Page Size"
-          },
-          "total_pages": {
-            "type": "integer",
-            "title": "Total Pages"
-          }
-        },
-        "type": "object",
-        "required": ["items", "total", "page", "page_size", "total_pages"],
-        "title": "PaginatedBlogPostResponseSchema"
-      },
       "BlogPostResponseSchema": {
         "properties": {
           "paper_id": {
@@ -611,6 +581,42 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "PaginatedBlogPostResponseSchema": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BlogPostResponseSchema"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "total_pages"
+        ],
+        "title": "PaginatedBlogPostResponseSchema"
       },
       "RagImageItemSchema": {
         "properties": {

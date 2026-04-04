@@ -90,6 +90,22 @@ function BlogArchiveListSkeleton() {
   )
 }
 
+function buildPages(
+  currentPage: number,
+  totalPages: number,
+): (number | 'ellipsis')[] {
+  const left = Math.max(2, currentPage - 1)
+  const right = Math.min(totalPages - 1, currentPage + 1)
+  const middle = Array.from({ length: right - left + 1 }, (_, i) => left + i)
+  return [
+    1,
+    ...(left > 2 ? (['ellipsis'] as const) : []),
+    ...middle,
+    ...(right < totalPages - 1 ? (['ellipsis'] as const) : []),
+    totalPages,
+  ]
+}
+
 function BlogPagination({
   currentPage,
   totalPages,
@@ -100,23 +116,7 @@ function BlogPagination({
   if (totalPages <= 1) return null
 
   const pageUrl = (page: number) => `?page=${page}`
-
-  const pages: (number | 'ellipsis')[] = []
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i)
-  } else {
-    pages.push(1)
-    if (currentPage > 3) pages.push('ellipsis')
-    for (
-      let i = Math.max(2, currentPage - 1);
-      i <= Math.min(totalPages - 1, currentPage + 1);
-      i++
-    ) {
-      pages.push(i)
-    }
-    if (currentPage < totalPages - 2) pages.push('ellipsis')
-    pages.push(totalPages)
-  }
+  const pages = buildPages(currentPage, totalPages)
 
   return (
     <Pagination className="mt-8">
