@@ -1,17 +1,18 @@
 import asyncio
-from dataclasses import dataclass
+
+from pydantic import BaseModel, computed_field
 
 from domain.entities.blog import BlogPost
 from domain.repositories import IBlogPostRepository
 
 
-@dataclass
-class PaginatedBlogPosts:
+class PaginatedBlogPosts(BaseModel):
 	items: list[BlogPost]
 	total: int
 	page: int
 	page_size: int
 
+	@computed_field
 	@property
 	def total_pages(self) -> int:
 		if self.page_size == 0:
