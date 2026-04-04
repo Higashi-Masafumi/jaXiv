@@ -31,6 +31,7 @@ jobs:
         run: uv run mypy .
       - name: Check OpenAPI schema diff
         env:
+          PYTHONPATH: .
           SUPABASE_URL: dummy
           SUPABASE_KEY: dummy
           BUCKET_NAME: dummy
