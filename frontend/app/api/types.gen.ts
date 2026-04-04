@@ -5,6 +5,32 @@ export type ClientOptions = {
 }
 
 /**
+ * PaginatedBlogPostResponseSchema
+ */
+export type PaginatedBlogPostResponseSchema = {
+  /**
+   * Items
+   */
+  items: Array<BlogPostResponseSchema>
+  /**
+   * Total
+   */
+  total: number
+  /**
+   * Page
+   */
+  page: number
+  /**
+   * Page Size
+   */
+  page_size: number
+  /**
+   * Total Pages
+   */
+  total_pages: number
+}
+
+/**
  * BlogPostResponseSchema
  */
 export type BlogPostResponseSchema = {
@@ -263,17 +289,24 @@ export type TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetResponses = {
 export type ListBlogsApiV1BlogGetData = {
   body?: never
   path?: never
-  query?: never
+  query?: {
+    /**
+     * Page number
+     */
+    page?: number
+    /**
+     * Items per page
+     */
+    page_size?: number
+  }
   url: '/api/v1/blog/'
 }
 
 export type ListBlogsApiV1BlogGetResponses = {
   /**
-   * Response List Blogs Api V1 Blog  Get
-   *
    * Successful Response
    */
-  200: Array<BlogPostResponseSchema>
+  200: PaginatedBlogPostResponseSchema
 }
 
 export type ListBlogsApiV1BlogGetResponse =

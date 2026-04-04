@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from logging import getLogger
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -31,13 +31,22 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			updated_at=row.updated_at,
 		)
 
-	async def find_all(self) -> list[BlogPost]:
-		statement = select(BlogPostContentModel).order_by(
-			col(BlogPostContentModel.created_at).desc()
+	async def find_all(self, page: int, page_size: int) -> list[BlogPost]:
+		offset = (page - 1) * page_size
+		statement = (
+			select(BlogPostContentModel)
+			.order_by(col(BlogPostContentModel.created_at).desc())
+			.offset(offset)
+			.limit(page_size)
 		)
 		result = await self._session.execute(statement)
 		rows = result.scalars().all()
 		return [self._to_entity(row) for row in rows]
+
+	async def count_all(self) -> int:
+		statement = select(func.count()).select_from(BlogPostContentModel)
+		result = await self._session.execute(statement)
+		return result.scalar_one()
 
 	async def find_by_paper_id(self, paper_id: str) -> BlogPost | None:
 		statement = select(BlogPostContentModel).where(
