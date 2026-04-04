@@ -1,2 +1,0 @@
-gen-oapi:
-    PYTHONPATH=. uv run python scripts/generate_openapi.py
