@@ -1,19 +1,17 @@
 {
   "permissions": {
+    "deny": [
+      "Bash(git push --force)",
+      "Bash(git push --force *)",
+      "Bash(git push -f)",
+      "Bash(git push -f *)",
+      "Bash(git push * +*)"
+    ],
     "allow": [
-      "Bash(grep -E \"\\\\.py$\")",
-      "Bash(ls -la /Users/higa4/dev/jaxiv/backend/*.py)",
-      "WebFetch(domain:docs.ultralytics.com)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(uv lock:*)",
-      "Bash(git push:*)",
-      "Bash(git checkout:*)",
-      "Bash(git commit:*)",
-      "WebFetch(domain:www.firecrawl.dev)",
-      "WebFetch(domain:medium.com)",
-      "WebFetch(domain:artifex.com)",
-      "WebFetch(domain:lancedb.com)",
-      "WebFetch(domain:blog.premai.io)"
+      "WebFetch",
+      "Bash",
+      "Write",
+      "Edit"
     ]
   },
   "hooks": {

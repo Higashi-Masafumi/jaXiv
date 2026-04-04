@@ -33,6 +33,7 @@ dependencies = [
     "httpx>=0.28.0",
     "tenacity>=9.0.0",
     "uuid6>=2025.0.1",
+    "qdrant-client>=1.17.1",
 ]
 
 [dependency-groups]

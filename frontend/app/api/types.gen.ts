@@ -55,6 +55,18 @@ export type BodyGenerateBlogFromPdfApiV1BlogPdfPost = {
 }
 
 /**
+ * Body_generate_blog_from_pdf_stream_api_v1_blog_pdf_stream_post
+ */
+export type BodyGenerateBlogFromPdfStreamApiV1BlogPdfStreamPost = {
+  /**
+   * File
+   *
+   * PDF file of the paper
+   */
+  file: Blob | File
+}
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -62,6 +74,72 @@ export type HttpValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * RagImageItemSchema
+ */
+export type RagImageItemSchema = {
+  /**
+   * Image Url
+   */
+  image_url: string
+  /**
+   * Caption
+   */
+  caption: string | null
+  /**
+   * Page Number
+   */
+  page_number: number
+}
+
+/**
+ * RagSearchImageResponseSchema
+ */
+export type RagSearchImageResponseSchema = {
+  /**
+   * Items
+   */
+  items: Array<RagImageItemSchema>
+}
+
+/**
+ * RagSearchRequestSchema
+ */
+export type RagSearchRequestSchema = {
+  /**
+   * Query
+   */
+  query: string
+  /**
+   * Limit
+   */
+  limit?: number
+}
+
+/**
+ * RagSearchTextResponseSchema
+ */
+export type RagSearchTextResponseSchema = {
+  /**
+   * Chunks
+   */
+  chunks: Array<RagTextChunkSchema>
+}
+
+/**
+ * RagTextChunkSchema
+ */
+export type RagTextChunkSchema = {
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Page Number
+   */
+  page_number: number
 }
 
 /**
@@ -106,25 +184,6 @@ export type ValidationError = {
    */
   type: string
 }
-
-export type ListBlogsApiV1BlogGetData = {
-  body?: never
-  path?: never
-  query?: never
-  url: '/api/v1/blog/'
-}
-
-export type ListBlogsApiV1BlogGetResponses = {
-  /**
-   * Response List Blogs Api V1 Blog  Get
-   *
-   * Successful Response
-   */
-  200: Array<BlogPostResponseSchema>
-}
-
-export type ListBlogsApiV1BlogGetResponse =
-  ListBlogsApiV1BlogGetResponses[keyof ListBlogsApiV1BlogGetResponses]
 
 export type TranslateSyncApiV1TranslateArxivArxivPaperIdPostData = {
   body?: never
@@ -201,6 +260,25 @@ export type TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetResponses = {
   200: unknown
 }
 
+export type ListBlogsApiV1BlogGetData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/blog/'
+}
+
+export type ListBlogsApiV1BlogGetResponses = {
+  /**
+   * Response List Blogs Api V1 Blog  Get
+   *
+   * Successful Response
+   */
+  200: Array<BlogPostResponseSchema>
+}
+
+export type ListBlogsApiV1BlogGetResponse =
+  ListBlogsApiV1BlogGetResponses[keyof ListBlogsApiV1BlogGetResponses]
+
 export type GenerateBlogApiV1BlogArxivArxivPaperIdPostData = {
   body?: never
   path: {
@@ -234,6 +312,105 @@ export type GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses = {
 
 export type GenerateBlogApiV1BlogArxivArxivPaperIdPostResponse =
   GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses[keyof GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses]
+
+export type GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetData = {
+  body?: never
+  path: {
+    /**
+     * Arxiv Paper Id
+     *
+     * The arXiv paper ID
+     */
+    arxiv_paper_id: string
+  }
+  query?: never
+  url: '/api/v1/blog/arxiv/{arxiv_paper_id}/stream'
+}
+
+export type GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetError =
+  GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetErrors[keyof GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetErrors]
+
+export type GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown
+}
+
+export type RagSearchTextApiV1BlogPaperIdRagTextPostData = {
+  body: RagSearchRequestSchema
+  path: {
+    /**
+     * Paper Id
+     *
+     * The paper ID
+     */
+    paper_id: string
+  }
+  query?: never
+  url: '/api/v1/blog/{paper_id}/rag/text'
+}
+
+export type RagSearchTextApiV1BlogPaperIdRagTextPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type RagSearchTextApiV1BlogPaperIdRagTextPostError =
+  RagSearchTextApiV1BlogPaperIdRagTextPostErrors[keyof RagSearchTextApiV1BlogPaperIdRagTextPostErrors]
+
+export type RagSearchTextApiV1BlogPaperIdRagTextPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: RagSearchTextResponseSchema
+}
+
+export type RagSearchTextApiV1BlogPaperIdRagTextPostResponse =
+  RagSearchTextApiV1BlogPaperIdRagTextPostResponses[keyof RagSearchTextApiV1BlogPaperIdRagTextPostResponses]
+
+export type RagSearchImageApiV1BlogPaperIdRagImagePostData = {
+  body: RagSearchRequestSchema
+  path: {
+    /**
+     * Paper Id
+     *
+     * The paper ID
+     */
+    paper_id: string
+  }
+  query?: never
+  url: '/api/v1/blog/{paper_id}/rag/image'
+}
+
+export type RagSearchImageApiV1BlogPaperIdRagImagePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type RagSearchImageApiV1BlogPaperIdRagImagePostError =
+  RagSearchImageApiV1BlogPaperIdRagImagePostErrors[keyof RagSearchImageApiV1BlogPaperIdRagImagePostErrors]
+
+export type RagSearchImageApiV1BlogPaperIdRagImagePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: RagSearchImageResponseSchema
+}
+
+export type RagSearchImageApiV1BlogPaperIdRagImagePostResponse =
+  RagSearchImageApiV1BlogPaperIdRagImagePostResponses[keyof RagSearchImageApiV1BlogPaperIdRagImagePostResponses]
 
 export type GetBlogApiV1BlogPaperIdGetData = {
   body?: never
@@ -295,6 +472,30 @@ export type GenerateBlogFromPdfApiV1BlogPdfPostResponses = {
 
 export type GenerateBlogFromPdfApiV1BlogPdfPostResponse =
   GenerateBlogFromPdfApiV1BlogPdfPostResponses[keyof GenerateBlogFromPdfApiV1BlogPdfPostResponses]
+
+export type GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostData = {
+  body: BodyGenerateBlogFromPdfStreamApiV1BlogPdfStreamPost
+  path?: never
+  query?: never
+  url: '/api/v1/blog/pdf/stream'
+}
+
+export type GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostError =
+  GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostErrors[keyof GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostErrors]
+
+export type GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown
+}
 
 export type RootGetData = {
   body?: never

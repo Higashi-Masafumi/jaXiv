@@ -8,7 +8,7 @@ from google.genai import types
 from pydantic import BaseModel, Field
 
 from domain.entities.arxiv import ArxivPaperMetadata
-from domain.entities.extracted_figure import UploadedFigure
+from domain.entities.figure import UploadedFigure
 from domain.entities.pdf_paper import PdfPaperMetadata
 from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
 

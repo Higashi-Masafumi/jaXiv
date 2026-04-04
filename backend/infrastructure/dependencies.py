@@ -1,7 +1,9 @@
 import os
+from functools import lru_cache
 from typing import Annotated
 
 from dotenv import load_dotenv
+from qdrant_client import QdrantClient
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from application.usecase import (
@@ -13,6 +15,8 @@ from application.usecase import (
 	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
 	ListBlogPostsUseCase,
+	RagSearchImageUseCase,
+	RagSearchTextUseCase,
 	SaveTranslatedArxivUseCase,
 	SaveTranslatedArxivSSEUseCase,
 	TranslateArxivPaper,
@@ -22,22 +26,33 @@ from application.unit_of_works import BlogPostUnitOfWork, TranslatedArxivUnitOfW
 from domain.gateways import (
 	IArxivSourceFetcher,
 	IBlogPostGenerator,
+	IImageEmbedder,
 	ILatexCompiler,
 	ILatexTranslator,
 	IPdfBlogPostGenerator,
+	IPdfChunkAnalyzer,
+	IPdfFigureAnalyzer,
 	IPdfFigureExtractor,
+	IQueryEmbeddingGateway,
 )
 from domain.repositories import (
 	IBlogPostRepository,
+	IFigureChunkRepository,
 	IFigureStorageRepository,
 	IFileStorageRepository,
+	ITextChunkRepository,
 	ITranslatedArxivRepository,
 )
 from infrastructure.arxiv_api import ArxivSourceFetcher
 from infrastructure.gemini import GeminiBlogPostGenerator
 from infrastructure.latex_subprocess import LatexCompiler
 from infrastructure.mistral import MistralLatexTranslator
-from infrastructure.pdf import HttpPdfFigureExtractor
+from infrastructure.pdf import (
+	HttpImageEmbedder,
+	HttpPdfChunkAnalyzer,
+	HttpPdfFigureAnalyzer,
+	HttpPdfFigureExtractor,
+)
 from infrastructure.postgres import (
 	PostgresBlogPostUnitOfWork,
 	PostgresTranslatedArxivUnitOfWork,
@@ -48,6 +63,8 @@ from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
 	PostgresTranslatedArxivRepository,
 )
+from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
+from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
 
 load_dotenv()
@@ -62,8 +79,10 @@ MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 BLOG_FIGURES_BUCKET_NAME = os.getenv('BLOG_FIGURES_BUCKET_NAME', '')
 LAYOUT_ANALYSIS_URL = os.getenv('LAYOUT_ANALYSIS_URL', 'http://localhost:8001')
+QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
+QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', '')
 
-if not all([SUPABASE_URL, SUPABASE_KEY, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY]):
+if not all([SUPABASE_URL, SUPABASE_KEY, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY, QDRANT_API_KEY]):
 	raise ValueError('One or more required environment variables are not set')
 
 
@@ -104,6 +123,49 @@ def get_figure_storage_repository() -> IFigureStorageRepository:
 	)
 
 
+@lru_cache
+def get_qdrant_client() -> QdrantClient:
+	return QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+
+
+def get_figure_chunk_repository(
+	client: Annotated[QdrantClient, Depends(get_qdrant_client)],
+) -> IFigureChunkRepository:
+	return QdrantFigureChunkRepository(client=client)
+
+
+def get_text_chunk_repository(
+	client: Annotated[QdrantClient, Depends(get_qdrant_client)],
+) -> ITextChunkRepository:
+	return QdrantTextChunkRepository(client=client)
+
+
+def get_query_embedding_gateway() -> IQueryEmbeddingGateway:
+	return HttpQueryEmbeddingGateway(service_url=LAYOUT_ANALYSIS_URL)
+
+
+def get_rag_search_text_use_case(
+	query_embedding: Annotated[IQueryEmbeddingGateway, Depends(get_query_embedding_gateway)],
+	text_chunk_repository: Annotated[ITextChunkRepository, Depends(get_text_chunk_repository)],
+) -> RagSearchTextUseCase:
+	return RagSearchTextUseCase(
+		query_embedding=query_embedding,
+		text_chunk_repository=text_chunk_repository,
+	)
+
+
+def get_rag_search_image_use_case(
+	query_embedding: Annotated[IQueryEmbeddingGateway, Depends(get_query_embedding_gateway)],
+	figure_chunk_repository: Annotated[
+		IFigureChunkRepository, Depends(get_figure_chunk_repository)
+	],
+) -> RagSearchImageUseCase:
+	return RagSearchImageUseCase(
+		query_embedding=query_embedding,
+		figure_chunk_repository=figure_chunk_repository,
+	)
+
+
 # --------------------------------------
 # Gateway providers
 # --------------------------------------
@@ -129,6 +191,18 @@ def get_pdf_blog_post_generator() -> IPdfBlogPostGenerator:
 
 def get_pdf_figure_extractor() -> IPdfFigureExtractor:
 	return HttpPdfFigureExtractor(service_url=LAYOUT_ANALYSIS_URL)
+
+
+def get_pdf_chunk_analyzer() -> IPdfChunkAnalyzer:
+	return HttpPdfChunkAnalyzer(service_url=LAYOUT_ANALYSIS_URL)
+
+
+def get_pdf_figure_analyzer() -> IPdfFigureAnalyzer:
+	return HttpPdfFigureAnalyzer(service_url=LAYOUT_ANALYSIS_URL)
+
+
+def get_image_embedder() -> IImageEmbedder:
+	return HttpImageEmbedder(service_url=LAYOUT_ANALYSIS_URL)
 
 
 # --------------------------------------
@@ -215,12 +289,22 @@ async def get_generate_blog_post(
 	figure_storage_repository: Annotated[
 		IFigureStorageRepository, Depends(get_figure_storage_repository)
 	],
+	chunk_analyzer: Annotated[IPdfChunkAnalyzer, Depends(get_pdf_chunk_analyzer)],
+	image_embedder: Annotated[IImageEmbedder, Depends(get_image_embedder)],
+	text_chunk_repository: Annotated[ITextChunkRepository, Depends(get_text_chunk_repository)],
+	figure_chunk_repository: Annotated[
+		IFigureChunkRepository, Depends(get_figure_chunk_repository)
+	],
 ) -> GenerateBlogPostUseCase:
 	return GenerateBlogPostUseCase(
 		blog_post_repository=blog_post_repository,
 		blog_post_generator=blog_post_generator,
 		arxiv_source_fetcher=arxiv_source_fetcher,
 		figure_storage_repository=figure_storage_repository,
+		chunk_analyzer=chunk_analyzer,
+		image_embedder=image_embedder,
+		text_chunk_repository=text_chunk_repository,
+		figure_chunk_repository=figure_chunk_repository,
 	)
 
 
@@ -231,42 +315,68 @@ def get_sse_generate_blog_post(
 	figure_storage_repository: Annotated[
 		IFigureStorageRepository, Depends(get_figure_storage_repository)
 	],
+	chunk_analyzer: Annotated[IPdfChunkAnalyzer, Depends(get_pdf_chunk_analyzer)],
+	image_embedder: Annotated[IImageEmbedder, Depends(get_image_embedder)],
+	text_chunk_repository: Annotated[ITextChunkRepository, Depends(get_text_chunk_repository)],
+	figure_chunk_repository: Annotated[
+		IFigureChunkRepository, Depends(get_figure_chunk_repository)
+	],
 ) -> GenerateBlogPostSSEUseCase:
 	return GenerateBlogPostSSEUseCase(
 		blog_post_unit_of_work=blog_post_unit_of_work,
 		blog_post_generator=blog_post_generator,
 		arxiv_source_fetcher=arxiv_source_fetcher,
 		figure_storage_repository=figure_storage_repository,
+		chunk_analyzer=chunk_analyzer,
+		image_embedder=image_embedder,
+		text_chunk_repository=text_chunk_repository,
+		figure_chunk_repository=figure_chunk_repository,
 	)
 
 
 async def get_generate_blog_post_from_pdf(
 	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
 	blog_post_generator: Annotated[IPdfBlogPostGenerator, Depends(get_pdf_blog_post_generator)],
-	figure_extractor: Annotated[IPdfFigureExtractor, Depends(get_pdf_figure_extractor)],
+	figure_analyzer: Annotated[IPdfFigureAnalyzer, Depends(get_pdf_figure_analyzer)],
 	figure_storage_repository: Annotated[
 		IFigureStorageRepository, Depends(get_figure_storage_repository)
+	],
+	chunk_analyzer: Annotated[IPdfChunkAnalyzer, Depends(get_pdf_chunk_analyzer)],
+	text_chunk_repository: Annotated[ITextChunkRepository, Depends(get_text_chunk_repository)],
+	figure_chunk_repository: Annotated[
+		IFigureChunkRepository, Depends(get_figure_chunk_repository)
 	],
 ) -> GenerateBlogPostFromPdfUseCase:
 	return GenerateBlogPostFromPdfUseCase(
 		blog_post_repository=blog_post_repository,
 		blog_post_generator=blog_post_generator,
-		figure_extractor=figure_extractor,
+		figure_analyzer=figure_analyzer,
 		figure_storage_repository=figure_storage_repository,
+		chunk_analyzer=chunk_analyzer,
+		text_chunk_repository=text_chunk_repository,
+		figure_chunk_repository=figure_chunk_repository,
 	)
 
 
 def get_sse_generate_blog_post_from_pdf(
 	blog_post_unit_of_work: Annotated[BlogPostUnitOfWork, Depends(get_sse_blog_post_unit_of_work)],
 	blog_post_generator: Annotated[IPdfBlogPostGenerator, Depends(get_pdf_blog_post_generator)],
-	figure_extractor: Annotated[IPdfFigureExtractor, Depends(get_pdf_figure_extractor)],
+	figure_analyzer: Annotated[IPdfFigureAnalyzer, Depends(get_pdf_figure_analyzer)],
 	figure_storage_repository: Annotated[
 		IFigureStorageRepository, Depends(get_figure_storage_repository)
+	],
+	chunk_analyzer: Annotated[IPdfChunkAnalyzer, Depends(get_pdf_chunk_analyzer)],
+	text_chunk_repository: Annotated[ITextChunkRepository, Depends(get_text_chunk_repository)],
+	figure_chunk_repository: Annotated[
+		IFigureChunkRepository, Depends(get_figure_chunk_repository)
 	],
 ) -> GenerateBlogPostFromPdfSSEUseCase:
 	return GenerateBlogPostFromPdfSSEUseCase(
 		blog_post_unit_of_work=blog_post_unit_of_work,
 		blog_post_generator=blog_post_generator,
-		figure_extractor=figure_extractor,
+		figure_analyzer=figure_analyzer,
 		figure_storage_repository=figure_storage_repository,
+		chunk_analyzer=chunk_analyzer,
+		text_chunk_repository=text_chunk_repository,
+		figure_chunk_repository=figure_chunk_repository,
 	)

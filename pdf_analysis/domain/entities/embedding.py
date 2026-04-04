@@ -9,6 +9,6 @@ class Embedding(RootModel[list[float]]):
     @field_validator("root")
     @classmethod
     def validate_embedding(cls, v: list[float]) -> list[float]:
-        if len(v) != 384:
-            raise ValueError("Embedding must be a list of 384 floats.")
+        if not v:
+            raise ValueError("Embedding must not be empty.")
         return v

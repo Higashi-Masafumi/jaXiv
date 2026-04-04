@@ -22,17 +22,22 @@ services:
     networks:
       - jaxiv
 
-  layout-analysis:
+  pdf-analysis:
     container_name: pdf-analysis
     build:
-      context: ./layout-analysis
+      context: ./pdf_analysis
       dockerfile: Dockerfile
     restart: unless-stopped
     working_dir: /app
     ports:
       - "7860:7860"
+    environment:
+      LLAMA_INDEX_CACHE_DIR: /app/.cache/llama_index
+      # Dockerfile の HF_HOME と同じ。モデルはイメージに含めず、初回利用時にホスト pdf_analysis/.cache/hf へキャッシュ
+      HF_HOME: /app/.cache/hf
     volumes:
-      - layout-analysis-venv:/app/.venv
+      - pdf-analysis-venv:/app/.venv
+      - ./pdf_analysis/.cache:/app/.cache
     command: >
       sh -c "uv sync &&
              uv run uvicorn main:app --host 0.0.0.0 --port 7860 --reload"
@@ -41,18 +46,19 @@ services:
     develop:
       watch:
         - action: sync
-          path: ./layout-analysis
+          path: ./pdf_analysis
           target: /app
           ignore:
             - .venv/
+            - .cache/
             - __pycache__/
             - .git/
             - .pytest_cache/
             - "*.pyc"
         - action: rebuild
-          path: ./layout-analysis/pyproject.toml
+          path: ./pdf_analysis/pyproject.toml
         - action: rebuild
-          path: ./layout-analysis/uv.lock
+          path: ./pdf_analysis/uv.lock
 
   api:
     container_name: jaxiv-api
@@ -64,15 +70,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      layout-analysis:
+      pdf-analysis:
         condition: service_started
     ports:
       - "8001:8000"
     environment:
       # ローカル用に固定（ホストからは localhost:5433 / DBeaver 等）
       POSTGRES_URL: postgresql://jaxiv:jaxiv@db:5432/jaxiv
-      LAYOUT_ANALYSIS_URL: http://layout-analysis:7860
+      LAYOUT_ANALYSIS_URL: http://pdf-analysis:7860
       OUTPUT_DIR: /app/output
+      QDRANT_URL: http://qdrant:6333
       # 機密値は env_file(./backend/.env) からコンテナ環境変数へ注入
     volumes:
       - api-venv:/app/.venv
@@ -101,49 +108,23 @@ services:
           path: ./backend/pyproject.toml
         - action: rebuild
           path: ./backend/uv.lock
-
-  web:
-    container_name: jaxiv-web
-    image: node:20-alpine
+  qdrant:
+    container_name: jaxiv-qdrant
+    image: qdrant/qdrant:latest
     restart: unless-stopped
-    working_dir: /app
-    depends_on:
-      - api
     ports:
-      - "5173:5173"
-    environment:
-      # SSR / サーバー側 fetch 用（コンテナ間）
-      API_BASE_URL: http://api:8000
-      # ブラウザから API へ（ホストの公開ポート）
-      VITE_API_BASE_URL: http://localhost:8001
+      - "6333:6333"
     volumes:
-      - ./frontend:/app
-      - web-node-modules:/app/node_modules
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+      - qdrant-data:/data
     networks:
       - jaxiv
-    develop:
-      watch:
-        - action: sync
-          path: ./frontend
-          target: /app
-          ignore:
-            - node_modules/
-            - .git/
-            - build/
-            - "**/.git"
-        - action: sync+restart
-          path: ./frontend/package.json
-          target: /app/package.json
-        - action: sync+restart
-          path: ./frontend/package-lock.json
-          target: /app/package-lock.json
 
 volumes:
   pg-data:
   api-venv:
-  layout-analysis-venv:
+  pdf-analysis-venv:
   web-node-modules:
+  qdrant-data:
 
 networks:
   jaxiv:

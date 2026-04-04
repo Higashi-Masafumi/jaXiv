@@ -1,0 +1,607 @@
+---
+description: jaxiv の DDD・オニオンアーキテクチャ・実装スタイル（Python）
+globs:
+  - "**/*.py"
+alwaysApply: false
+---
+
+# DDD・実装原則（jaxiv / Python）
+
+オニオン（クリーン）アーキテクチャに沿い、**依存は常に内側へ向ける**。本ルールがレイヤ規約と実装スタイルの正本とする。
+
+## アーキテクチャ概要
+
+内側から外側への典型的な層は次のとおり（このリポジトリでは `backend/domain` → `backend/application` → `backend/infrastructure` → `backend/controller` など）。
+
+| 層 | 役割 |
+|----|------|
+| **ドメイン** | ビジネス概念のモデル化。フレームワーク・DB・HTTP に依存しない。 |
+| **アプリケーション** | ユースケース（アプリケーション意図ごとのオーケストレーション）。 |
+| **インフラ** | リポジトリ・ゲートウェイの具象、外部 I/O、ORM、HTTP クライアント。 |
+| **インターフェース** | HTTP ルーター、転送用スキーマ、DI 配線（例: `controller`、依存性注入）。 |
+
+**依存の向き**: 内側（ドメイン）は外側（フレームワーク・DB・HTTP）を import しない。外側が内側の **抽象基底クラス（`ABC`）** に依存する。
+
+---
+
+## 概念と責務（網羅）
+
+以下は DDD・オニオンにおける用語と、このリポジトリ（`backend/`）での置き場所の対応である。**ドメイン**は純粋なビジネスモデル、**アプリケーション**はユースケースとユースケース単位の型、**インフラ**は技術詳細の実装、**インターフェース**は HTTP や DI 配線である。
+
+### 値オブジェクト（`domain/value_objects`）
+
+- **定義**: 属性の値で同一性が決まり、ライフサイクルを持たないドメインオブジェクト。金額・メール・論文 ID など。
+- **規約**: 不変（`frozen=True` 等）を基本とする。等価性は値で比較する。
+- **ドメインルール**: 不正な組み合わせや範囲外は **`DomainError` のサブクラス**で表す（`ValueError` だけに頼らない）。
+
+### エンティティ（`domain/entities`）
+
+- **定義**: **一意の識別子（ID）** を持ち、時間とともに変化しうるドメインオブジェクト。集約に属する場合、集約ルートはエンティティであることが多い。
+- **規約**: 単一エンティティのライフサイクル内ルール・不変条件は **エンティティのメソッド** に置く。外部への副作用や永続化の順序は持たない。
+- **集約**: 一つの **集約ルート** を通じてのみ、内部エンティティを一貫した状態で更新する。集約をまたいだ整合性はユースケースまたはドメインサービスで調整する（トランザクション境界は UoW とセットで考える）。
+
+### ドメインエラー（`domain/errors`）
+
+- **定義**: 「このドメインでは許されない」「前提が崩れた」ことを表す例外。ビジネス上の意味がある失敗はすべてここ（またはそのサブクラス）で表現する。
+- **規約**: 基底 **`DomainError`** を継承し、**用途ごとにサブクラス**を定義する（例: 見つからない、コンパイル失敗、タイムアウト）。メッセージに加え、呼び出し側が扱いやすい **属性**（ID やパス）を持たせる。
+- **境界**: HTTP ステータスやログレベルへの変換は **インターフェース層**（例外ハンドラやルーター）の責務。ドメイン層は HTTP を知らない。
+
+### リポジトリ（`domain/repositories`）
+
+- **定義**: **集約（または集約ルート）単位**で、永続化されたドメインオブジェクトを **取得・保存・削除** するための抽象。ドメインが「永続ストアの都合」を知らないようにするポート。
+- **規約**: **`ABC` を継承し、`@abstractmethod` で抽象メソッドのみ** をドメインに置く（`Protocol` は使わない）。クラス名は `I*` や `*Repository` などプロジェクトの慣習に合わせる。メソッドの引数・戻り値は **ドメイン型**（エンティティ・ID・値オブジェクト）。ORM エンティティやテーブル行型をシグネチャに出さない。
+- **実装**: 具象クラスは **`infrastructure`**（例: Postgres 用リポジトリ）。マッピング（ORM ↔ ドメイン）はインフラ側で完結させる。
+- **集約との関係**: 原則 **1 集約ルートにつき 1 リポジトリ** を想定し、集約外のエンティティをリポジトリが横断して直接更新しない。
+
+### ゲートウェイ（`domain/gateways`）
+
+- **定義**: **永続化以外の外部システム**（HTTP API、メール、決済、別サービス、LLM、ファイルストレージ等）へのアクセスを、ドメイン語彙で表した **抽象**。
+- **規約**: リポジトリと同様 **`ABC` + `@abstractmethod`** でドメイン側に抽象のみを置く。メソッド名は技術名ではなく **ユースケースやドメインに意味のある名前** にする。
+- **リポジトリとの使い分け**: **自システムが所有する永続データの読み書き** → リポジトリ。**外部サービス呼び出し・外部生成処理** → ゲートウェイ。
+
+### ドメインサービス（`domain/services`）
+
+- **定義**: **単一のエンティティに自然に属さない**ドメインルール、または **複数のエンティティ・値オブジェクトにまたがる**純粋な計算・判定。
+- **規約**: **ステートレス**（必要なものは引数で渡す）。**リポジトリ・ゲートウェイを持たない**（取得はユースケースが行い、ドメインサービスにはオブジェクトを渡す）。永続化やトランザクションは行わない。
+- **ユースケースとの境界**: **アプリケーションの手順・調停**はユースケース、**ドメインの法則そのもの**はエンティティまたはドメインサービス。
+
+### ユースケース（`application/usecase` など）
+
+- **定義**: システムが提供する **1 つのアプリケーション意図**（「注文を確定する」「PDF からブログを生成する」等）を実現するインタラクター。
+- **規約**: **1 クラス = 1 意図**。処理の流れは **オーケストレーション**（リポジトリ・ゲートウェイ・UoW・ドメインサービスの呼び出し順と失敗処理）に徹し、**ビジネスルールの本体**はドメインへ委譲する。
+- **入力・出力**: そのユースケース専用の **Command / Query / Result** 型は **アプリケーション層** に置く（ドメイン層に置かない）。
+- **依存の受け取り方**: コンストラクタで **抽象**（リポジトリインターフェース、ゲートウェイ、UoW 抽象等）を受け取る。具象の生成は **DI** が行う。
+
+### ユニット・オブ・ワーク（`application/unit_of_works`）
+
+- **定義**: **1 つのトランザクション**の中でリポジトリ操作をまとめ、**コミット／ロールバックの境界**を表す抽象。複数リポジトリを同一セッションで扱う場合にも使う。
+
+- **規約（本リポジトリの実装パターン）**  
+  - **抽象（アプリケーション層）**  
+    - `application/unit_of_works/_base.py` の **`UnitOfWork`** は `AbstractAsyncContextManager` と **`ABC`** を継承し、`__aenter__` / `__aexit__` を `@abstractmethod` で定義する。  
+    - 用途別に **`BlogPostUnitOfWork` 等**が `UnitOfWork` を継承し、**`@property` + `@abstractmethod`** で **そのトランザクション内で使うリポジトリ**（ドメインの `I*Repository` 型）を公開する。  
+  - **インフラ層**  
+    - `infrastructure/postgres/unit_of_work/_base.py` の **`SqlAlchemyUnitOfWorkBase`** が `async_sessionmaker` から `AsyncSession` を生成し、`__aenter__` でセッション開始、`__aexit__` で例外時 `rollback`・正常時 `commit`・`close` を行う。  
+    - **`PostgresBlogPostUnitOfWork(SqlAlchemyUnitOfWorkBase, BlogPostUnitOfWork)`** のように **ミックスイン**し、`blog_posts_repository` プロパティで **`PostgresBlogPostRepository(session=self._session)`** を返す（同一セッションを共有）。  
+  - **ユースケース**  
+    - コンストラクタに **`BlogPostUnitOfWork` 型（抽象）** で UoW **インスタンス**を受け取り、永続化時に **`async with self._uow as uow:`** とし **`await uow.blog_posts_repository.save(...)`** のようにリポジトリへ委譲する（例: `application/usecase/generate_blog_post_from_pdf_sse.py`）。  
+  - **DI**  
+    - `infrastructure/dependencies.py` の **`get_sse_blog_post_unit_of_work()`** が **`PostgresBlogPostUnitOfWork(session_factory=create_async_session_factory())`** を生成し、戻り値の型は **`BlogPostUnitOfWork`**（抽象）にする。リクエスト／ストリーム単位で **`Depends`** からユースケースへ渡す。  
+
+- **ドメインとの関係**: リポジトリの **抽象**はドメインの `I*Repository` のまま。UoW は「**同じ `AsyncSession` 上の具象リポジトリを束ねるアプリケーション層のファサード**」として動く。
+
+- **他案の注記**: チームによっては `IUnitOfWork` をドメインに置くこともある。本リポジトリでは **アプリケーション層の `UnitOfWork` 抽象**として定義している。
+
+### インフラストラクチャ（`infrastructure`）
+
+- **定義**: ドメインが定義した **ポート**（リポジトリ・ゲートウェイ・UoW）の **具象実装** と、DB・HTTP・キュー・ファイル等の **技術詳細** を置く層。
+- **規約**: SQLAlchemy のセッション、HTTP クライアント、外部 SDK の型は **ここに閉じる**。ドメイン型への変換・アダプタはインフラ側。再利用可能ならサブパッケージを分ける（例: `infrastructure/postgres`、`infrastructure/pdf`）。
+- **依存の向き**: インフラは **ドメインの抽象**を実装する。ドメインはインフラを import しない。
+
+### 依存性注入（DI）
+
+- **定義**: ユースケースやルーターが必要とする依存（具象リポジトリ、ゲートウェイ、**UoW インスタンス**等）を、**呼び出し元ではなく構成の場所**で束ね、**抽象（型ヒント）に対して具象を注入**する仕組み。
+- **規約（FastAPI）**: **`Annotated[..., Depends(...)]`** で、ルートまたはユースケースファクトリに依存を渡す。セッションや UoW は **リクエスト（またはストリーム）単位**で生成し、スコープを揃える。
+- **置き場所**: ファクトリ関数や `Depends` の束ねは **`infrastructure/dependencies.py`**（または同等のモジュール）に集約し、ルーターは **「どのユースケースを取るか」** だけを宣言する。
+- **目的**: テストではフェイク実装に差し替えやすくし、ユースケースは **ビジネスフロー**だけに集中できるようにする。
+
+### インターフェース層（`controller` 等）
+
+- **定義**: HTTP（または CLI・バッチ入口）とアプリケーションをつなぐ最外層。
+- **規約**: **転送用スキーマ**のみを API の入出力に使い、**ユースケース In/Out との変換**はハンドラ内で行う。例外 → HTTP 応答のマッピングもここ（または共通例外ハンドラ）。
+
+```mermaid
+flowchart LR
+  subgraph outer["外側"]
+    HTTP["controller / HTTP"]
+    DI["dependencies / DI"]
+  end
+  subgraph app["アプリケーション"]
+    UC["ユースケース"]
+    UOW["UnitOfWork 抽象"]
+    AppTypes["Command / Result"]
+  end
+  subgraph dom["ドメイン"]
+    E["エンティティ / 値オブジェクト"]
+    DS["ドメインサービス"]
+    REPO["リポジトリ IF"]
+    GW["ゲートウェイ IF"]
+    ERR["DomainError"]
+  end
+  subgraph infra["インフラ"]
+    Impl["具象リポジトリ / ゲートウェイ / UoW"]
+  end
+  HTTP --> UC
+  DI --> UC
+  DI --> Impl
+  UC --> REPO
+  UC --> GW
+  UC --> UOW
+  UC --> DS
+  UC --> E
+  UC --> AppTypes
+  REPO -.-> Impl
+  GW -.-> Impl
+  UOW -.-> Impl
+  E --> ERR
+  DS --> ERR
+```
+
+---
+
+## 実装例（一般的なパターン）
+
+以下は **注文ドメイン** を想定した最小例である。パッケージ名・モジュール分割はプロジェクトに合わせてよい。import は省略し、**依存の向き**と **型の置き場**が分かることを優先する。
+
+### ドメイン: 値オブジェクト・エンティティ・エラー
+
+```python
+# domain/errors.py
+class DomainError(Exception):
+    pass
+
+class InsufficientStockError(DomainError):
+    def __init__(self, sku: str, requested: int, available: int) -> None:
+        super().__init__(f"sku={sku}: need {requested}, have {available}")
+        self.sku = sku
+        self.requested = requested
+        self.available = available
+
+
+class OrderNotFoundError(DomainError):
+    def __init__(self, order_id: str) -> None:
+        super().__init__(f"order not found: {order_id}")
+        self.order_id = order_id
+
+
+# domain/value_objects.py — 単一プリミティブのラップ例
+from pydantic import ConfigDict, RootModel, StrictStr, field_validator
+
+class Sku(RootModel[StrictStr]):
+    model_config = ConfigDict(frozen=True)
+
+    @field_validator("root")
+    @classmethod
+    def not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("sku must be non-empty")
+        return v.strip()
+
+
+# domain/entities.py
+from pydantic import BaseModel
+
+class OrderLine(BaseModel):
+    sku: Sku
+    quantity: int
+
+class Order(BaseModel):
+    id: str
+    lines: list[OrderLine]
+
+    def add_line(self, sku: Sku, quantity: int) -> None:
+        if quantity < 1:
+            raise ValueError("quantity must be positive")
+        self.lines.append(OrderLine(sku=sku, quantity=quantity))
+```
+
+値オブジェクトの `@field_validator` で `ValueError` を使うか、専用の `DomainError` サブクラスにするかはチーム方針で揃える（**ドメインの失敗は呼び出し側で `DomainError` として扱える**ようにすることが目的）。
+
+### ドメイン: リポジトリ・ゲートウェイ（抽象）
+
+```python
+# domain/repositories/i_order_repository.py
+from abc import ABC, abstractmethod
+
+class IOrderRepository(ABC):
+    @abstractmethod
+    async def find_by_id(self, order_id: str) -> "Order | None":
+        ...
+
+    @abstractmethod
+    async def save(self, order: "Order") -> None:
+        ...
+
+
+# domain/gateways/i_inventory_gateway.py
+from abc import ABC, abstractmethod
+
+class IInventoryGateway(ABC):
+    @abstractmethod
+    async def available_quantity(self, sku: Sku) -> int:
+        ...
+```
+
+### ドメイン: ドメインサービス（リポジトリを持たない）
+
+```python
+# domain/services/order_line_policy.py
+class OrderLinePolicy:
+    def assert_lines_reservable(
+        self,
+        lines: list["OrderLine"],
+        available: dict[str, int],
+    ) -> None:
+        for line in lines:
+            key = line.sku.root
+            need = line.quantity
+            got = available.get(key, 0)
+            if got < need:
+                raise InsufficientStockError(key, need, got)
+```
+
+### アプリケーション: Command / Result・ユースケース
+
+```python
+# application/place_order.py
+from pydantic import BaseModel
+
+class PlaceOrderCommand(BaseModel):
+    order_id: str
+    lines: list[tuple[str, int]]  # (sku string, qty) — 境界で Sku に変換してもよい
+
+class PlaceOrderResult(BaseModel):
+    order_id: str
+    line_count: int
+
+
+class PlaceOrderUseCase:
+    def __init__(
+        self,
+        orders: IOrderRepository,
+        inventory: IInventoryGateway,
+        policy: OrderLinePolicy,
+    ) -> None:
+        self._orders = orders
+        self._inventory = inventory
+        self._policy = policy
+
+    async def execute(self, cmd: PlaceOrderCommand) -> PlaceOrderResult:
+        order = await self._orders.find_by_id(cmd.order_id)
+        if order is None:
+            raise OrderNotFoundError(cmd.order_id)
+
+        for sku_str, qty in cmd.lines:
+            order.add_line(Sku(sku_str), qty)
+
+        available: dict[str, int] = {}
+        for line in order.lines:
+            key = line.sku.root
+            if key not in available:
+                available[key] = await self._inventory.available_quantity(line.sku)
+
+        self._policy.assert_lines_reservable(order.lines, available)
+        await self._orders.save(order)
+        return PlaceOrderResult(order_id=order.id, line_count=len(order.lines))
+```
+
+`find_by_id` が `None` のときは **ガードのあと** に本処理へ進む（**early raise** でネストを浅く保つ例）。
+
+### Unit of Work（`ABC` と本リポジトリの形）
+
+**抽象（アプリケーション層）** — `backend/application/unit_of_works/_base.py` と同じパターン:
+
+```python
+# application/unit_of_works/_base.py
+from abc import ABC, abstractmethod
+from contextlib import AbstractAsyncContextManager
+from types import TracebackType
+from typing import Self
+
+class UnitOfWork(AbstractAsyncContextManager, ABC):
+    @abstractmethod
+    async def __aenter__(self) -> Self:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        raise NotImplementedError
+```
+
+**用途別 UoW** — `BlogPostUnitOfWork` と同型（リポジトリは `@property` で公開）:
+
+```python
+# application/unit_of_works/order_unit_of_work.py
+from abc import abstractmethod
+
+from domain.repositories.i_order_repository import IOrderRepository
+
+from ._base import UnitOfWork
+
+
+class OrderUnitOfWork(UnitOfWork):
+    @property
+    @abstractmethod
+    def orders_repository(self) -> IOrderRepository:
+        raise NotImplementedError
+```
+
+**インフラ** — `SqlAlchemyUnitOfWorkBase` + 具象 UoW（`backend/infrastructure/postgres/unit_of_work/` と同じパターン）:
+
+```python
+# infrastructure/postgres/unit_of_work/_base.py（要点）
+from abc import ABC
+from types import TracebackType
+from typing import Self
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+class SqlAlchemyUnitOfWorkBase(ABC):
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+        self._session_factory = session_factory
+        self._session: AsyncSession
+
+    async def __aenter__(self) -> Self:
+        self._session = self._session_factory()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        if exc_type is not None:
+            await self._session.rollback()
+        else:
+            await self._session.commit()
+        await self._session.close()
+
+
+class PostgresOrderUnitOfWork(SqlAlchemyUnitOfWorkBase, OrderUnitOfWork):
+    @property
+    def orders_repository(self) -> IOrderRepository:
+        return PostgresOrderRepository(session=self._session)
+```
+
+**ユースケース** — UoW は **DI で注入されたインスタンス**に対し、トランザクション単位で `async with` する（実装例は `application/usecase/generate_blog_post_from_pdf_sse.py` の `async with self._uow as uow:` と同じ考え方）:
+
+```python
+class CommitOrderUseCase:
+    def __init__(self, unit_of_work: OrderUnitOfWork) -> None:
+        self._uow = unit_of_work
+
+    async def execute(self, order_id: str) -> None:
+        async with self._uow as uow:
+            order = await uow.orders_repository.find_by_id(order_id)
+            if order is None:
+                raise OrderNotFoundError(order_id)
+            await uow.orders_repository.save(order)
+```
+
+**DI** — `get_sse_blog_post_unit_of_work()` と同様、**具象を返し型は抽象**:
+
+```python
+def get_order_unit_of_work() -> OrderUnitOfWork:
+    return PostgresOrderUnitOfWork(session_factory=create_async_session_factory())
+```
+
+### インフラ（具象の要点）
+
+```python
+# infrastructure/persistence/postgres_order_repository.py
+# IOrderRepository を実装。内部で ORM モデル ↔ Order を変換する。
+# ドメインはこのモジュールを import しない。
+```
+
+### 依存性注入と HTTP 境界（FastAPI）
+
+```python
+# infrastructure/dependencies.py
+from typing import Annotated
+from fastapi import Depends
+
+def get_place_order_use_case(
+    repo: Annotated[IOrderRepository, Depends(get_order_repository)],
+    inv: Annotated[IInventoryGateway, Depends(get_inventory_gateway)],
+) -> PlaceOrderUseCase:
+    return PlaceOrderUseCase(repo, inv, OrderLinePolicy())
+
+
+# interface/routers/orders.py
+from pydantic import BaseModel
+
+class PlaceOrderRequest(BaseModel):
+    lines: list[tuple[str, int]]
+
+@router.post("/orders/{order_id}/lines")
+async def place_order(
+    order_id: str,
+    body: PlaceOrderRequest,
+    uc: Annotated[PlaceOrderUseCase, Depends(get_place_order_use_case)],
+) -> PlaceOrderResult:
+    cmd = PlaceOrderCommand(order_id=order_id, lines=body.lines)
+    return await uc.execute(cmd)
+```
+
+`PlaceOrderRequest` は **転送用**、`PlaceOrderCommand` は **ユースケース用**。フィールドが同一でも型を分け、HTTP の変更からドメインを守る。
+
+---
+
+## 型を置く場所
+
+| 層 | 置くもの |
+|----|----------|
+| **ドメイン** | エンティティ・値オブジェクト・ドメインエラー・リポジトリ/ゲートウェイの**抽象** |
+| **アプリケーション** | そのユースケース専用の **入力/出力型**、**UnitOfWork 抽象**（本リポジトリ）など（ドメインに置かない） |
+| **インターフェース** | **転送用スキーマ**。ユースケースの In/Out と**別物**として扱う |
+
+## 境界での変換
+
+- 転送スキーマ ↔ ユースケース In/Out の変換は **境界（ルートハンドラ側）**で行う。
+- **構造が同じなら**、手書きのマッパ関数や「アダプタ専用ファイル」を増やさず、**フレームワークや Pydantic が提供する等価な変換**（例: 検証付きの再パース）に寄せる。
+- **意味のある変換**（フィールド名の意味が違う、集約が異なる、など）だけ、関数やモジュールに切り出す。
+
+（集約・リポジトリの関係、ドメインエラーと境界の役割は **「概念と責務（網羅）」** を参照。）
+
+## 単純化（YAGNI）
+
+- 上限・レート・バッチサイズなど、**要件が出るまで**入れない。
+- **1 行ラッパ**だけのモジュールや、**転送と完全同一の別型**を増やして重複させない。
+
+## ドキュメント
+
+- 設計メモは **リポジトリ内の一箇所を正本**とし、同じ内容を複数パスに複製しない（必要なら一方から「正本はここ」と指すだけにする）。
+
+## 言語
+
+- 人向けの説明・コミット・ルール文面は **日本語**を既定とする（コードの識別子・既存英語ドキュメントは従う）。
+
+---
+
+## 実装スタイル
+
+ルールごとに **推奨パターン** と **避けたいパターン** を併記する。
+
+### 型とデータ構造（Pydantic）
+
+- **データ構造・入出力の型定義には Pydantic を使う**（`BaseModel`、`RootModel`、必要に応じ `ConfigDict` 等）。ドメインの値オブジェクト・エンティティ、転送スキーマ、ユースケースの Command/Result のいずれも、この方針に沿う。
+- ドメイン層では `Any` を避け、シグネチャをドメイン型で表す（ID や金額などを生の `str`/`int` だけで表さないことを目指す）。
+
+**境界で同形の型を増やしすぎない例**（検証だけ異なるなら再パースで足りることが多い）:
+
+```python
+# 転送スキーマと Command が同一フィールドでも、型は分ける（HTTP とユースケースの変更を分離）
+class CreateUserRequest(BaseModel):
+    email: str
+    name: str
+
+class CreateUserCommand(BaseModel):
+    email: str
+    name: str
+
+def handler(body: CreateUserRequest) -> None:
+    cmd = CreateUserCommand.model_validate(body)  # 構造が同じなら手書きマッパを増やさない
+```
+
+### 非同期（async）
+
+- **I/O を伴う処理は `async`/`await` を基本とする**。特に **HTTP リクエスト**、DB アクセス、外部 API は非同期 API を優先する。
+- ブロッキングしかないライブラリを使う場合は、その境界でイベントループを阻害しないようプロジェクトの方針（スレッドオフロード等）に従う。
+
+**ユースケースからリポジトリ・ゲートウェイを await する**（I/O は非同期で表現）:
+
+```python
+# リポジトリ・外部ゲートウェイの呼び出しは await で統一する
+order = await order_repository.find_by_id(order_id)
+quote = await pricing_gateway.quote(base_currency)
+```
+
+### 制御フロー（early return / early continue）
+
+- **ネストを深くしない**: ガード節や **early return**、ループ内では **early continue** を積極的に使い、「正常系が右にずれ続ける」構造を避ける。
+
+**避ける**（不要な `else` でネストが深い）:
+
+```python
+def discount_rate(customer: Customer) -> float:
+    if customer.is_premium:
+        return 0.15
+    else:
+        if customer.order_count > 10:
+            return 0.10
+        else:
+            return 0.0
+```
+
+**推奨**（ガードと early return）:
+
+```python
+def discount_rate(customer: Customer) -> float:
+    if customer.is_premium:
+        return 0.15
+    if customer.order_count > 10:
+        return 0.10
+    return 0.0
+```
+
+**ループ**では条件に合わない要素を **`continue`** でスキップし、メイン処理を平坦に保つ。
+
+```python
+for item in items:
+    if item.is_archived:
+        continue
+    process(item)
+```
+
+### 定数
+
+- モジュールレベルの **固定値（定数）は `UPPER_SNAKE_CASE`** とする。
+- **先頭に `_` を付けない**（「プライベート定数」として `_MAX_RETRIES` のような形は使わない）。スコープでカプセル化したい場合は関数内ローカルや、意味のある公開名の定数に統一する。
+
+```python
+DEFAULT_PAGE_SIZE = 50
+HTTP_TIMEOUT_SEC = 30.0
+```
+
+### 関数・メソッドの切り出し
+
+- **再利用されない、あるいは読みやすさの向上にもつながらない**ロジックを、名前だけ増やす **プライベートメソッド（`_foo`）に切り出さない**。その場の処理として書くか、**複数箇所で本当に再利用する**単位でのみヘルパーにする。
+- 「1 回しか呼ばれない薄いラッパ」は、インラインやループ内のローカル関数より、まず **そのまま本文に書く**ことを優先する（テスト容易性や再利用が明確な場合は例外）。
+
+**避ける**（1 回しか使わない `_append_line` がノイズになる）:
+
+```python
+class PlaceOrderUseCase:
+    async def execute(self, cmd: PlaceOrderCommand) -> PlaceOrderResult:
+        ...
+        for sku_str, qty in cmd.lines:
+            await self._append_line(order, sku_str, qty)
+
+    async def _append_line(self, order: Order, sku_str: str, qty: int) -> None:
+        order.add_line(Sku(sku_str), qty)
+```
+
+**推奨**（ループ内をそのまま読む）:
+
+```python
+class PlaceOrderUseCase:
+    async def execute(self, cmd: PlaceOrderCommand) -> PlaceOrderResult:
+        ...
+        for sku_str, qty in cmd.lines:
+            order.add_line(Sku(sku_str), qty)
+```
+
+**切り出すのが妥当な例**（同じ検証を複数ユースケースで使う、純粋関数としてテストしたい等）:
+
+```python
+def parse_sku_list(raw: list[tuple[str, int]]) -> list[tuple[Sku, int]]:
+    return [(Sku(s), q) for s, q in raw]
+```
+
+---
+
+## 自己検証（実装時のチェックリスト）
+
+- [ ] ドメイン層が application / infrastructure / controller を import していない。
+- [ ] 単一エンティティのルールはエンティティ、複数にまたがるルールはドメインサービスに置いている。
+- [ ] リポジトリ・ゲートウェイの抽象はドメイン、具象はインフラにある。
+- [ ] ユースケースはオーケストレーションに徹し、ドメインルールの本体をユースケースに書いていない。
+- [ ] UoW を使う場合、トランザクション境界とリポジトリのスコープが意図どおりか（抽象と具象の層が崩れていないか）。
+- [ ] DI は `dependencies` 等に集約され、ルーターが直接具象インフラを new していない。
+- [ ] HTTP の入出力型は転送スキーマであり、ユースケース型と混同していない。

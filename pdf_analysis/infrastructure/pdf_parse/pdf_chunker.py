@@ -3,6 +3,7 @@ from pathlib import Path
 import pymupdf4llm
 from llama_index.core import Document
 from llama_index.core.node_parser import MarkdownNodeParser, SentenceSplitter
+from llama_index.core.schema import MetadataMode
 
 from domain.entities.text_chunk import TextChunk
 from domain.gateways.pdf_chunker import PdfChunkerGateway
@@ -36,10 +37,13 @@ class PyMuPdfChunker(PdfChunkerGateway):
         final_nodes = SentenceSplitter(
             chunk_size=self.CHUNK_SIZE,
             chunk_overlap=self.CHUNK_OVERLAP,
-        ).get_nodes_from_documents(section_nodes)
+        )(section_nodes)
 
-        return [
-            TextChunk(text=node.text, page_number=node.metadata["page_number"])
-            for node in final_nodes
-            if node.text.strip()
-        ]
+        chunks: list[TextChunk] = []
+        for node in final_nodes:
+            text = node.get_content(metadata_mode=MetadataMode.NONE)
+            if text.strip():
+                chunks.append(
+                    TextChunk(text=text, page_number=node.metadata["page_number"])
+                )
+        return chunks

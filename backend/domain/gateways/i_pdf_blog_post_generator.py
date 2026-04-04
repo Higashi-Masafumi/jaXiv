@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from domain.entities.extracted_figure import UploadedFigure
+from domain.entities.figure import UploadedFigure
 from domain.entities.pdf_paper import PdfPaperMetadata
 
 

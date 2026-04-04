@@ -12,4 +12,5 @@ export default [
     route('blog', 'routes/blog.tsx'),
     route('blog/:paperId', 'routes/blog.$paperId.tsx'),
   ]),
+  route('api/blog/:paperId/chat', 'routes/api.blog.$paperId.chat.ts'),
 ] satisfies RouteConfig

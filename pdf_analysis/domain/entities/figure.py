@@ -15,6 +15,7 @@ class ExtractedFigure(BaseModel):
 
 
 class ExtractedFigureWithEmbeddings(ExtractedFigure):
-    """A figure extracted from a PDF with its caption and image bytes, and its image embeddings."""
+    """A figure extracted from a PDF with image embeddings and caption embeddings."""
 
     image_embeddings: Embedding
+    caption_embeddings: Embedding
