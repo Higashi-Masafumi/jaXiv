@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { Await, Link, useSearchParams } from 'react-router'
+import { Await, Link } from 'react-router'
 
 import { listBlogsApiV1BlogGet } from '../api/sdk.gen'
 import {
@@ -135,7 +135,10 @@ function BlogPagination({
             </PaginationItem>
           ) : (
             <PaginationItem key={page}>
-              <PaginationLink href={pageUrl(page)} isActive={page === currentPage}>
+              <PaginationLink
+                href={pageUrl(page)}
+                isActive={page === currentPage}
+              >
                 {page}
               </PaginationLink>
             </PaginationItem>
@@ -143,7 +146,9 @@ function BlogPagination({
         )}
         <PaginationItem>
           <PaginationNext
-            href={currentPage < totalPages ? pageUrl(currentPage + 1) : undefined}
+            href={
+              currentPage < totalPages ? pageUrl(currentPage + 1) : undefined
+            }
             aria-disabled={currentPage >= totalPages}
             className={
               currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''
@@ -157,9 +162,7 @@ function BlogPagination({
 
 function BlogPostList({ data }: { data: PaginatedBlogPostResponseSchema }) {
   if (data.items.length === 0) {
-    return (
-      <p className="text-muted-foreground">まだブログ記事がありません。</p>
-    )
+    return <p className="text-muted-foreground">まだブログ記事がありません。</p>
   }
   return (
     <>
