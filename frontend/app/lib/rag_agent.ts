@@ -22,29 +22,16 @@ export async function createRagChatResponse(options: {
   const { messages, paperId, apiBaseUrl, aiBinding } = options
   const workersai = createWorkersAI({ binding: aiBinding })
 
-  const modelMessages = await convertToModelMessages(
-    messages,
-  )
-
-  console.log('[rag_agent] modelMessages:', JSON.stringify(modelMessages, null, 2))
+  const modelMessages = await convertToModelMessages(messages)
 
   const result = streamText({
     model: workersai('@cf/moonshotai/kimi-k2.5'),
-    system: `あなたは論文ブログ記事の横で動くアシスタントです。
-与えられた論文（このページの paper_id に対応するインデックス）について、ユーザーの質問に答えてください。
-事実は必ず textSearch / imageSearch ツールで取得した内容に基づいて述べてください。
-ツール結果にないことは推測せず、不明と言ってください。`,
+    system: `あなたは論文の内容についての質問に答えるアシスタントです。
+    論文の内容を検索するツールを使用して、必要な情報を取得してユーザーの質問に対して事実に基づいた正確な回答を行なってください。
+    回答はマークダウン形式で行い、数式はKaTeX対応の形式で記述してください。
+    `,
     messages: modelMessages,
     stopWhen: stepCountIs(5),
-    onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
-      console.log('[rag_agent] step finished:', { text: text.slice(0, 200), toolCalls, toolResults, finishReason, usage })
-    },
-    onFinish: ({ text, finishReason, usage, steps }) => {
-      console.log('[rag_agent] finished:', { text: text.slice(0, 200), finishReason, usage, stepCount: steps.length })
-    },
-    onError: ({ error }) => {
-      console.error('[rag_agent] error:', error)
-    },
     tools: {
       textSearch: tool({
         description:

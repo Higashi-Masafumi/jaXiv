@@ -1,7 +1,6 @@
 import { NavLink, Outlet } from 'react-router'
 import { ArchiveIcon, FileTextIcon, SparklesIcon } from 'lucide-react'
 
-import { Separator } from '~/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +11,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from '~/components/ui/sidebar'
 
 const NAV_ITEMS = [
@@ -23,11 +24,15 @@ const NAV_ITEMS = [
 
 function AppSidebar() {
   return (
-    <Sidebar>
-      <SidebarHeader className="px-4 py-3">
-        <span className="text-base font-black tracking-tight text-sidebar-foreground">
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-4 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+        <span className="text-base font-black tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
           jaXiv
         </span>
+        <SidebarTrigger
+          className="shrink-0 text-sidebar-foreground group-data-[collapsible=icon]:mx-auto"
+          aria-label="サイドバーを切り替え"
+        />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -35,7 +40,7 @@ function AppSidebar() {
             <SidebarMenu>
               {NAV_ITEMS.map(item => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink
                       to={item.url}
                       end
@@ -55,7 +60,29 @@ function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarRail />
     </Sidebar>
+  )
+}
+
+/**
+ * モバイルは Sheet のため、シートが閉じているときだけ開く用トリガーを出す。
+ * デスクトップは collapsible="icon" で常にアイコン列が残るため不要。
+ */
+function AppMain() {
+  const { isMobile, openMobile } = useSidebar()
+
+  return (
+    <div className="relative flex h-svh min-h-0 flex-1 flex-col overflow-hidden">
+      {isMobile && !openMobile ? (
+        <SidebarTrigger
+          className="absolute left-3 top-3 z-50 size-9 shadow-md"
+          variant="outline"
+          aria-label="サイドバーを開く"
+        />
+      ) : null}
+      <Outlet />
+    </div>
   )
 }
 
@@ -63,14 +90,7 @@ export default function AppLayout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-4" />
-          <span className="text-sm font-semibold text-foreground">jaXiv</span>
-        </header>
-        <Outlet />
-      </div>
+      <AppMain />
     </SidebarProvider>
   )
 }

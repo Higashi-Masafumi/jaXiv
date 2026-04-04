@@ -1,8 +1,8 @@
 import type { UIMessage } from 'ai'
-import type { ActionFunctionArgs } from 'react-router'
+import type { Route } from './+types/api.blog.$paperId.chat'
 import { createRagChatResponse } from '~/lib/rag_agent'
 
-export async function action({ request, context, params }: ActionFunctionArgs) {
+export async function action({ request, context, params }: Route.ActionArgs) {
   const { messages }: { messages: UIMessage[] } = await request.json()
   return await createRagChatResponse({
     messages,

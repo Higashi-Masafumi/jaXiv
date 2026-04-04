@@ -1,46 +1,119 @@
-import type { UIMessage } from 'ai'
-import { DefaultChatTransport } from 'ai'
+import type { DynamicToolUIPart, ToolUIPart, UIMessage } from 'ai'
+import {
+  DefaultChatTransport,
+  getToolName,
+  isToolUIPart,
+  isTextUIPart,
+} from 'ai'
 import { useChat } from '@ai-sdk/react'
 import {
   AlertCircleIcon,
+  ArrowUpIcon,
   CheckIcon,
-  GlobeIcon,
-  ImageIcon,
   Loader2Icon,
-  SendIcon,
   WrenchIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 
+import { MarkdownWithMath } from '~/components/markdown-with-math'
 import { Button } from '~/components/ui/button'
-import { Input } from '~/components/ui/input'
 import { ScrollArea } from '~/components/ui/scroll-area'
+import { Textarea } from '~/components/ui/textarea'
 import { cn } from '~/lib/utils'
 
-const TOOL_LABEL: Record<string, string> = {
-  textSearch: 'テキスト検索',
-  imageSearch: '画像検索',
-}
-
-function ToolPart({ part }: { part: UIMessage['parts'][number] }) {
-  const toolName = part.type.replace(/^tool-/, '')
-  const label = TOOL_LABEL[toolName] ?? toolName
-  const isDone = (part as { state?: string }).state === 'output-available'
+/** 下部固定の丸みのある入力（textarea + 円形送信） */
+function ChatComposer(props: {
+  value: string
+  onChange: (v: string) => void
+  disabled: boolean
+  onSubmit: () => void
+}) {
+  const { value, onChange, disabled, onSubmit } = props
 
   return (
-    <div className="my-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-      {isDone ? (
-        <CheckIcon className="size-3 shrink-0 text-green-500" />
-      ) : (
-        <WrenchIcon className="size-3 shrink-0 animate-pulse" />
-      )}
-      <span>
-        {label}を{isDone ? '取得済み' : '検索中…'}
-      </span>
-    </div>
+    <form
+      className="pointer-events-auto mx-3 mb-3 mt-1"
+      onSubmit={e => {
+        e.preventDefault()
+        onSubmit()
+      }}
+    >
+      <div
+        className={cn(
+          'flex min-w-0 items-end gap-1.5 rounded-2xl border border-border/70 bg-muted/60 px-2 py-1.5',
+          'shadow-md backdrop-blur-sm dark:bg-muted/40',
+        )}
+      >
+        <Textarea
+          placeholder="論文について質問…"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          disabled={disabled}
+          rows={1}
+          aria-label="チャット入力（⌘+Enter または Ctrl+Enter で送信）"
+          title="⌘+Enter（Windows は Ctrl+Enter）で送信"
+          className={cn(
+            'min-h-10 min-w-0 flex-1 resize-none text-sm leading-relaxed',
+            'border-0 bg-transparent shadow-none',
+            'outline-none focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-none',
+            'max-h-36 py-2',
+          )}
+          onKeyDown={e => {
+            if (e.key !== 'Enter') return
+            if (!e.metaKey && !e.ctrlKey) return
+            if (e.nativeEvent.isComposing) return
+            e.preventDefault()
+            onSubmit()
+          }}
+        />
+        <Button
+          type="submit"
+          size="icon"
+          disabled={disabled || !value.trim()}
+          className="size-9 shrink-0 rounded-full"
+          aria-label="送信"
+        >
+          <ArrowUpIcon className="size-4" strokeWidth={2.25} />
+        </Button>
+      </div>
+    </form>
   )
+}
+
+function ToolPart({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
+  const toolName = getToolName(part)
+  if (part.state === 'input-streaming') {
+    return (
+      <pre className="text-xs text-muted-foreground">
+        {JSON.stringify(part.input, null, 2)}
+      </pre>
+    )
+  }
+  if (part.state === 'input-available') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <WrenchIcon className="size-3 shrink-0" />
+        <span>{toolName}を実行中…</span>
+      </div>
+    )
+  }
+  if (part.state === 'output-available') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <CheckIcon className="size-3 shrink-0 text-green-500" />
+        <span>{toolName}を実行完了</span>
+      </div>
+    )
+  }
+  if (part.state === 'output-error') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <AlertCircleIcon className="size-3 shrink-0 text-red-500" />
+        <span>{toolName}を実行エラー</span>
+      </div>
+    )
+  }
+  return null
 }
 
 function MessageContent({ m }: { m: UIMessage }) {
@@ -56,40 +129,18 @@ function MessageContent({ m }: { m: UIMessage }) {
         )}
       >
         {m.parts.map((part, i) => {
-          if (part.type === 'text') {
-            if (!part.text) return null
-            if (isUser) {
-              return (
-                <p key={i} className="whitespace-pre-wrap break-words">
-                  {part.text}
-                </p>
-              )
-            }
+          if (isTextUIPart(part)) {
             return (
-              <div key={i} className="prose prose-sm dark:prose-invert max-w-none break-words">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    table: ({ children }) => (
-                      <div className="overflow-x-auto my-2">
-                        <table className="w-full border-collapse text-xs">{children}</table>
-                      </div>
-                    ),
-                    th: ({ children }) => (
-                      <th className="border border-border bg-muted px-2 py-1 text-left font-semibold">{children}</th>
-                    ),
-                    td: ({ children }) => (
-                      <td className="border border-border px-2 py-1">{children}</td>
-                    ),
-                  }}
-                >
-                  {part.text}
-                </ReactMarkdown>
-              </div>
+              <MarkdownWithMath
+                key={i}
+                variant={isUser ? 'primary' : 'default'}
+              >
+                {part.text}
+              </MarkdownWithMath>
             )
           }
-          if (part.type.startsWith('tool-')) {
-            return <ToolPart key={i} part={part} />
+          if (isToolUIPart(part)) {
+            return <ToolPart key={part.toolCallId} part={part} />
           }
           return null
         })}
@@ -115,15 +166,15 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, status])
 
-  return (
-    <div className="flex h-full flex-col bg-background">
-      <div className="shrink-0 border-b px-4 py-3">
-        <p className="text-sm font-semibold">アシスタント</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          text / image ツールで論文インデックスを検索します
-        </p>
-      </div>
+  const submitChat = () => {
+    const t = input.trim()
+    if (!t || busy) return
+    void sendMessage({ text: t })
+    setInput('')
+  }
 
+  return (
+    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
       {error && (
         <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
           <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
@@ -131,8 +182,8 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
         </div>
       )}
 
-      <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-3 p-4">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="flex flex-col gap-3 px-4 py-4">
           {messages.length === 0 && !busy ? (
             <p className="text-sm text-muted-foreground">
               論文の内容について質問してください。
@@ -154,50 +205,14 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
         </div>
       </ScrollArea>
 
-      <form
-        className="shrink-0 border-t p-3"
-        onSubmit={e => {
-          e.preventDefault()
-          const t = input.trim()
-          if (!t || busy) return
-          void sendMessage({ text: t })
-          setInput('')
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            <span
-              className="inline-flex size-7 items-center justify-center rounded border border-dashed bg-muted/40 text-muted-foreground"
-              title="テキスト検索（モデルがツールで実行）"
-            >
-              <GlobeIcon className="size-3" aria-hidden />
-            </span>
-            <span
-              className="inline-flex size-7 items-center justify-center rounded border border-dashed bg-muted/40 text-muted-foreground"
-              title="画像検索（モデルがツールで実行）"
-            >
-              <ImageIcon className="size-3" aria-hidden />
-            </span>
-          </div>
-          <Input
-            placeholder="論文について質問…"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            disabled={busy}
-            className="flex-1 text-sm"
-            aria-label="チャット入力"
-          />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={busy || !input.trim()}
-            className="size-8 shrink-0"
-            aria-label="送信"
-          >
-            <SendIcon className="size-4" />
-          </Button>
-        </div>
-      </form>
+      <div className="shrink-0 border-t border-border/40 bg-background/95 backdrop-blur-md">
+        <ChatComposer
+          value={input}
+          onChange={setInput}
+          disabled={busy}
+          onSubmit={submitChat}
+        />
+      </div>
     </div>
   )
 }
