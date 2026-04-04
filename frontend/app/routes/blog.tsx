@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { Await, Link } from 'react-router'
+import { Await, Link, useSearchParams } from 'react-router'
 
 import { listBlogsApiV1BlogGet } from '../api/sdk.gen'
 import {
@@ -9,8 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from '../components/ui/card'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '../components/ui/pagination'
 import { Skeleton } from '../components/ui/skeleton'
 import type { Route } from './+types/blog'
+
+const PAGE_SIZE = 10
 
 function BlogArchiveCardSkeleton() {
   return (
@@ -53,7 +64,7 @@ export function clientLoader() {
 
 export function HydrateFallback() {
   return (
-    <main className="px-4 py-12" aria-busy="true">
+    <main className="h-full overflow-y-auto px-4 py-12" aria-busy="true">
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
         <BlogArchiveListSkeleton />
@@ -74,9 +85,77 @@ function BlogArchiveListSkeleton() {
   )
 }
 
-export default function BlogList({ loaderData }: Route.ComponentProps) {
+function BlogPagination({
+  currentPage,
+  totalPages,
+}: {
+  currentPage: number
+  totalPages: number
+}) {
+  if (totalPages <= 1) return null
+
+  const pageUrl = (page: number) => `?page=${page}`
+
+  const pages: (number | 'ellipsis')[] = []
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i)
+  } else {
+    pages.push(1)
+    if (currentPage > 3) pages.push('ellipsis')
+    for (
+      let i = Math.max(2, currentPage - 1);
+      i <= Math.min(totalPages - 1, currentPage + 1);
+      i++
+    ) {
+      pages.push(i)
+    }
+    if (currentPage < totalPages - 2) pages.push('ellipsis')
+    pages.push(totalPages)
+  }
+
   return (
-    <main className="px-4 py-12">
+    <Pagination className="mt-8">
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            href={currentPage > 1 ? pageUrl(currentPage - 1) : undefined}
+            aria-disabled={currentPage <= 1}
+            className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
+          />
+        </PaginationItem>
+        {pages.map((page, i) =>
+          page === 'ellipsis' ? (
+            <PaginationItem key={`ellipsis-${i}`}>
+              <PaginationEllipsis />
+            </PaginationItem>
+          ) : (
+            <PaginationItem key={page}>
+              <PaginationLink href={pageUrl(page)} isActive={page === currentPage}>
+                {page}
+              </PaginationLink>
+            </PaginationItem>
+          ),
+        )}
+        <PaginationItem>
+          <PaginationNext
+            href={currentPage < totalPages ? pageUrl(currentPage + 1) : undefined}
+            aria-disabled={currentPage >= totalPages}
+            className={
+              currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''
+            }
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  )
+}
+
+export default function BlogList({ loaderData }: Route.ComponentProps) {
+  const [searchParams] = useSearchParams()
+  const currentPage = Math.max(1, Number(searchParams.get('page') ?? '1'))
+
+  return (
+    <main className="h-full overflow-y-auto px-4 py-12">
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
         <Suspense fallback={<BlogArchiveListSkeleton />}>
@@ -89,39 +168,50 @@ export default function BlogList({ loaderData }: Route.ComponentProps) {
                   </p>
                 )
               }
+
+              const totalPages = Math.ceil(blogs.length / PAGE_SIZE)
+              const page = Math.min(currentPage, totalPages)
+              const pagedBlogs = blogs.slice(
+                (page - 1) * PAGE_SIZE,
+                page * PAGE_SIZE,
+              )
+
               return (
-                <ul className="flex flex-col gap-4">
-                  {blogs.map(post => (
-                    <li key={post.paper_id}>
-                      <Link
-                        to={`/blog/${post.paper_id}`}
-                        className="block rounded-xl border border-border bg-card p-5 transition-colors hover:bg-accent"
-                      >
-                        <h2 className="mb-1 font-semibold text-card-foreground line-clamp-2">
-                          {post.title}
-                        </h2>
-                        {post.summary && (
-                          <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
-                            {post.summary}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          {post.authors.length > 0 && (
-                            <span>
-                              {post.authors.slice(0, 2).join(', ')}
-                              {post.authors.length > 2 ? ' ほか' : ''}
-                            </span>
+                <>
+                  <ul className="flex flex-col gap-4">
+                    {pagedBlogs.map(post => (
+                      <li key={post.paper_id}>
+                        <Link
+                          to={`/blog/${post.paper_id}`}
+                          className="block rounded-xl border border-border bg-card p-5 transition-colors hover:bg-accent"
+                        >
+                          <h2 className="mb-1 font-semibold text-card-foreground line-clamp-2">
+                            {post.title}
+                          </h2>
+                          {post.summary && (
+                            <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
+                              {post.summary}
+                            </p>
                           )}
-                          <span>
-                            {new Date(post.created_at).toLocaleDateString(
-                              'ja-JP',
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {post.authors.length > 0 && (
+                              <span>
+                                {post.authors.slice(0, 2).join(', ')}
+                                {post.authors.length > 2 ? ' ほか' : ''}
+                              </span>
                             )}
-                          </span>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                            <span>
+                              {new Date(post.created_at).toLocaleDateString(
+                                'ja-JP',
+                              )}
+                            </span>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  <BlogPagination currentPage={page} totalPages={totalPages} />
+                </>
               )
             }}
           </Await>
