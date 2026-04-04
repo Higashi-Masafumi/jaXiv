@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path as FilePath
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile
 from sse_starlette import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
@@ -17,7 +17,7 @@ from application.usecase import (
 	RagSearchImageUseCase,
 	RagSearchTextUseCase,
 )
-from controller.schemas.blog_response import BlogPostResponseSchema
+from controller.schemas.blog_response import BlogPostResponseSchema, PaginatedBlogPostResponseSchema
 from controller.schemas.rag_response import (
 	RagSearchImageResponseSchema,
 	RagSearchRequestSchema,
@@ -47,12 +47,14 @@ def _get_output_dir() -> str:
 	return output_dir
 
 
-@router.get('/', response_model=list[BlogPostResponseSchema])
+@router.get('/', response_model=PaginatedBlogPostResponseSchema)
 async def list_blogs(
 	list_blog_posts: Annotated[ListBlogPostsUseCase, Depends(get_list_blog_posts)],
-) -> list[BlogPostResponseSchema]:
-	blog_posts = await list_blog_posts.execute()
-	return [BlogPostResponseSchema.from_entity(post) for post in blog_posts]
+	page: Annotated[int, Query(ge=1, description='Page number')] = 1,
+	page_size: Annotated[int, Query(ge=1, le=100, description='Items per page')] = 10,
+) -> PaginatedBlogPostResponseSchema:
+	paginated = await list_blog_posts.execute(page=page, page_size=page_size)
+	return PaginatedBlogPostResponseSchema.from_paginated(paginated)
 
 
 @router.post('/arxiv/{arxiv_paper_id}', response_model=BlogPostResponseSchema)

@@ -20,8 +20,13 @@ class IBlogPostRepository(ABC):
 		...
 
 	@abstractmethod
-	async def find_all(self) -> list[BlogPost]:
-		"""Find all blog posts ordered by created_at descending."""
+	async def find_all(self, page: int, page_size: int) -> list[BlogPost]:
+		"""Find blog posts ordered by created_at descending with pagination."""
+		...
+
+	@abstractmethod
+	async def count_all(self) -> int:
+		"""Return the total number of blog posts."""
 		...
 
 	@abstractmethod
