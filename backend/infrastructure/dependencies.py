@@ -80,8 +80,9 @@ GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 BLOG_FIGURES_BUCKET_NAME = os.getenv('BLOG_FIGURES_BUCKET_NAME', '')
 LAYOUT_ANALYSIS_URL = os.getenv('LAYOUT_ANALYSIS_URL', 'http://localhost:8001')
 QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
+QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', '')
 
-if not all([SUPABASE_URL, SUPABASE_KEY, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY]):
+if not all([SUPABASE_URL, SUPABASE_KEY, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY, QDRANT_API_KEY]):
 	raise ValueError('One or more required environment variables are not set')
 
 
@@ -124,7 +125,7 @@ def get_figure_storage_repository() -> IFigureStorageRepository:
 
 @lru_cache
 def get_qdrant_client() -> QdrantClient:
-	return QdrantClient(url=QDRANT_URL)
+	return QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
 
 def get_figure_chunk_repository(
