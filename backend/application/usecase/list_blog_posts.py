@@ -1,5 +1,3 @@
-import asyncio
-
 from pydantic import BaseModel
 
 from domain.entities.blog import BlogPost
@@ -21,10 +19,8 @@ class ListBlogPostsUseCase:
 		self._blog_post_repository = blog_post_repository
 
 	async def execute(self, page: int, page_size: int) -> PaginatedBlogPosts:
-		items, total = await asyncio.gather(
-			self._blog_post_repository.find_all(page=page, page_size=page_size),
-			self._blog_post_repository.count_all(),
-		)
+		items = await self._blog_post_repository.find_all(page=page, page_size=page_size)
+		total = await self._blog_post_repository.count_all()
 		total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
 		return PaginatedBlogPosts(
 			items=items,
