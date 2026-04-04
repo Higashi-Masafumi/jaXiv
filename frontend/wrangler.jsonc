@@ -7,10 +7,11 @@
   },
   "ai": {
     "binding": "AI",
+    "remote": true
   },
   "vars": {
-    "API_BASE_URL": "http://arxiv-translation-service.onrender.com",
-    "VITE_API_BASE_URL": "http://arxiv-translation-service.onrender.com",
+    "API_BASE_URL": "http://localhost:8001",
+    "VITE_API_BASE_URL": "http://localhost:8001",
   },
   "main": "./workers/app.ts",
   "compatibility_flags": ["nodejs_compat"],

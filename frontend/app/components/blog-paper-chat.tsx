@@ -1,120 +1,203 @@
-import { useChat } from '@ai-sdk/react'
 import type { UIMessage } from 'ai'
 import { DefaultChatTransport } from 'ai'
-import { GlobeIcon, ImageIcon, Loader2Icon, SendIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useChat } from '@ai-sdk/react'
+import {
+  AlertCircleIcon,
+  CheckIcon,
+  GlobeIcon,
+  ImageIcon,
+  Loader2Icon,
+  SendIcon,
+  WrenchIcon,
+} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { Button } from '~/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card'
 import { Input } from '~/components/ui/input'
+import { ScrollArea } from '~/components/ui/scroll-area'
+import { cn } from '~/lib/utils'
 
-function messageText(m: UIMessage): string {
-  return m.parts
-    .filter(
-      (p): p is { type: 'text'; text: string } =>
-        p.type === 'text' && 'text' in p && typeof p.text === 'string',
-    )
-    .map(p => p.text)
-    .join('')
+const TOOL_LABEL: Record<string, string> = {
+  textSearch: 'テキスト検索',
+  imageSearch: '画像検索',
+}
+
+function ToolPart({ part }: { part: UIMessage['parts'][number] }) {
+  const toolName = part.type.replace(/^tool-/, '')
+  const label = TOOL_LABEL[toolName] ?? toolName
+  const isDone = (part as { state?: string }).state === 'output-available'
+
+  return (
+    <div className="my-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+      {isDone ? (
+        <CheckIcon className="size-3 shrink-0 text-green-500" />
+      ) : (
+        <WrenchIcon className="size-3 shrink-0 animate-pulse" />
+      )}
+      <span>
+        {label}を{isDone ? '取得済み' : '検索中…'}
+      </span>
+    </div>
+  )
+}
+
+function MessageContent({ m }: { m: UIMessage }) {
+  const isUser = m.role === 'user'
+  return (
+    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+      <div
+        className={cn(
+          'max-w-[85%] rounded-lg px-3 py-2 text-sm',
+          isUser
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-foreground',
+        )}
+      >
+        {m.parts.map((part, i) => {
+          if (part.type === 'text') {
+            if (!part.text) return null
+            if (isUser) {
+              return (
+                <p key={i} className="whitespace-pre-wrap break-words">
+                  {part.text}
+                </p>
+              )
+            }
+            return (
+              <div key={i} className="prose prose-sm dark:prose-invert max-w-none break-words">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-2">
+                        <table className="w-full border-collapse text-xs">{children}</table>
+                      </div>
+                    ),
+                    th: ({ children }) => (
+                      <th className="border border-border bg-muted px-2 py-1 text-left font-semibold">{children}</th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="border border-border px-2 py-1">{children}</td>
+                    ),
+                  }}
+                >
+                  {part.text}
+                </ReactMarkdown>
+              </div>
+            )
+          }
+          if (part.type.startsWith('tool-')) {
+            return <ToolPart key={i} part={part} />
+          }
+          return null
+        })}
+      </div>
+    </div>
+  )
 }
 
 export function BlogPaperChat({ paperId }: { paperId: string }) {
   const [input, setInput] = useState('')
-  const { messages, sendMessage, status } = useChat({
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
-      api: `/blog/${encodeURIComponent(paperId)}`,
+      api: `/api/blog/${encodeURIComponent(paperId)}/chat`,
     }),
   })
 
-  const busy = status === 'streaming' || status === 'submitted'
+  const isSubmitted = status === 'submitted'
+  const busy = isSubmitted || status === 'streaming'
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, status])
 
   return (
-    <Card className="flex h-[min(80vh,720px)] flex-col border-border/80 shadow-sm">
-      <CardHeader className="shrink-0 space-y-1 border-b pb-3">
-        <CardTitle className="text-base font-semibold">アシスタント</CardTitle>
-        <p className="text-muted-foreground text-xs leading-snug">
-          この論文のインデックスに対して質問できます。検索はモデルが text /
-          image ツールで実行します。
+    <div className="flex h-full flex-col bg-background">
+      <div className="shrink-0 border-b px-4 py-3">
+        <p className="text-sm font-semibold">アシスタント</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          text / image ツールで論文インデックスを検索します
         </p>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-md border bg-muted/20 p-3 text-sm">
-          {messages.length === 0 ? (
-            <p className="text-muted-foreground">
-              論文の内容について質問してください（ハイライト運用は今後対応）。
+      </div>
+
+      {error && (
+        <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
+          <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
+          <span className="break-all">{error.message}</span>
+        </div>
+      )}
+
+      <ScrollArea className="flex-1">
+        <div className="flex flex-col gap-3 p-4">
+          {messages.length === 0 && !busy ? (
+            <p className="text-sm text-muted-foreground">
+              論文の内容について質問してください。
             </p>
           ) : (
-            messages.map(m => (
-              <div
-                key={m.id}
-                className={
-                  m.role === 'user'
-                    ? 'ml-4 rounded-lg bg-primary/10 px-3 py-2'
-                    : 'mr-4 rounded-lg bg-background px-3 py-2 shadow-sm'
-                }
-              >
-                <div className="text-muted-foreground mb-1 text-[10px] font-medium uppercase">
-                  {m.role === 'user' ? 'あなた' : 'アシスタント'}
-                </div>
-                <div className="whitespace-pre-wrap break-words">
-                  {messageText(m)}
-                </div>
+            messages.map(m => <MessageContent key={m.id} m={m} />)
+          )}
+
+          {isSubmitted && (
+            <div className="flex justify-start">
+              <div className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                <Loader2Icon className="size-3 animate-spin" />
+                考え中…
               </div>
-            ))
-          )}
-          {busy && (
-            <div className="text-muted-foreground flex items-center gap-2 text-xs">
-              <Loader2Icon className="size-4 animate-spin" aria-hidden />
-              考え中…
             </div>
           )}
+
+          <div ref={bottomRef} />
         </div>
-        <form
-          className="shrink-0 space-y-2"
-          onSubmit={e => {
-            e.preventDefault()
-            const t = input.trim()
-            if (!t || busy) return
-            void sendMessage({ text: t })
-            setInput('')
-          }}
-        >
-          <div className="relative">
-            <Input
-              placeholder="論文について質問…"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              disabled={busy}
-              className="pr-24"
-              aria-label="チャット入力"
-            />
-            <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
-              <span
-                className="text-muted-foreground inline-flex size-8 items-center justify-center rounded-md border border-dashed bg-muted/40"
-                title="テキスト検索（モデルがツールで実行）"
-              >
-                <GlobeIcon className="size-3.5" aria-hidden />
-              </span>
-              <span
-                className="text-muted-foreground inline-flex size-8 items-center justify-center rounded-md border border-dashed bg-muted/40"
-                title="画像検索（モデルがツールで実行）"
-              >
-                <ImageIcon className="size-3.5" aria-hidden />
-              </span>
-              <Button
-                type="submit"
-                size="icon"
-                variant="default"
-                disabled={busy || !input.trim()}
-                className="size-8 shrink-0"
-                aria-label="送信"
-              >
-                <SendIcon className="size-4" />
-              </Button>
-            </div>
+      </ScrollArea>
+
+      <form
+        className="shrink-0 border-t p-3"
+        onSubmit={e => {
+          e.preventDefault()
+          const t = input.trim()
+          if (!t || busy) return
+          void sendMessage({ text: t })
+          setInput('')
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            <span
+              className="inline-flex size-7 items-center justify-center rounded border border-dashed bg-muted/40 text-muted-foreground"
+              title="テキスト検索（モデルがツールで実行）"
+            >
+              <GlobeIcon className="size-3" aria-hidden />
+            </span>
+            <span
+              className="inline-flex size-7 items-center justify-center rounded border border-dashed bg-muted/40 text-muted-foreground"
+              title="画像検索（モデルがツールで実行）"
+            >
+              <ImageIcon className="size-3" aria-hidden />
+            </span>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+          <Input
+            placeholder="論文について質問…"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            disabled={busy}
+            className="flex-1 text-sm"
+            aria-label="チャット入力"
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={busy || !input.trim()}
+            className="size-8 shrink-0"
+            aria-label="送信"
+          >
+            <SendIcon className="size-4" />
+          </Button>
+        </div>
+      </form>
+    </div>
   )
 }
