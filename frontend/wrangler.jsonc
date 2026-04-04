@@ -10,8 +10,8 @@
     "remote": true,
   },
   "vars": {
-    "API_BASE_URL": "http://arxiv-translation-service.onrender.com",
-    "VITE_API_BASE_URL": "http://arxiv-translation-service.onrender.com",
+    "API_BASE_URL": "https://arxiv-translation-service.onrender.com",
+    "VITE_API_BASE_URL": "https://arxiv-translation-service.onrender.com",
   },
   "main": "./workers/app.ts",
   "compatibility_flags": ["nodejs_compat"],
