@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 import sentry_sdk
 from dotenv import load_dotenv
@@ -7,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 from controller import router
+from infrastructure.dependencies import get_qdrant_client
+from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 
 load_dotenv()
 
@@ -14,7 +17,16 @@ logging.basicConfig(
 	level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-app = FastAPI(title='Translate Arxiv Paper', version='0.1.0')
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+	client = get_qdrant_client()
+	QdrantTextChunkRepository(client).ensure_collection()
+	QdrantFigureChunkRepository(client).ensure_collection()
+	yield
+
+
+app = FastAPI(title='Translate Arxiv Paper', version='0.1.0', lifespan=lifespan)
 app.include_router(router)
 
 app.add_middleware(

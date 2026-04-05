@@ -27,9 +27,8 @@ class QdrantTextChunkRepository(ITextChunkRepository):
 
 	def __init__(self, client: QdrantClient) -> None:
 		self._client = client
-		self._ensure_collection()
 
-	def _ensure_collection(self) -> None:
+	def ensure_collection(self) -> None:
 		existing = {c.name for c in self._client.get_collections().collections}
 		if self.COLLECTION_NAME not in existing:
 			self._client.create_collection(
