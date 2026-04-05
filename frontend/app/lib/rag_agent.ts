@@ -13,27 +13,23 @@ import {
   ragSearchTextApiV1BlogPaperIdRagTextPost,
 } from '~/api/sdk.gen'
 
-type PaperContext = {
-  title: string
-  summary: string
-  authors: string[]
-}
-
 export async function createRagChatResponse(options: {
   messages: UIMessage[]
   paperId: string
   apiBaseUrl: string
   aiBinding: Ai
-  paperContext?: PaperContext
+  title?: string
+  summary?: string
 }): Promise<Response> {
-  const { messages, paperId, apiBaseUrl, aiBinding, paperContext } = options
+  const { messages, paperId, apiBaseUrl, aiBinding, title, summary } = options
   const workersai = createWorkersAI({ binding: aiBinding })
 
   const modelMessages = await convertToModelMessages(messages)
 
-  const paperSection = paperContext
-    ? `\n\n対象論文の情報：\nタイトル: ${paperContext.title}\n著者: ${(paperContext.authors ?? []).join(', ')}\n概要: ${paperContext.summary}`
-    : ''
+  const paperSection =
+    title && summary
+      ? `\n\n対象論文の情報：\nタイトル: ${title}\n概要: ${summary}`
+      : ''
 
   const result = streamText({
     model: workersai('@cf/nvidia/nemotron-3-120b-a12b'),

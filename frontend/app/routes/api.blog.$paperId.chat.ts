@@ -13,15 +13,12 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     path: { paper_id: paperId },
   })
 
-  const paperContext = blog
-    ? { title: blog.title, summary: blog.summary, authors: blog.authors }
-    : undefined
-
   return await createRagChatResponse({
     messages,
     paperId,
     apiBaseUrl,
     aiBinding: context.cloudflare.env.AI,
-    paperContext,
+    title: blog?.title,
+    summary: blog?.summary,
   })
 }
