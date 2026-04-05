@@ -32,7 +32,7 @@ export async function createRagChatResponse(options: {
   const modelMessages = await convertToModelMessages(messages)
 
   const paperSection = paperContext
-    ? `\n\n対象論文の情報：\nタイトル: ${paperContext.title}\n著者: ${paperContext.authors.join(', ')}\n概要: ${paperContext.summary}`
+    ? `\n\n対象論文の情報：\nタイトル: ${paperContext.title}\n著者: ${(paperContext.authors ?? []).join(', ')}\n概要: ${paperContext.summary}`
     : ''
 
   const result = streamText({
