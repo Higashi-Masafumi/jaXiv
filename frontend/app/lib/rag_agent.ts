@@ -1,7 +1,6 @@
 import { createWorkersAI } from 'workers-ai-provider'
 import {
   convertToModelMessages,
-  stepCountIs,
   streamText,
   tool,
   type UIMessage,
@@ -35,11 +34,16 @@ export async function createRagChatResponse(options: {
     model: workersai('@cf/nvidia/nemotron-3-120b-a12b'),
     system: `あなたは論文の内容についての質問に答えるアシスタントです。
     論文の内容を検索するツールを使用して、必要な情報を取得してユーザーの質問に対して事実に基づいた正確な回答を行なってください。
-    ツールは必要最小限（最大3回）の呼び出しにとどめ、情報収集後は必ずテキストで回答してください。ツール呼び出しのみで終了せず、収集した情報を元にした回答文を生成することが必須です。
     回答はマークダウン形式で行い、数式はKaTeX対応の形式で記述してください。${paperSection}
     `,
     messages: modelMessages,
-    stopWhen: stepCountIs(4),
+    stopWhen: ({ steps }) => {
+      const toolCallCount = steps.reduce(
+        (count, step) => count + (step.toolCalls?.length ?? 0),
+        0,
+      )
+      return toolCallCount >= 3
+    },
     tools: {
       textSearch: tool({
         description:
