@@ -7,6 +7,7 @@ from qdrant_client.models import (
 	FieldCondition,
 	Filter,
 	MatchValue,
+	PayloadSchemaType,
 	PointStruct,
 	VectorParams,
 )
@@ -26,15 +27,19 @@ class QdrantTextChunkRepository(ITextChunkRepository):
 
 	def __init__(self, client: QdrantClient) -> None:
 		self._client = client
-		self._ensure_collection()
 
-	def _ensure_collection(self) -> None:
+	def ensure_collection(self) -> None:
 		existing = {c.name for c in self._client.get_collections().collections}
 		if self.COLLECTION_NAME not in existing:
 			self._client.create_collection(
 				collection_name=self.COLLECTION_NAME,
 				vectors_config=VectorParams(size=self.VECTOR_DIM, distance=Distance.COSINE),
 			)
+		self._client.create_payload_index(
+			collection_name=self.COLLECTION_NAME,
+			field_name='paper_id',
+			field_schema=PayloadSchemaType.KEYWORD,
+		)
 
 	async def save(self, chunk: DocumentTextChunk) -> None:
 		self._client.upsert(

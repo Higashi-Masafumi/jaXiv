@@ -5,32 +5,6 @@ export type ClientOptions = {
 }
 
 /**
- * PaginatedBlogPostResponseSchema
- */
-export type PaginatedBlogPostResponseSchema = {
-  /**
-   * Items
-   */
-  items: Array<BlogPostResponseSchema>
-  /**
-   * Total
-   */
-  total: number
-  /**
-   * Page
-   */
-  page: number
-  /**
-   * Page Size
-   */
-  page_size: number
-  /**
-   * Total Pages
-   */
-  total_pages: number
-}
-
-/**
  * BlogPostResponseSchema
  */
 export type BlogPostResponseSchema = {
@@ -100,6 +74,32 @@ export type HttpValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * PaginatedBlogPostResponseSchema
+ */
+export type PaginatedBlogPostResponseSchema = {
+  /**
+   * Items
+   */
+  items: Array<BlogPostResponseSchema>
+  /**
+   * Total
+   */
+  total: number
+  /**
+   * Page
+   */
+  page: number
+  /**
+   * Page Size
+   */
+  page_size: number
+  /**
+   * Total Pages
+   */
+  total_pages: number
 }
 
 /**
@@ -291,16 +291,30 @@ export type ListBlogsApiV1BlogGetData = {
   path?: never
   query?: {
     /**
+     * Page
+     *
      * Page number
      */
     page?: number
     /**
+     * Page Size
+     *
      * Items per page
      */
     page_size?: number
   }
   url: '/api/v1/blog/'
 }
+
+export type ListBlogsApiV1BlogGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListBlogsApiV1BlogGetError =
+  ListBlogsApiV1BlogGetErrors[keyof ListBlogsApiV1BlogGetErrors]
 
 export type ListBlogsApiV1BlogGetResponses = {
   /**

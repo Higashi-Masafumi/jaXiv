@@ -25,7 +25,7 @@ export async function createRagChatResponse(options: {
   const modelMessages = await convertToModelMessages(messages)
 
   const result = streamText({
-    model: workersai('@cf/moonshotai/kimi-k2.5'),
+    model: workersai('@cf/nvidia/nemotron-3-120b-a12b'),
     system: `あなたは論文の内容についての質問に答えるアシスタントです。
     論文の内容を検索するツールを使用して、必要な情報を取得してユーザーの質問に対して事実に基づいた正確な回答を行なってください。
     回答はマークダウン形式で行い、数式はKaTeX対応の形式で記述してください。

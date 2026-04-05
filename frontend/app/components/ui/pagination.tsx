@@ -1,12 +1,12 @@
+import * as React from 'react'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MoreHorizontalIcon,
 } from 'lucide-react'
-import * as React from 'react'
 
 import { cn } from '~/lib/utils'
-import { ButtonProps, buttonVariants } from './button'
+import { buttonVariants, type Button } from '~/components/ui/button'
 
 function Pagination({ className, ...props }: React.ComponentProps<'nav'>) {
   return (
@@ -39,7 +39,7 @@ function PaginationItem({ ...props }: React.ComponentProps<'li'>) {
 
 type PaginationLinkProps = {
   isActive?: boolean
-} & Pick<ButtonProps, 'size'> &
+} & Pick<React.ComponentProps<typeof Button>, 'size'> &
   React.ComponentProps<'a'>
 
 function PaginationLink({
@@ -68,29 +68,32 @@ function PaginationLink({
 function PaginationPrevious({
   className,
   ...props
-}: React.ComponentProps<'a'>) {
+}: React.ComponentProps<typeof PaginationLink>) {
   return (
     <PaginationLink
-      aria-label="前のページ"
+      aria-label="Go to previous page"
       size="default"
       className={cn('gap-1 px-2.5 sm:pl-2.5', className)}
       {...props}
     >
       <ChevronLeftIcon />
-      <span className="hidden sm:block">前へ</span>
+      <span className="hidden sm:block">Previous</span>
     </PaginationLink>
   )
 }
 
-function PaginationNext({ className, ...props }: React.ComponentProps<'a'>) {
+function PaginationNext({
+  className,
+  ...props
+}: React.ComponentProps<typeof PaginationLink>) {
   return (
     <PaginationLink
-      aria-label="次のページ"
+      aria-label="Go to next page"
       size="default"
       className={cn('gap-1 px-2.5 sm:pr-2.5', className)}
       {...props}
     >
-      <span className="hidden sm:block">次へ</span>
+      <span className="hidden sm:block">Next</span>
       <ChevronRightIcon />
     </PaginationLink>
   )
@@ -108,7 +111,7 @@ function PaginationEllipsis({
       {...props}
     >
       <MoreHorizontalIcon className="size-4" />
-      <span className="sr-only">その他のページ</span>
+      <span className="sr-only">More pages</span>
     </span>
   )
 }
@@ -116,9 +119,9 @@ function PaginationEllipsis({
 export {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
   PaginationLink,
-  PaginationNext,
+  PaginationItem,
   PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
 }
