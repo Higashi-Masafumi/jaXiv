@@ -39,7 +39,7 @@ export async function createRagChatResponse(options: {
     回答はマークダウン形式で行い、数式はKaTeX対応の形式で記述してください。${paperSection}
     `,
     messages: modelMessages,
-    stopWhen: stepCountIs(10),
+    stopWhen: stepCountIs(4),
     tools: {
       textSearch: tool({
         description:
