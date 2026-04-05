@@ -24,6 +24,7 @@ import type {
   GetBlogApiV1BlogPaperIdGetErrors,
   GetBlogApiV1BlogPaperIdGetResponses,
   ListBlogsApiV1BlogGetData,
+  ListBlogsApiV1BlogGetErrors,
   ListBlogsApiV1BlogGetResponses,
   RagSearchImageApiV1BlogPaperIdRagImagePostData,
   RagSearchImageApiV1BlogPaperIdRagImagePostErrors,
@@ -102,7 +103,7 @@ export const listBlogsApiV1BlogGet = <ThrowOnError extends boolean = false>(
 ) =>
   (options?.client ?? client).get<
     ListBlogsApiV1BlogGetResponses,
-    unknown,
+    ListBlogsApiV1BlogGetErrors,
     ThrowOnError
   >({ url: '/api/v1/blog/', ...options })
 

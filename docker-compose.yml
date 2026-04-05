@@ -123,7 +123,6 @@ volumes:
   pg-data:
   api-venv:
   pdf-analysis-venv:
-  web-node-modules:
   qdrant-data:
 
 networks:
