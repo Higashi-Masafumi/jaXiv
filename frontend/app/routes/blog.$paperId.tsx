@@ -126,7 +126,14 @@ export default function BlogPage({ loaderData }: Route.ComponentProps) {
           minSize={20}
           className="min-h-0 overflow-hidden"
         >
-          {paperId ? <BlogPaperChat paperId={paperId} /> : null}
+          {paperId ? (
+            <BlogPaperChat
+              paperId={paperId}
+              title={loaderData.title}
+              summary={loaderData.summary}
+              authors={loaderData.authors}
+            />
+          ) : null}
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

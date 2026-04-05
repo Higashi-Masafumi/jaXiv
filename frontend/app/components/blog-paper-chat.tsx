@@ -149,13 +149,24 @@ function MessageContent({ m }: { m: UIMessage }) {
   )
 }
 
-export function BlogPaperChat({ paperId }: { paperId: string }) {
+export function BlogPaperChat({
+  paperId,
+  title,
+  summary,
+  authors,
+}: {
+  paperId: string
+  title: string
+  summary: string
+  authors: string[]
+}) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: `/api/blog/${encodeURIComponent(paperId)}/chat`,
+      body: { paperContext: { title, summary, authors } },
     }),
   })
 

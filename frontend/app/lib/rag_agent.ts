@@ -13,22 +13,33 @@ import {
   ragSearchTextApiV1BlogPaperIdRagTextPost,
 } from '~/api/sdk.gen'
 
+type PaperContext = {
+  title: string
+  summary: string
+  authors: string[]
+}
+
 export async function createRagChatResponse(options: {
   messages: UIMessage[]
   paperId: string
   apiBaseUrl: string
   aiBinding: Ai
+  paperContext?: PaperContext
 }): Promise<Response> {
-  const { messages, paperId, apiBaseUrl, aiBinding } = options
+  const { messages, paperId, apiBaseUrl, aiBinding, paperContext } = options
   const workersai = createWorkersAI({ binding: aiBinding })
 
   const modelMessages = await convertToModelMessages(messages)
+
+  const paperSection = paperContext
+    ? `\n\n対象論文の情報：\nタイトル: ${paperContext.title}\n著者: ${paperContext.authors.join(', ')}\n概要: ${paperContext.summary}`
+    : ''
 
   const result = streamText({
     model: workersai('@cf/nvidia/nemotron-3-120b-a12b'),
     system: `あなたは論文の内容についての質問に答えるアシスタントです。
     論文の内容を検索するツールを使用して、必要な情報を取得してユーザーの質問に対して事実に基づいた正確な回答を行なってください。
-    回答はマークダウン形式で行い、数式はKaTeX対応の形式で記述してください。
+    回答はマークダウン形式で行い、数式はKaTeX対応の形式で記述してください。${paperSection}
     `,
     messages: modelMessages,
     stopWhen: stepCountIs(5),
