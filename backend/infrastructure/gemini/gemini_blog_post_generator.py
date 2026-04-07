@@ -246,8 +246,12 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 	@staticmethod
 	def _replace_placeholders(content: str, placeholder_map: dict[str, str]) -> str:
-		"""Replace IMG_N placeholders with actual Supabase URLs."""
-		for placeholder, url in placeholder_map.items():
+		"""Replace IMG_N placeholders with actual Supabase URLs.
+
+		Sort by key length descending so IMG_10 is replaced before IMG_1,
+		avoiding substring collisions with multi-digit indices.
+		"""
+		for placeholder, url in sorted(placeholder_map.items(), key=lambda x: len(x[0]), reverse=True):
 			content = content.replace(placeholder, url)
 		return content
 
