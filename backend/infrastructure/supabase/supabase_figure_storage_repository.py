@@ -91,8 +91,8 @@ class SupabaseFigureStorageRepository(IFigureStorageRepository):
 				public_url = await supabase.storage.from_(self._bucket_name).get_public_url(
 					storage_path
 				)
-				figure_urls[figure_file.name] = public_url
-				self._logger.info('Uploaded figure %s → %s', figure_file.name, public_url)
+				figure_urls[storage_filename] = public_url
+				self._logger.info('Uploaded figure %s → %s', storage_filename, public_url)
 			except Exception:
 				self._logger.warning(
 					'Failed to upload figure %s, skipping', figure_file.name, exc_info=True
