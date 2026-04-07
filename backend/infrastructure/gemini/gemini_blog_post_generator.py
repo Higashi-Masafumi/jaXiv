@@ -54,8 +54,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 		# 注意事項
 		- Markdown のセクションヘッダは `##` から使用してください（`#` はタイトル用）
-		- 図が提供されている場合は、適切な位置に `![図の説明](URL)` として埋め込んでください
-		- 画像URL（png/jpg/webp/svg など）のみ `![...]` で埋め込み、PDF URL は `[図の説明](URL)` の通常リンクにしてください
+		- 図は `![説明](IMG_N)` で埋め込む（IMG_N はそのまま記述）
 		- 数式は KaTeX 互換の LaTeX 記法で記述してください。以下のルールを厳守すること：
 		- インライン数式は `$...$`、ブロック数式は `$$...$$` で囲む
 		- ブロック数式の `$$` の前後には必ず空行を入れること（Markdown パーサがブロックとして認識するために必須）。例：
@@ -108,8 +107,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 		# content の Markdown 注意事項
 		- セクションヘッダは `##` から使用（`#` はタイトル用）
-		- 図が提供されている場合は、適切な位置に `![図の説明](URL)` として埋め込む
-		- 画像URL のみ `![...]` で埋め込み、PDF URL は `[図の説明](URL)` の通常リンクにする
+		- 図は `![説明](IMG_N)` で埋め込む（IMG_N はそのまま記述）
 		- 数式は KaTeX 互換の LaTeX 記法で記述。以下のルールを厳守：
 		  - インライン数式: `$...$`、ブロック数式: `$$...$$`
 		  - ブロック数式の `$$` 前後には必ず空行を入れること
@@ -142,13 +140,16 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 				self.logger.warning('Failed to read %s', tex_file, exc_info=True)
 		latex_content = '\n\n'.join(tex_parts)
 
-		# 図URL一覧セクション
+		# 図URL一覧セクション（プレースホルダを使用）
 		figure_section = ''
+		placeholder_map: dict[str, str] = {}
 		if figure_urls:
-			lines = ['# 利用可能な図のURL\n']
-			for filename, url in figure_urls.items():
-				lines.append(f'- {filename}: {url}')
-			lines.append('\n')
+			lines = ['# 利用可能な図\n']
+			for i, (filename, url) in enumerate(figure_urls.items(), 1):
+				placeholder = f'IMG_{i}'
+				placeholder_map[placeholder] = url
+				lines.append(f'- {filename}: {placeholder}')
+			lines.append('')
 			figure_section = '\n'.join(lines)
 
 		authors_str = ', '.join(a.name for a in paper_metadata.authors)
@@ -173,7 +174,8 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			contents=user_prompt,
 		)
 
-		return self._extract_markdown(response.text or '')
+		content = self._extract_markdown(response.text or '')
+		return self._replace_placeholders(content, placeholder_map)
 
 	async def generate_from_pdf(
 		self,
@@ -181,25 +183,25 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		figures: list[UploadedFigure],
 	) -> tuple[PdfPaperMetadata, str]:
 		figure_section = ''
+		placeholder_map: dict[str, str] = {}
 		if figures:
-			lines = ['# 利用可能な図の一覧\n']
-			for fig in figures:
+			lines = ['# 利用可能な図\n']
+			for i, fig in enumerate(figures, 1):
+				placeholder = f'IMG_{i}'
+				placeholder_map[placeholder] = fig.url
 				label = (
 					f'Figure {fig.figure_number}'
 					if fig.figure_number
 					else f'図 (p.{fig.page_number})'
 				)
-				caption_part = f': "{fig.caption}"' if fig.caption else ''
-				lines.append(
-					f'- {label} (p.{fig.page_number}){caption_part} → ![{label}]({fig.url})'
-				)
-			lines.append('\n')
+				caption_part = f' "{fig.caption}"' if fig.caption else ''
+				lines.append(f'- {label} p.{fig.page_number}{caption_part}: {placeholder}')
+			lines.append('')
 			figure_section = '\n'.join(lines)
 
 		user_prompt = (
 			f'{figure_section}'
-			'添付の PDF 論文を読み、メタデータ（title, authors, summary）と日本語ブログ記事（content）を返してください。\n'
-			'図を参照する際は、上記の一覧に記載された URL をそのまま使用してください。'
+			'添付の PDF 論文を読み、メタデータ（title, authors, summary）と日本語ブログ記事（content）を返してください。'
 		)
 
 		self.logger.info('Uploading PDF to Gemini Files API: %s', pdf_path.name)
@@ -235,11 +237,23 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			authors=parsed.authors,
 			summary=parsed.summary,
 		)
-		return metadata, self._ensure_math_blank_lines(parsed.content)
+		content = self._ensure_math_blank_lines(parsed.content)
+		return metadata, self._replace_placeholders(content, placeholder_map)
 
 	# ------------------------------------------------------------------
-	# Markdown extraction helpers
+	# Markdown extraction / post-processing helpers
 	# ------------------------------------------------------------------
+
+	@staticmethod
+	def _replace_placeholders(content: str, placeholder_map: dict[str, str]) -> str:
+		"""Replace IMG_N placeholders with actual Supabase URLs.
+
+		Sort by key length descending so IMG_10 is replaced before IMG_1,
+		avoiding substring collisions with multi-digit indices.
+		"""
+		for placeholder, url in sorted(placeholder_map.items(), key=lambda x: len(x[0]), reverse=True):
+			content = content.replace(placeholder, url)
+		return content
 
 	def _extract_markdown(self, raw_text: str) -> str:
 		"""Extract Markdown content from Gemini response and post-process."""
