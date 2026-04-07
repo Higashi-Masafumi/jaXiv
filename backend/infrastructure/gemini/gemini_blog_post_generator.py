@@ -54,8 +54,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 		# 注意事項
 		- Markdown のセクションヘッダは `##` から使用してください（`#` はタイトル用）
-		- 図が提供されている場合は、適切な位置に `![図の説明](IMG_N)` の形式で埋め込んでください（IMG_N は提供されたプレースホルダ番号）
-		- プレースホルダ（IMG_1, IMG_2, ...）はそのまま記述し、URL に書き換えないでください
+		- 図は `![説明](IMG_N)` で埋め込む（IMG_N はそのまま記述）
 		- 数式は KaTeX 互換の LaTeX 記法で記述してください。以下のルールを厳守すること：
 		- インライン数式は `$...$`、ブロック数式は `$$...$$` で囲む
 		- ブロック数式の `$$` の前後には必ず空行を入れること（Markdown パーサがブロックとして認識するために必須）。例：
@@ -108,8 +107,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 		# content の Markdown 注意事項
 		- セクションヘッダは `##` から使用（`#` はタイトル用）
-		- 図が提供されている場合は、適切な位置に `![図の説明](IMG_N)` の形式で埋め込む（IMG_N は提供されたプレースホルダ番号）
-		- プレースホルダ（IMG_1, IMG_2, ...）はそのまま記述し、URL に書き換えないこと
+		- 図は `![説明](IMG_N)` で埋め込む（IMG_N はそのまま記述）
 		- 数式は KaTeX 互換の LaTeX 記法で記述。以下のルールを厳守：
 		  - インライン数式: `$...$`、ブロック数式: `$$...$$`
 		  - ブロック数式の `$$` 前後には必ず空行を入れること
@@ -142,16 +140,16 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 				self.logger.warning('Failed to read %s', tex_file, exc_info=True)
 		latex_content = '\n\n'.join(tex_parts)
 
-		# 図URL一覧セクション（プレースホルダを使用してトークン節約）
+		# 図URL一覧セクション（プレースホルダを使用）
 		figure_section = ''
 		placeholder_map: dict[str, str] = {}
 		if figure_urls:
-			lines = ['# 利用可能な図の一覧（プレースホルダ → 実際のURLに後処理で置換）\n']
+			lines = ['# 利用可能な図\n']
 			for i, (filename, url) in enumerate(figure_urls.items(), 1):
 				placeholder = f'IMG_{i}'
 				placeholder_map[placeholder] = url
-				lines.append(f'- {filename} → プレースホルダ: {placeholder}')
-			lines.append('\n図を埋め込む際は ![図の説明](IMG_N) の形式でプレースホルダをそのまま使用してください。\n')
+				lines.append(f'- {filename}: {placeholder}')
+			lines.append('')
 			figure_section = '\n'.join(lines)
 
 		authors_str = ', '.join(a.name for a in paper_metadata.authors)
@@ -187,7 +185,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		figure_section = ''
 		placeholder_map: dict[str, str] = {}
 		if figures:
-			lines = ['# 利用可能な図の一覧（プレースホルダ → 実際のURLに後処理で置換）\n']
+			lines = ['# 利用可能な図\n']
 			for i, fig in enumerate(figures, 1):
 				placeholder = f'IMG_{i}'
 				placeholder_map[placeholder] = fig.url
@@ -196,15 +194,14 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 					if fig.figure_number
 					else f'図 (p.{fig.page_number})'
 				)
-				caption_part = f': "{fig.caption}"' if fig.caption else ''
-				lines.append(f'- {label} (p.{fig.page_number}){caption_part} → プレースホルダ: {placeholder}')
-			lines.append('\n図を埋め込む際は ![図の説明](IMG_N) の形式でプレースホルダをそのまま使用してください。\n')
+				caption_part = f' "{fig.caption}"' if fig.caption else ''
+				lines.append(f'- {label} p.{fig.page_number}{caption_part}: {placeholder}')
+			lines.append('')
 			figure_section = '\n'.join(lines)
 
 		user_prompt = (
 			f'{figure_section}'
-			'添付の PDF 論文を読み、メタデータ（title, authors, summary）と日本語ブログ記事（content）を返してください。\n'
-			'図を参照する際は、上記の一覧に記載されたプレースホルダ（IMG_N）をそのまま使用してください。'
+			'添付の PDF 論文を読み、メタデータ（title, authors, summary）と日本語ブログ記事（content）を返してください。'
 		)
 
 		self.logger.info('Uploading PDF to Gemini Files API: %s', pdf_path.name)
