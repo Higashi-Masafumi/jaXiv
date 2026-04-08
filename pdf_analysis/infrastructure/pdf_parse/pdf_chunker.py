@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import fitz
 import pymupdf4llm
 from llama_index.core import Document
 from llama_index.core.node_parser import MarkdownNodeParser, SentenceSplitter
@@ -21,7 +22,9 @@ class PyMuPdfChunker(PdfChunkerGateway):
     CHUNK_OVERLAP = 50
 
     def chunk_pdf(self, pdf_path: Path) -> list[TextChunk]:
+        fitz.TOOLS.mupdf_display_errors(False)
         raw_chunks = pymupdf4llm.to_markdown(str(pdf_path), page_chunks=True)
+        fitz.TOOLS.mupdf_display_errors(True)
 
         llama_docs = [
             Document(

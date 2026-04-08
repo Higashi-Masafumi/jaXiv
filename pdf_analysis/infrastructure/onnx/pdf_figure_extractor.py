@@ -52,7 +52,7 @@ class PdfFigureExtractor(FigureExtractorGateway):
 
                 page = doc[page_num]
 
-                pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale))
+                pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), colorspace=fitz.csRGB)
                 page_img = Image.open(io.BytesIO(pix.tobytes("png")))
 
                 img_bgr = cv2.cvtColor(np.array(page_img), cv2.COLOR_RGB2BGR)
