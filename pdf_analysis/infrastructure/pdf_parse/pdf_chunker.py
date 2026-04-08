@@ -23,8 +23,10 @@ class PyMuPdfChunker(PdfChunkerGateway):
 
     def chunk_pdf(self, pdf_path: Path) -> list[TextChunk]:
         fitz.TOOLS.mupdf_display_errors(False)
-        raw_chunks = pymupdf4llm.to_markdown(str(pdf_path), page_chunks=True)
-        fitz.TOOLS.mupdf_display_errors(True)
+        try:
+            raw_chunks = pymupdf4llm.to_markdown(str(pdf_path), page_chunks=True)
+        finally:
+            fitz.TOOLS.mupdf_display_errors(True)
 
         llama_docs = [
             Document(
