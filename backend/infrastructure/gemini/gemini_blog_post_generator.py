@@ -1,4 +1,4 @@
-import asyncio
+import logging
 import re
 from logging import getLogger
 from pathlib import Path
@@ -8,6 +8,7 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 from pydantic import BaseModel, Field
+from tenacity import AsyncRetrying, before_sleep_log, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from domain.entities.arxiv import ArxivPaperMetadata
 from domain.entities.figure import UploadedFigure
@@ -28,8 +29,6 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	"""Gateway implementation for generating blog posts using Gemini API."""
 
 	MARKDOWN_FENCE_RE: ClassVar[re.Pattern[str]] = re.compile(r'```markdown\s*([\s\S]*?)```')
-	MAX_RETRIES: ClassVar[int] = 4
-	RETRY_BASE_DELAY: ClassVar[float] = 2.0  # seconds
 
 	def __init__(
 		self,
@@ -253,23 +252,16 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	# ------------------------------------------------------------------
 
 	async def _generate_with_retry(self, **kwargs: object) -> types.GenerateContentResponse:
-		"""Call generate_content with exponential backoff on 503 ServerError."""
-		delay = self.RETRY_BASE_DELAY
-		for attempt in range(self.MAX_RETRIES + 1):
-			try:
+		"""Call generate_content with exponential backoff on ServerError (e.g. 503)."""
+		async for attempt in AsyncRetrying(
+			retry=retry_if_exception_type(genai_errors.ServerError),
+			stop=stop_after_attempt(5),
+			wait=wait_exponential(multiplier=1, min=2, max=16),
+			before_sleep=before_sleep_log(self.logger, logging.WARNING),
+			reraise=True,
+		):
+			with attempt:
 				return await self.client.aio.models.generate_content(**kwargs)  # type: ignore[arg-type]
-			except genai_errors.ServerError as e:
-				if attempt >= self.MAX_RETRIES:
-					raise
-				self.logger.warning(
-					'Gemini ServerError (attempt %d/%d), retrying in %.0fs: %s',
-					attempt + 1,
-					self.MAX_RETRIES,
-					delay,
-					e,
-				)
-				await asyncio.sleep(delay)
-				delay *= 2
 		raise RuntimeError('Unreachable')  # pragma: no cover
 
 	# ------------------------------------------------------------------
