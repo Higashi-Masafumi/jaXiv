@@ -1,9 +1,11 @@
+import asyncio
 import re
 from logging import getLogger
 from pathlib import Path
 from typing import ClassVar, Final
 
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 from pydantic import BaseModel, Field
 
@@ -26,6 +28,8 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	"""Gateway implementation for generating blog posts using Gemini API."""
 
 	MARKDOWN_FENCE_RE: ClassVar[re.Pattern[str]] = re.compile(r'```markdown\s*([\s\S]*?)```')
+	MAX_RETRIES: ClassVar[int] = 4
+	RETRY_BASE_DELAY: ClassVar[float] = 2.0  # seconds
 
 	def __init__(
 		self,
@@ -170,7 +174,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		)
 
 		self.logger.info('Generating blog post for paper %s', paper_metadata.paper_id.root)
-		response = await self.client.aio.models.generate_content(
+		response = await self._generate_with_retry(
 			model=self.model,
 			config=types.GenerateContentConfig(
 				system_instruction=self.system_prompt,
@@ -219,7 +223,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			)
 
 		try:
-			response = await self.client.aio.models.generate_content(
+			response = await self._generate_with_retry(
 				model=self.model,
 				config={
 					'system_instruction': self.pdf_system_prompt,
@@ -243,6 +247,30 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		)
 		content = self._ensure_math_blank_lines(parsed.content)
 		return metadata, self._replace_placeholders(content, placeholder_map)
+
+	# ------------------------------------------------------------------
+	# Retry helper
+	# ------------------------------------------------------------------
+
+	async def _generate_with_retry(self, **kwargs: object) -> types.GenerateContentResponse:
+		"""Call generate_content with exponential backoff on 503 ServerError."""
+		delay = self.RETRY_BASE_DELAY
+		for attempt in range(self.MAX_RETRIES + 1):
+			try:
+				return await self.client.aio.models.generate_content(**kwargs)  # type: ignore[arg-type]
+			except genai_errors.ServerError as e:
+				if attempt >= self.MAX_RETRIES:
+					raise
+				self.logger.warning(
+					'Gemini ServerError (attempt %d/%d), retrying in %.0fs: %s',
+					attempt + 1,
+					self.MAX_RETRIES,
+					delay,
+					e,
+				)
+				await asyncio.sleep(delay)
+				delay *= 2
+		raise RuntimeError('Unreachable')  # pragma: no cover
 
 	# ------------------------------------------------------------------
 	# Markdown extraction / post-processing helpers
