@@ -1,11 +1,14 @@
+import logging
 import re
 from logging import getLogger
 from pathlib import Path
 from typing import ClassVar, Final
 
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 from pydantic import BaseModel, Field
+from tenacity import AsyncRetrying, before_sleep_log, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from domain.entities.arxiv import ArxivPaperMetadata
 from domain.entities.figure import UploadedFigure
@@ -170,7 +173,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		)
 
 		self.logger.info('Generating blog post for paper %s', paper_metadata.paper_id.root)
-		response = await self.client.aio.models.generate_content(
+		response = await self._generate_with_retry(
 			model=self.model,
 			config=types.GenerateContentConfig(
 				system_instruction=self.system_prompt,
@@ -219,7 +222,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			)
 
 		try:
-			response = await self.client.aio.models.generate_content(
+			response = await self._generate_with_retry(
 				model=self.model,
 				config={
 					'system_instruction': self.pdf_system_prompt,
@@ -243,6 +246,23 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		)
 		content = self._ensure_math_blank_lines(parsed.content)
 		return metadata, self._replace_placeholders(content, placeholder_map)
+
+	# ------------------------------------------------------------------
+	# Retry helper
+	# ------------------------------------------------------------------
+
+	async def _generate_with_retry(self, **kwargs: object) -> types.GenerateContentResponse:
+		"""Call generate_content with exponential backoff on ServerError (e.g. 503)."""
+		async for attempt in AsyncRetrying(
+			retry=retry_if_exception_type(genai_errors.ServerError),
+			stop=stop_after_attempt(5),
+			wait=wait_exponential(multiplier=1, min=2, max=16),
+			before_sleep=before_sleep_log(self.logger, logging.WARNING),
+			reraise=True,
+		):
+			with attempt:
+				return await self.client.aio.models.generate_content(**kwargs)  # type: ignore[arg-type]
+		raise RuntimeError('Unreachable')  # pragma: no cover
 
 	# ------------------------------------------------------------------
 	# Markdown extraction / post-processing helpers
