@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import ClassVar, Final
 
 from mistralai import Mistral
+from mistralai.models.sdkerror import SDKError
+from mistralai.types import UNSET, UNSET_SENTINEL
 from pydantic import BaseModel, Field
 from tenacity import AsyncRetrying, before_sleep_log, retry_if_exception, stop_after_attempt, wait_exponential
 
@@ -16,11 +18,21 @@ from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
 
 
 def _is_server_error(exc: BaseException) -> bool:
-    """Return True for HTTP 5xx errors that should be retried."""
-    status = getattr(exc, 'status_code', None)
-    if status is not None:
-        return int(status) >= 500
-    return False
+    """Return True for Mistral SDK HTTP 5xx errors that should be retried."""
+    return isinstance(exc, SDKError) and exc.status_code >= 500
+
+
+def _normalize_content(content: object) -> str:
+    """Normalize Mistral message content to a plain string.
+
+    The SDK may return ``None``, an ``UNSET`` sentinel, or a ``list``
+    of content chunks instead of a bare string (see ``mistral_latex_translator.py``).
+    """
+    if content is None or content in (UNSET, UNSET_SENTINEL):
+        return ''
+    if isinstance(content, list):
+        return ''.join(str(chunk) for chunk in content)
+    return str(content)
 
 
 class PdfBlogResponse(BaseModel):
@@ -199,7 +211,7 @@ class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
             ],
         )
 
-        raw_text = response.choices[0].message.content or ''
+        raw_text = _normalize_content(response.choices[0].message.content)
         content = self._extract_markdown(raw_text)
         return self._replace_placeholders(content, placeholder_map)
 
@@ -260,7 +272,7 @@ class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
             response_format={'type': 'json_object'},
         )
 
-        raw_text = response.choices[0].message.content or '{}'
+        raw_text = _normalize_content(response.choices[0].message.content) or '{}'
         parsed = PdfBlogResponse.model_validate_json(raw_text)
         metadata = PdfPaperMetadata(
             title=parsed.title,
