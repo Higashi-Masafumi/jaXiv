@@ -17,24 +17,6 @@ from domain.entities.pdf_paper import PdfPaperMetadata
 from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
 
 
-def _is_server_error(exc: BaseException) -> bool:
-    """Return True for Mistral SDK HTTP 5xx errors that should be retried."""
-    return isinstance(exc, SDKError) and exc.status_code >= 500
-
-
-def _normalize_content(content: object) -> str:
-    """Normalize Mistral message content to a plain string.
-
-    The SDK may return ``None``, an ``UNSET`` sentinel, or a ``list``
-    of content chunks instead of a bare string (see ``mistral_latex_translator.py``).
-    """
-    if content is None or content in (UNSET, UNSET_SENTINEL):
-        return ''
-    if isinstance(content, list):
-        return ''.join(str(chunk) for chunk in content)
-    return str(content)
-
-
 class PdfBlogResponse(BaseModel):
     """Mistral structured output schema for PDF blog post generation."""
 
@@ -211,7 +193,13 @@ class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
             ],
         )
 
-        raw_text = _normalize_content(response.choices[0].message.content)
+        message_content = response.choices[0].message.content
+        if message_content is None or message_content in (UNSET, UNSET_SENTINEL):
+            raw_text = ''
+        elif isinstance(message_content, list):
+            raw_text = ''.join(str(c) for c in message_content)
+        else:
+            raw_text = str(message_content)
         content = self._extract_markdown(raw_text)
         return self._replace_placeholders(content, placeholder_map)
 
@@ -272,7 +260,13 @@ class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
             response_format={'type': 'json_object'},
         )
 
-        raw_text = _normalize_content(response.choices[0].message.content) or '{}'
+        message_content = response.choices[0].message.content
+        if message_content is None or message_content in (UNSET, UNSET_SENTINEL):
+            raw_text = '{}'
+        elif isinstance(message_content, list):
+            raw_text = ''.join(str(c) for c in message_content) or '{}'
+        else:
+            raw_text = str(message_content) or '{}'
         parsed = PdfBlogResponse.model_validate_json(raw_text)
         metadata = PdfPaperMetadata(
             title=parsed.title,
@@ -289,7 +283,7 @@ class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
     async def _chat_with_retry(self, **kwargs: object):
         """Call chat.complete_async with exponential backoff on 5xx errors."""
         async for attempt in AsyncRetrying(
-            retry=retry_if_exception(_is_server_error),
+            retry=retry_if_exception(lambda exc: isinstance(exc, SDKError) and exc.status_code >= 500),
             stop=stop_after_attempt(5),
             wait=wait_exponential(multiplier=1, min=2, max=16),
             before_sleep=before_sleep_log(self._logger, logging.WARNING),
