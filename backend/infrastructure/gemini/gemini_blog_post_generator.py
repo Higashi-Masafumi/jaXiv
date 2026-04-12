@@ -301,6 +301,10 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	@staticmethod
 	def _ensure_math_blank_lines(content: str) -> str:
 		"""$$ の前後に空行を確保（zenn-markdown-html がブロック数式として認識するために必須）。"""
+		# LLM が JSON 構造化出力で改行を \\n としてエスケープした場合に修正する。
+		# 実際の改行文字がなくリテラルの \n シーケンスが存在する場合のみ適用。
+		if '\n' not in content and '\\n' in content:
+			content = content.replace('\\n', '\n')
 		lines = content.split('\n')
 		result: list[str] = []
 		in_math = False
