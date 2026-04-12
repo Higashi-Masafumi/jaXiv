@@ -8,7 +8,13 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 from pydantic import BaseModel, Field
-from tenacity import AsyncRetrying, before_sleep_log, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (
+	AsyncRetrying,
+	before_sleep_log,
+	retry_if_exception_type,
+	stop_after_attempt,
+	wait_exponential,
+)
 
 from domain.entities.arxiv import ArxivPaperMetadata
 from domain.entities.figure import UploadedFigure
@@ -275,7 +281,9 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		Sort by key length descending so IMG_10 is replaced before IMG_1,
 		avoiding substring collisions with multi-digit indices.
 		"""
-		for placeholder, url in sorted(placeholder_map.items(), key=lambda x: len(x[0]), reverse=True):
+		for placeholder, url in sorted(
+			placeholder_map.items(), key=lambda x: len(x[0]), reverse=True
+		):
 			content = content.replace(placeholder, url)
 		return content
 

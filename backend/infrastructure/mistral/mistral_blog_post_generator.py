@@ -9,7 +9,13 @@ from mistralai import Mistral
 from mistralai.models.sdkerror import SDKError
 from mistralai.types import UNSET, UNSET_SENTINEL
 from pydantic import BaseModel, Field
-from tenacity import AsyncRetrying, before_sleep_log, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import (
+	AsyncRetrying,
+	before_sleep_log,
+	retry_if_exception,
+	stop_after_attempt,
+	wait_exponential,
+)
 
 from domain.entities.arxiv import ArxivPaperMetadata
 from domain.entities.figure import UploadedFigure
@@ -18,43 +24,43 @@ from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
 
 
 class PdfBlogResponse(BaseModel):
-    """Mistral structured output schema for PDF blog post generation."""
+	"""Mistral structured output schema for PDF blog post generation."""
 
-    title: str = Field(description='論文の英語原題')
-    authors: list[str] = Field(description='著者名リスト（英語原文）')
-    summary: str = Field(description='論文アブストラクトの要約（英語・2〜3文）')
-    content: str = Field(description='日本語ブログ記事の Markdown 本文')
+	title: str = Field(description='論文の英語原題')
+	authors: list[str] = Field(description='著者名リスト（英語原文）')
+	summary: str = Field(description='論文アブストラクトの要約（英語・2〜3文）')
+	content: str = Field(description='日本語ブログ記事の Markdown 本文')
 
 
 class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
-    """Gateway implementation for generating blog posts using Mistral API.
+	"""Gateway implementation for generating blog posts using Mistral API.
 
-    Recommended model: ``mistral-small-latest`` (Mistral Small 3.1)
-    - Supports Document QnA (PDF via base64 / URL)
-    - Free tier: 1B tokens / month
-    - Context window: 128K tokens
-    """
+	Recommended model: ``mistral-small-latest`` (Mistral Small 3.1)
+	- Supports Document QnA (PDF via base64 / URL)
+	- Free tier: 1B tokens / month
+	- Context window: 128K tokens
+	"""
 
-    MARKDOWN_FENCE_RE: ClassVar[re.Pattern[str]] = re.compile(r'```markdown\s*([\s\S]*?)```')
+	MARKDOWN_FENCE_RE: ClassVar[re.Pattern[str]] = re.compile(r'```markdown\s*([\s\S]*?)```')
 
-    def __init__(
-        self,
-        api_key: str,
-        model: str = 'mistral-small-latest',
-        max_latex_chars: int = 80_000,
-    ):
-        self._client = Mistral(api_key=api_key)
-        self._logger = getLogger(__name__)
-        self._model: Final[str] = model
-        self._max_latex_chars: Final[int] = max_latex_chars
+	def __init__(
+		self,
+		api_key: str,
+		model: str = 'mistral-small-latest',
+		max_latex_chars: int = 80_000,
+	):
+		self._client = Mistral(api_key=api_key)
+		self._logger = getLogger(__name__)
+		self._model: Final[str] = model
+		self._max_latex_chars: Final[int] = max_latex_chars
 
-    # ------------------------------------------------------------------
-    # System prompts
-    # ------------------------------------------------------------------
+	# ------------------------------------------------------------------
+	# System prompts
+	# ------------------------------------------------------------------
 
-    @property
-    def _system_prompt(self) -> str:
-        return """\
+	@property
+	def _system_prompt(self) -> str:
+		return """\
 あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
 与えられた arXiv 論文の情報をもとに、一般の読者にも理解しやすい日本語のブログ記事を Markdown 形式で執筆してください。
 
@@ -101,9 +107,9 @@ class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 - 出力は Markdown コードブロック（```markdown ... ```）で囲んでください
 """
 
-    @property
-    def _pdf_system_prompt(self) -> str:
-        return """\
+	@property
+	def _pdf_system_prompt(self) -> str:
+		return """\
 あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
 添付された PDF 論文を読み、JSON でメタデータとブログ記事を返してください。
 
@@ -137,203 +143,207 @@ class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 - 専門用語は初出時に簡単な説明を加える
 """
 
-    # ------------------------------------------------------------------
-    # IBlogPostGenerator
-    # ------------------------------------------------------------------
+	# ------------------------------------------------------------------
+	# IBlogPostGenerator
+	# ------------------------------------------------------------------
 
-    async def generate(
-        self,
-        paper_metadata: ArxivPaperMetadata,
-        latex_source_dir: Path,
-        figure_urls: dict[str, str],
-    ) -> str:
-        tex_parts: list[str] = []
-        total = 0
-        for tex_file in sorted(latex_source_dir.rglob('*.tex')):
-            try:
-                text = tex_file.read_text(encoding='utf-8', errors='ignore')
-                if total + len(text) > self._max_latex_chars:
-                    tex_parts.append(text[: self._max_latex_chars - total])
-                    break
-                tex_parts.append(text)
-                total += len(text)
-            except Exception:
-                self._logger.warning('Failed to read %s', tex_file, exc_info=True)
-        latex_content = '\n\n'.join(tex_parts)
+	async def generate(
+		self,
+		paper_metadata: ArxivPaperMetadata,
+		latex_source_dir: Path,
+		figure_urls: dict[str, str],
+	) -> str:
+		tex_parts: list[str] = []
+		total = 0
+		for tex_file in sorted(latex_source_dir.rglob('*.tex')):
+			try:
+				text = tex_file.read_text(encoding='utf-8', errors='ignore')
+				if total + len(text) > self._max_latex_chars:
+					tex_parts.append(text[: self._max_latex_chars - total])
+					break
+				tex_parts.append(text)
+				total += len(text)
+			except Exception:
+				self._logger.warning('Failed to read %s', tex_file, exc_info=True)
+		latex_content = '\n\n'.join(tex_parts)
 
-        figure_section = ''
-        placeholder_map: dict[str, str] = {}
-        if figure_urls:
-            lines = ['# 利用可能な図\n']
-            for i, (filename, url) in enumerate(figure_urls.items(), 1):
-                placeholder = f'IMG_{i}'
-                placeholder_map[placeholder] = url
-                lines.append(f'- {filename}: {placeholder}')
-            lines.append('')
-            figure_section = '\n'.join(lines)
+		figure_section = ''
+		placeholder_map: dict[str, str] = {}
+		if figure_urls:
+			lines = ['# 利用可能な図\n']
+			for i, (filename, url) in enumerate(figure_urls.items(), 1):
+				placeholder = f'IMG_{i}'
+				placeholder_map[placeholder] = url
+				lines.append(f'- {filename}: {placeholder}')
+			lines.append('')
+			figure_section = '\n'.join(lines)
 
-        authors_str = ', '.join(a.name for a in paper_metadata.authors)
-        user_prompt = (
-            f'# 論文情報\n'
-            f'- タイトル: {paper_metadata.title}\n'
-            f'- 著者: {authors_str}\n'
-            f'- arXiv ID: {paper_metadata.paper_id.root}\n'
-            f'- 概要:\n{paper_metadata.summary}\n\n'
-            f'{figure_section}'
-            f'# LaTeX ソースコード（抜粋）\n'
-            f'```latex\n{latex_content}\n```\n\n'
-            '上記の情報をもとに、日本語のブログ記事を Markdown 形式で作成してください。'
-        )
+		authors_str = ', '.join(a.name for a in paper_metadata.authors)
+		user_prompt = (
+			f'# 論文情報\n'
+			f'- タイトル: {paper_metadata.title}\n'
+			f'- 著者: {authors_str}\n'
+			f'- arXiv ID: {paper_metadata.paper_id.root}\n'
+			f'- 概要:\n{paper_metadata.summary}\n\n'
+			f'{figure_section}'
+			f'# LaTeX ソースコード（抜粋）\n'
+			f'```latex\n{latex_content}\n```\n\n'
+			'上記の情報をもとに、日本語のブログ記事を Markdown 形式で作成してください。'
+		)
 
-        self._logger.info('Generating blog post for paper %s', paper_metadata.paper_id.root)
-        response = await self._chat_with_retry(
-            messages=[
-                {'role': 'system', 'content': self._system_prompt},
-                {'role': 'user', 'content': user_prompt},
-            ],
-        )
+		self._logger.info('Generating blog post for paper %s', paper_metadata.paper_id.root)
+		response = await self._chat_with_retry(
+			messages=[
+				{'role': 'system', 'content': self._system_prompt},
+				{'role': 'user', 'content': user_prompt},
+			],
+		)
 
-        message_content = response.choices[0].message.content
-        if message_content is None or message_content in (UNSET, UNSET_SENTINEL):
-            raw_text = ''
-        elif isinstance(message_content, list):
-            raw_text = ''.join(str(c) for c in message_content)
-        else:
-            raw_text = str(message_content)
-        content = self._extract_markdown(raw_text)
-        return self._replace_placeholders(content, placeholder_map)
+		message_content = response.choices[0].message.content
+		if message_content is None or message_content in (UNSET, UNSET_SENTINEL):
+			raw_text = ''
+		elif isinstance(message_content, list):
+			raw_text = ''.join(str(c) for c in message_content)
+		else:
+			raw_text = str(message_content)
+		content = self._extract_markdown(raw_text)
+		return self._replace_placeholders(content, placeholder_map)
 
-    # ------------------------------------------------------------------
-    # IPdfBlogPostGenerator
-    # ------------------------------------------------------------------
+	# ------------------------------------------------------------------
+	# IPdfBlogPostGenerator
+	# ------------------------------------------------------------------
 
-    async def generate_from_pdf(
-        self,
-        pdf_path: Path,
-        figures: list[UploadedFigure],
-    ) -> tuple[PdfPaperMetadata, str]:
-        figure_section = ''
-        placeholder_map: dict[str, str] = {}
-        if figures:
-            lines = ['# 利用可能な図\n']
-            for i, fig in enumerate(figures, 1):
-                placeholder = f'IMG_{i}'
-                placeholder_map[placeholder] = fig.url
-                label = (
-                    f'Figure {fig.figure_number}'
-                    if fig.figure_number
-                    else f'図 (p.{fig.page_number})'
-                )
-                caption_part = f' "{fig.caption}"' if fig.caption else ''
-                lines.append(f'- {label} p.{fig.page_number}{caption_part}: {placeholder}')
-            lines.append('')
-            figure_section = '\n'.join(lines)
+	async def generate_from_pdf(
+		self,
+		pdf_path: Path,
+		figures: list[UploadedFigure],
+	) -> tuple[PdfPaperMetadata, str]:
+		figure_section = ''
+		placeholder_map: dict[str, str] = {}
+		if figures:
+			lines = ['# 利用可能な図\n']
+			for i, fig in enumerate(figures, 1):
+				placeholder = f'IMG_{i}'
+				placeholder_map[placeholder] = fig.url
+				label = (
+					f'Figure {fig.figure_number}'
+					if fig.figure_number
+					else f'図 (p.{fig.page_number})'
+				)
+				caption_part = f' "{fig.caption}"' if fig.caption else ''
+				lines.append(f'- {label} p.{fig.page_number}{caption_part}: {placeholder}')
+			lines.append('')
+			figure_section = '\n'.join(lines)
 
-        user_text = (
-            f'{figure_section}'
-            '添付の PDF 論文を読み、メタデータ（title, authors, summary）と日本語ブログ記事（content）を'
-            '次の JSON スキーマに従って返してください。\n\n'
-            f'```json\n{PdfBlogResponse.model_json_schema()}\n```'
-        )
+		user_text = (
+			f'{figure_section}'
+			'添付の PDF 論文を読み、メタデータ（title, authors, summary）と日本語ブログ記事（content）を'
+			'次の JSON スキーマに従って返してください。\n\n'
+			f'```json\n{PdfBlogResponse.model_json_schema()}\n```'
+		)
 
-        pdf_bytes = pdf_path.read_bytes()
-        b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-        self._logger.info('Sending PDF to Mistral: %s (%d bytes)', pdf_path.name, len(pdf_bytes))
+		pdf_bytes = pdf_path.read_bytes()
+		b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+		self._logger.info('Sending PDF to Mistral: %s (%d bytes)', pdf_path.name, len(pdf_bytes))
 
-        response = await self._chat_with_retry(
-            messages=[
-                {'role': 'system', 'content': self._pdf_system_prompt},
-                {
-                    'role': 'user',
-                    'content': [
-                        {
-                            'type': 'document_url',
-                            'document_url': f'data:application/pdf;base64,{b64_pdf}',
-                        },
-                        {
-                            'type': 'text',
-                            'text': user_text,
-                        },
-                    ],
-                },
-            ],
-            response_format={'type': 'json_object'},
-        )
+		response = await self._chat_with_retry(
+			messages=[
+				{'role': 'system', 'content': self._pdf_system_prompt},
+				{
+					'role': 'user',
+					'content': [
+						{
+							'type': 'document_url',
+							'document_url': f'data:application/pdf;base64,{b64_pdf}',
+						},
+						{
+							'type': 'text',
+							'text': user_text,
+						},
+					],
+				},
+			],
+			response_format={'type': 'json_object'},
+		)
 
-        message_content = response.choices[0].message.content
-        if message_content is None or message_content in (UNSET, UNSET_SENTINEL):
-            raw_text = '{}'
-        elif isinstance(message_content, list):
-            raw_text = ''.join(str(c) for c in message_content) or '{}'
-        else:
-            raw_text = str(message_content) or '{}'
-        parsed = PdfBlogResponse.model_validate_json(raw_text)
-        metadata = PdfPaperMetadata(
-            title=parsed.title,
-            authors=parsed.authors,
-            summary=parsed.summary,
-        )
-        content = self._ensure_math_blank_lines(parsed.content)
-        return metadata, self._replace_placeholders(content, placeholder_map)
+		message_content = response.choices[0].message.content
+		if message_content is None or message_content in (UNSET, UNSET_SENTINEL):
+			raw_text = '{}'
+		elif isinstance(message_content, list):
+			raw_text = ''.join(str(c) for c in message_content) or '{}'
+		else:
+			raw_text = str(message_content) or '{}'
+		parsed = PdfBlogResponse.model_validate_json(raw_text)
+		metadata = PdfPaperMetadata(
+			title=parsed.title,
+			authors=parsed.authors,
+			summary=parsed.summary,
+		)
+		content = self._ensure_math_blank_lines(parsed.content)
+		return metadata, self._replace_placeholders(content, placeholder_map)
 
-    # ------------------------------------------------------------------
-    # Retry helper
-    # ------------------------------------------------------------------
+	# ------------------------------------------------------------------
+	# Retry helper
+	# ------------------------------------------------------------------
 
-    async def _chat_with_retry(self, **kwargs: object):
-        """Call chat.complete_async with exponential backoff on 5xx errors."""
-        async for attempt in AsyncRetrying(
-            retry=retry_if_exception(lambda exc: isinstance(exc, SDKError) and exc.status_code >= 500),
-            stop=stop_after_attempt(5),
-            wait=wait_exponential(multiplier=1, min=2, max=16),
-            before_sleep=before_sleep_log(self._logger, logging.WARNING),
-            reraise=True,
-        ):
-            with attempt:
-                return await self._client.chat.complete_async(
-                    model=self._model,
-                    **kwargs,  # type: ignore[arg-type]
-                )
-        raise RuntimeError('Unreachable')  # pragma: no cover
+	async def _chat_with_retry(self, **kwargs: object):
+		"""Call chat.complete_async with exponential backoff on 5xx errors."""
+		async for attempt in AsyncRetrying(
+			retry=retry_if_exception(
+				lambda exc: isinstance(exc, SDKError) and exc.status_code >= 500
+			),
+			stop=stop_after_attempt(5),
+			wait=wait_exponential(multiplier=1, min=2, max=16),
+			before_sleep=before_sleep_log(self._logger, logging.WARNING),
+			reraise=True,
+		):
+			with attempt:
+				return await self._client.chat.complete_async(
+					model=self._model,
+					**kwargs,  # type: ignore[arg-type]
+				)
+		raise RuntimeError('Unreachable')  # pragma: no cover
 
-    # ------------------------------------------------------------------
-    # Post-processing helpers (identical to GeminiBlogPostGenerator)
-    # ------------------------------------------------------------------
+	# ------------------------------------------------------------------
+	# Post-processing helpers (identical to GeminiBlogPostGenerator)
+	# ------------------------------------------------------------------
 
-    @staticmethod
-    def _replace_placeholders(content: str, placeholder_map: dict[str, str]) -> str:
-        for placeholder, url in sorted(placeholder_map.items(), key=lambda x: len(x[0]), reverse=True):
-            content = content.replace(placeholder, url)
-        return content
+	@staticmethod
+	def _replace_placeholders(content: str, placeholder_map: dict[str, str]) -> str:
+		for placeholder, url in sorted(
+			placeholder_map.items(), key=lambda x: len(x[0]), reverse=True
+		):
+			content = content.replace(placeholder, url)
+		return content
 
-    def _extract_markdown(self, raw_text: str) -> str:
-        match = self.MARKDOWN_FENCE_RE.search(raw_text)
-        if match:
-            content = match.group(1).strip()
-        else:
-            content = re.sub(r'^```[a-z]*\n', '', raw_text.strip())
-            content = re.sub(r'\n```$', '', content)
-            content = content.strip()
-        return self._ensure_math_blank_lines(content)
+	def _extract_markdown(self, raw_text: str) -> str:
+		match = self.MARKDOWN_FENCE_RE.search(raw_text)
+		if match:
+			content = match.group(1).strip()
+		else:
+			content = re.sub(r'^```[a-z]*\n', '', raw_text.strip())
+			content = re.sub(r'\n```$', '', content)
+			content = content.strip()
+		return self._ensure_math_blank_lines(content)
 
-    @staticmethod
-    def _ensure_math_blank_lines(content: str) -> str:
-        """$$ の前後に空行を確保（zenn-markdown-html がブロック数式として認識するために必須）。"""
-        lines = content.split('\n')
-        result: list[str] = []
-        in_math = False
-        for line in lines:
-            stripped = line.strip()
-            if stripped == '$$':
-                if not in_math:
-                    if result and result[-1].strip() != '':
-                        result.append('')
-                    in_math = True
-                else:
-                    in_math = False
-                result.append(line)
-            else:
-                if not in_math and result and result[-1].strip() == '$$' and stripped != '':
-                    result.append('')
-                result.append(line)
-        return '\n'.join(result)
+	@staticmethod
+	def _ensure_math_blank_lines(content: str) -> str:
+		"""$$ の前後に空行を確保（zenn-markdown-html がブロック数式として認識するために必須）。"""
+		lines = content.split('\n')
+		result: list[str] = []
+		in_math = False
+		for line in lines:
+			stripped = line.strip()
+			if stripped == '$$':
+				if not in_math:
+					if result and result[-1].strip() != '':
+						result.append('')
+					in_math = True
+				else:
+					in_math = False
+				result.append(line)
+			else:
+				if not in_math and result and result[-1].strip() == '$$' and stripped != '':
+					result.append('')
+				result.append(line)
+		return '\n'.join(result)

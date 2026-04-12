@@ -82,7 +82,9 @@ LAYOUT_ANALYSIS_URL = os.getenv('LAYOUT_ANALYSIS_URL', 'http://localhost:8001')
 QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
 QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', '')
 
-if not all([SUPABASE_URL, SUPABASE_KEY, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY, QDRANT_API_KEY]):
+if not all(
+	[SUPABASE_URL, SUPABASE_KEY, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY, QDRANT_API_KEY]
+):
 	raise ValueError('One or more required environment variables are not set')
 
 
