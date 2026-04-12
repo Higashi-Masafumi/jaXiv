@@ -45,7 +45,6 @@ from domain.repositories import (
 )
 from infrastructure.arxiv_api import ArxivSourceFetcher
 from infrastructure.gemini import GeminiBlogPostGenerator
-from infrastructure.mistral import MistralBlogPostGenerator
 from infrastructure.latex_subprocess import LatexCompiler
 from infrastructure.mistral import MistralLatexTranslator
 from infrastructure.pdf import (
@@ -183,11 +182,11 @@ def get_latex_translator() -> ILatexTranslator:
 
 
 def get_blog_post_generator() -> IBlogPostGenerator:
-	return MistralBlogPostGenerator(api_key=MISTRAL_API_KEY)
+	return GeminiBlogPostGenerator(api_key=GEMINI_API_KEY)
 
 
 def get_pdf_blog_post_generator() -> IPdfBlogPostGenerator:
-	return MistralBlogPostGenerator(api_key=MISTRAL_API_KEY)
+	return GeminiBlogPostGenerator(api_key=GEMINI_API_KEY)
 
 
 def get_pdf_figure_extractor() -> IPdfFigureExtractor:

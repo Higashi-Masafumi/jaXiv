@@ -33,7 +33,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	def __init__(
 		self,
 		api_key: str,
-		model: str = 'gemini-2.5-flash-lite',
+		model: str = 'gemini-2.5-flash',
 		max_latex_chars: int = 80_000,
 	):
 		self.client = genai.Client(api_key=api_key)
