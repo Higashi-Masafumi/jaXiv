@@ -39,7 +39,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	def __init__(
 		self,
 		api_key: str,
-		model: str = 'gemini-2.5-flash-lite',
+		model: str = 'gemini-3-flash-preview',
 		max_latex_chars: int = 80_000,
 	):
 		self.client = genai.Client(api_key=api_key)
@@ -52,6 +52,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		return """\
 		あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
 		与えられた arXiv 論文の情報をもとに、一般の読者にも理解しやすい日本語のブログ記事を Markdown 形式で執筆してください。
+		また論文の中で登場する図の中で、論文のアイディアを伝える重要な図についても図を挿入しながら解説しましょう。
 
 		# ブログ記事の構成
 		1. タイトル（論文タイトルの日本語訳）
@@ -101,6 +102,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		return """\
 		あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
 		添付された PDF 論文を読み、JSON でメタデータとブログ記事を返してください。
+		また論文の中で登場する図の中で、論文のアイディアを伝える重要な図についても図を挿入しながら解説しましょう。
 
 		# 返すべきフィールド
 		- title: 論文の英語原題（PDF から正確に読み取ること）
