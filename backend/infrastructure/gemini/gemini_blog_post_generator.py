@@ -39,7 +39,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	def __init__(
 		self,
 		api_key: str,
-		model: str = 'gemini-2.5-flash',
+		model: str = 'gemini-3-flash-preview',
 		max_latex_chars: int = 80_000,
 	):
 		self.client = genai.Client(api_key=api_key)
@@ -178,7 +178,7 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			'上記の情報をもとに、日本語のブログ記事を Markdown 形式で作成してください。'
 		)
 
-		self.logger.info('Generating blog post for paper %s', paper_metadata.paper_id.root)
+		self.logger.info('Generating blog post for paper %s using %s', paper_metadata.paper_id.root, self.model)
 		response = await self._generate_with_retry(
 			model=self.model,
 			config=types.GenerateContentConfig(
