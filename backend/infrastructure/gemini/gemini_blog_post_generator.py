@@ -50,89 +50,88 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	@property
 	def system_prompt(self) -> str:
 		return """\
-		あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
-		与えられた arXiv 論文の情報をもとに、一般の読者にも理解しやすい日本語のブログ記事を Markdown 形式で執筆してください。
-		また論文の中で登場する図の中で、論文のアイディアを伝える重要な図についても図を挿入しながら解説しましょう。
+あなたは学術論文を一般向け日本語ブログに変換する専門家です。
+arXiv 論文情報をもとに Markdown 形式でブログ記事を執筆してください。
 
-		# ブログ記事の構成
-		1. タイトル（論文タイトルの日本語訳）
-		2. 概要（1〜2 段落で論文の要点を簡潔に説明）
-		3. 背景・問題設定（この研究が解こうとしている問題と、その重要性）
-		4. 提案手法（どのようなアプローチで問題を解いたか）
-		5. 実験・結果（どのような実験を行い、どのような結果が得られたか）
-		6. 考察・まとめ（研究の意義・限界・今後の展望）
+# 記事構成
+1. タイトル（論文タイトルの日本語訳）
+2. 概要（1〜2 段落）
+3. 背景・問題設定
+4. 提案手法
+5. 実験・結果
+6. 考察・まとめ
 
-		# 注意事項
-		- Markdown のセクションヘッダは `##` から使用してください（`#` はタイトル用）
-		- 図を参照する際は必ず Markdown 画像記法 `![説明](IMG_N)` として独立した行で埋め込む。IMG_N は「利用可能な図」に列挙されたキー文字列を一字一句そのまま使うこと
-		  - 正しい例: `![Figure 2: 提案手法の概要](IMG_2)`
-		  - 禁止: `（IMG_N を参照）` `（URL を参照）` など、本文中にインラインで URL や IMG_N を埋め込むこと
-		- 数式は KaTeX 互換の LaTeX 記法で記述してください。以下のルールを厳守すること：
-		- インライン数式は `$...$`、ブロック数式は `$$...$$` で囲む
-		- ブロック数式の `$$` の前後には必ず空行を入れること（Markdown パーサがブロックとして認識するために必須）。例：
-			```
-			テキスト
+# 図の挿入（必須）
+「利用可能な図」に挙げられた図は、論文の要点を説明する箇所に積極的に挿入すること。
+図を挿入する際は以下の **2行セット** を厳守すること：
 
-			$$
-			E = mc^2
-			$$
+```
+![Figure N: 内容の簡潔な説明](IMG_N)
+*Figure N: 何を示しているかの日本語説明*
+```
 
-			テキスト
-			```
-		- `$` や `$$` の内側にさらに `$` を入れないこと（ネスト禁止）
-		- 論文ソース中の `\\newcommand` / `\\def` で定義されたカスタムマクロは絶対にそのまま使わず、標準的な KaTeX コマンドに展開すること。例：
-			- `\\E` → `\\mathbb{E}`, `\\x` → `\\mathbf{x}`, `\\R` → `\\mathbb{R}` など
-			- `\\TurboQuant` のような独自命名はプレーンテキストに置き換える
-			- `\\left< \\right>` → `\\left\\langle \\right\\rangle`
-		- 旧式フォントコマンド（`\\tt`, `\\bf`, `\\it`, `\\rm`, `\\sf`, `\\sc`）は使用禁止。代わりに以下を使う：
-			- `\\tt` → `\\texttt{}` または数式中なら `\\mathtt{}`
-			- `\\bf` → `\\textbf{}` または `\\mathbf{}`
-			- `\\it` → `\\textit{}` または `\\mathit{}`
-			- `\\rm` → `\\textrm{}` または `\\mathrm{}`
-		- 数式中にテキストを入れる場合は `\\text{}` を使用（`\\mbox{}` や `\\hbox{}` は不可）
-		- KaTeX 非対応のコマンド例：`\\newcommand`, `\\def`, `\\DeclareMathOperator`, `\\usepackage`, `\\eqref`（`\\ref` を使う）
-		- `aligned`, `cases`, `matrix`, `bmatrix`, `pmatrix` 等の基本環境は使用可能
-		- `\\label{}` と `\\ref{}` はブログ記事では使わず、文脈で説明すること
-		- 専門用語は初出時に簡単な説明を加えてください
-		- 出力は Markdown コードブロック（```markdown ... ```）で囲んでください
-		"""
+- `IMG_N` は「利用可能な図」に記載されたキーを一字一句そのまま使うこと
+- 画像行の直後に `*...*` でキャプションを付けること（Zenn のキャプション記法）
+- 「IMG_N を参照」などインライン参照は禁止
+
+# Markdown・出力ルール
+- セクションヘッダは `##` から（`#` はタイトル用）
+- 改行は実際の改行文字を使うこと（`\\n` という文字列を出力してはならない）
+- 出力全体を ```markdown ``` ブロックで囲むこと
+- 専門用語は初出時に簡単な説明を加えること
+
+# 数式ルール（KaTeX）
+- インライン: `$...$` / ブロック: `$$...$$`（前後に空行必須）
+- `\\newcommand`/`\\def` のカスタムマクロは標準 KaTeX コマンドに展開すること
+- 旧式コマンド（`\\tt`/`\\bf`/`\\it`/`\\rm` 等）禁止 → `\\texttt{}`/`\\textbf{}`/`\\textit{}`/`\\textrm{}`
+- 数式中のテキストは `\\text{}` を使用（`\\mbox{}` 禁止）
+- `\\label{}`/`\\ref{}` は使わず文脈で説明すること
+"""
 
 	@property
 	def pdf_system_prompt(self) -> str:
 		return """\
-		あなたは、学術論文を分かりやすいブログ記事に変換する専門家です。
-		添付された PDF 論文を読み、JSON でメタデータとブログ記事を返してください。
-		また論文の中で登場する図の中で、論文のアイディアを伝える重要な図についても図を挿入しながら解説しましょう。
+あなたは学術論文を一般向け日本語ブログに変換する専門家です。
+添付 PDF を読み、JSON でメタデータとブログ記事を返してください。
 
-		# 返すべきフィールド
-		- title: 論文の英語原題（PDF から正確に読み取ること）
-		- authors: 著者名のリスト（英語原文）
-		- summary: アブストラクトの要約（英語・2〜3文）
-		- content: 一般読者向けの日本語ブログ記事（Markdown 形式）
+# 返すべきフィールド
+- title: 論文の英語原題（PDF から正確に読み取ること）
+- authors: 著者名リスト（英語原文）
+- summary: アブストラクトの要約（英語・2〜3文）
+- content: 一般読者向け日本語ブログ記事（Markdown 形式）
 
-		# content（ブログ記事）の構成
-		1. タイトル（論文タイトルの日本語訳）
-		2. 概要（1〜2 段落で論文の要点を簡潔に説明）
-		3. 背景・問題設定（この研究が解こうとしている問題と、その重要性）
-		4. 提案手法（どのようなアプローチで問題を解いたか）
-		5. 実験・結果（どのような実験を行い、どのような結果が得られたか）
-		6. 考察・まとめ（研究の意義・限界・今後の展望）
+# content の構成
+1. タイトル（日本語訳）
+2. 概要（1〜2 段落）
+3. 背景・問題設定
+4. 提案手法
+5. 実験・結果
+6. 考察・まとめ
 
-		# content の Markdown 注意事項
-		- セクションヘッダは `##` から使用（`#` はタイトル用）
-		- 図を参照する際は必ず Markdown 画像記法 `![説明](IMG_N)` として独立した行で埋め込む。IMG_N は「利用可能な図」に列挙されたキー文字列を一字一句そのまま使うこと
-		  - 正しい例: `![Figure 4: KVキャッシュのサイズ比較](IMG_4)`
-		  - 禁止: `（IMG_N を参照）` `（URL を参照）` など、本文中にインラインで URL や IMG_N を埋め込むこと
-		- 数式は KaTeX 互換の LaTeX 記法で記述。以下のルールを厳守：
-		  - インライン数式: `$...$`、ブロック数式: `$$...$$`
-		  - ブロック数式の `$$` 前後には必ず空行を入れること
-		  - `$` / `$$` のネスト禁止
-		  - `\\newcommand` / `\\def` で定義されたカスタムマクロは標準 KaTeX コマンドに展開する
-		  - 旧式フォントコマンド（`\\tt`, `\\bf`, `\\it`, `\\rm`）は使用禁止
-		  - `\\text{}` を使用（`\\mbox{}` / `\\hbox{}` 不可）
-		  - `\\label{}` / `\\ref{}` は使わず文脈で説明
-		- 専門用語は初出時に簡単な説明を加える
-		"""
+# 図の挿入（必須）
+「利用可能な図」に列挙された図はすべて記事中に挿入すること。図を省略した解説は不完全とみなす。
+図を挿入する際は以下の **2行セット** を厳守すること：
+
+```
+![Figure N: 内容の簡潔な説明](IMG_N)
+*Figure N: 何を示しているかの日本語説明*
+```
+
+- `IMG_N` は「利用可能な図」に記載されたキーを一字一句そのまま使うこと
+- 画像行の直後に `*...*` でキャプションを付けること（Zenn のキャプション記法）
+- 「IMG_N を参照」などインライン参照は禁止
+
+# Markdown・出力ルール
+- セクションヘッダは `##` から（`#` はタイトル用）
+- 専門用語は初出時に簡単な説明を加えること
+
+# 数式ルール（KaTeX）
+- インライン: `$...$` / ブロック: `$$...$$`（前後に空行必須）
+- `\\newcommand`/`\\def` のカスタムマクロは標準 KaTeX コマンドに展開すること
+- 旧式コマンド（`\\tt`/`\\bf`/`\\it`/`\\rm` 等）禁止 → `\\texttt{}`/`\\textbf{}`/`\\textit{}`/`\\textrm{}`
+- 数式中のテキストは `\\text{}` を使用（`\\mbox{}` 禁止）
+- `\\label{}`/`\\ref{}` は使わず文脈で説明すること
+"""
 
 	async def generate(
 		self,
@@ -252,7 +251,8 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			authors=parsed.authors,
 			summary=parsed.summary,
 		)
-		content = self._ensure_math_blank_lines(parsed.content)
+		content = self._normalize_literal_newlines(parsed.content)
+		content = self._ensure_math_blank_lines(content)
 		return metadata, self._replace_placeholders(content, placeholder_map)
 
 	# ------------------------------------------------------------------
@@ -299,6 +299,17 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 			content = re.sub(r'\n```$', '', content)
 			content = content.strip()
 		return self._ensure_math_blank_lines(content)
+
+	@staticmethod
+	def _normalize_literal_newlines(content: str) -> str:
+		"""Replace literal \\n newline artifacts with actual newlines.
+
+		Targets only \\n NOT followed by a letter, so LaTeX commands such as
+		\\nabla, \\neq, \\nu are left intact.  The artifact arises when a
+		JSON-mode LLM response double-escapes newlines (\\\\n → \\n after
+		JSON parsing).
+		"""
+		return re.sub(r'\\n(?![a-zA-Z])', '\n', content)
 
 	@staticmethod
 	def _ensure_math_blank_lines(content: str) -> str:
