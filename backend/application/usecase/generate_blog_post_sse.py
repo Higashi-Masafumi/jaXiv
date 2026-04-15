@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import os
+import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from logging import getLogger
@@ -58,7 +59,10 @@ class GenerateBlogPostSSEUseCase:
 		self._figure_chunk_repository = figure_chunk_repository
 
 	async def execute(
-		self, arxiv_paper_id: ArxivPaperId, output_dir: str
+		self,
+		arxiv_paper_id: ArxivPaperId,
+		output_dir: str,
+		user_id: uuid.UUID | None = None,
 	) -> AsyncIterator[TypedBlogChunk]:
 		try:
 			async with self._uow as uow:
@@ -148,6 +152,8 @@ class GenerateBlogPostSSEUseCase:
 				authors=[a.name for a in paper_metadata.authors],
 				source_url=str(paper_metadata.source_url),
 				content=markdown_content,
+				source_type='arxiv',
+				user_id=user_id,
 				created_at=now,
 				updated_at=now,
 			)

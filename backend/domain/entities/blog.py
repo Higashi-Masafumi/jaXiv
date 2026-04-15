@@ -12,5 +12,7 @@ class BlogPost(BaseModel):
 	authors: list[str] = Field(default_factory=list, description='Author names')
 	source_url: str | None = Field(default=None, description='URL of the original paper')
 	content: str = Field(description='The blog post content in Markdown')
+	source_type: str = Field(default='arxiv', description="Source type: 'arxiv' or 'pdf'")
+	user_id: uuid.UUID | None = Field(default=None, description='Supabase user ID')
 	created_at: datetime = Field(description='The creation time')
 	updated_at: datetime = Field(description='The last update time')

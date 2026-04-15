@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
+import { useAuth } from '~/contexts/auth-context'
 import { useBlogStream } from '../hooks/use-blog-stream'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -17,6 +18,7 @@ export function meta() {
 
 export default function Pdf() {
   const navigate = useNavigate()
+  const { isAnonymous } = useAuth()
   const { status, steps, error, paperId, startPdfStream } = useBlogStream()
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export default function Pdf() {
   }
 
   const isStreaming = status === 'streaming'
+  const isDisabled = isStreaming || isAnonymous
 
   return (
     <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-hero-background px-4 py-16 text-hero-foreground">
@@ -55,6 +58,16 @@ export default function Pdf() {
           </p>
         </div>
 
+        {isAnonymous && (
+          <div className="w-full rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+            PDF生成には{' '}
+            <Link to="/login" className="font-semibold underline underline-offset-2">
+              ログイン
+            </Link>{' '}
+            が必要です。
+          </div>
+        )}
+
         <form
           onSubmit={handleSubmit}
           className="w-full rounded-2xl border border-hero-card-border/70 bg-hero-card/80 p-5 shadow-2xl backdrop-blur-sm sm:p-6"
@@ -64,12 +77,12 @@ export default function Pdf() {
               type="file"
               name="file"
               accept=".pdf"
-              disabled={isStreaming}
+              disabled={isDisabled}
               className="border-input bg-background text-foreground sm:flex-1"
             />
             <Button
               type="submit"
-              disabled={isStreaming}
+              disabled={isDisabled}
               className="bg-hero-accent font-semibold text-primary-foreground transition-colors hover:bg-hero-accent/90 sm:w-40"
             >
               {isStreaming ? '生成中...' : 'ブログを生成'}

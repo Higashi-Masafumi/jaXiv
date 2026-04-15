@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from logging import getLogger
@@ -46,7 +47,9 @@ class GenerateBlogPostFromPdfSSEUseCase:
 		self._text_chunk_repository = text_chunk_repository
 		self._figure_chunk_repository = figure_chunk_repository
 
-	async def execute(self, pdf_path: Path) -> AsyncIterator[TypedBlogChunk]:
+	async def execute(
+		self, pdf_path: Path, user_id: uuid.UUID | None = None
+	) -> AsyncIterator[TypedBlogChunk]:
 		paper_id = PdfPaperId.generate()
 		try:
 			yield IntermediateBlogChunk(message='PDFをアップロードしています...')
@@ -139,6 +142,8 @@ class GenerateBlogPostFromPdfSSEUseCase:
 				authors=metadata.authors,
 				source_url=source_url,
 				content=markdown_content,
+				source_type='pdf',
+				user_id=user_id,
 				created_at=now,
 				updated_at=now,
 			)

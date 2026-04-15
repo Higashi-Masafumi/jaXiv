@@ -1,10 +1,11 @@
 import os
+import uuid
 from functools import lru_cache
 from typing import Annotated
 
 from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, Request
 from qdrant_client import QdrantClient
-from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from application.usecase import (
 	ArxivRedirector,
@@ -15,6 +16,7 @@ from application.usecase import (
 	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
 	ListBlogPostsUseCase,
+	ListMyBlogPostsUseCase,
 	RagSearchImageUseCase,
 	RagSearchTextUseCase,
 	SaveTranslatedArxivUseCase,
@@ -63,6 +65,11 @@ from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
 	PostgresTranslatedArxivRepository,
 )
+from infrastructure.auth import (
+    extract_bearer_token,
+    get_user_id_from_payload,
+    verify_supabase_jwt,
+)
 from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
@@ -74,6 +81,7 @@ load_dotenv()
 # --------------------------------------
 SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
+SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
 BUCKET_NAME = os.getenv('BUCKET_NAME', '')
 MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
@@ -83,9 +91,30 @@ QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
 QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', '')
 
 if not all(
-	[SUPABASE_URL, SUPABASE_KEY, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY, QDRANT_API_KEY]
+	[SUPABASE_URL, SUPABASE_KEY, SUPABASE_JWT_SECRET, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY, QDRANT_API_KEY]
 ):
 	raise ValueError('One or more required environment variables are not set')
+
+
+# --------------------------------------
+# Auth dependencies
+# --------------------------------------
+async def get_optional_user_id(request: Request) -> uuid.UUID | None:
+	"""Extract user_id from Bearer JWT if present; return None if missing."""
+	token = extract_bearer_token(request)
+	if token is None:
+		return None
+	payload = verify_supabase_jwt(token, SUPABASE_JWT_SECRET)
+	return get_user_id_from_payload(payload)
+
+
+async def get_required_user_id(request: Request) -> uuid.UUID:
+	"""Extract user_id from Bearer JWT; raise 401 if missing or invalid."""
+	token = extract_bearer_token(request)
+	if token is None:
+		raise HTTPException(status_code=401, detail='Authentication required.')
+	payload = verify_supabase_jwt(token, SUPABASE_JWT_SECRET)
+	return get_user_id_from_payload(payload)
 
 
 # --------------------------------------
@@ -282,6 +311,12 @@ async def get_list_blog_posts(
 	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
 ) -> ListBlogPostsUseCase:
 	return ListBlogPostsUseCase(blog_post_repository=blog_post_repository)
+
+
+async def get_list_my_blog_posts(
+	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
+) -> ListMyBlogPostsUseCase:
+	return ListMyBlogPostsUseCase(blog_post_repository=blog_post_repository)
 
 
 async def get_generate_blog_post(
