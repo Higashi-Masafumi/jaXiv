@@ -1,12 +1,13 @@
 import uuid
 from datetime import UTC, datetime
 from logging import getLogger
+from typing import cast
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from domain.entities.blog import BlogPost
+from domain.entities.blog import BlogPost, BlogSourceType
 from domain.repositories import IBlogPostRepository
 
 from ..models import BlogPostContentModel
@@ -28,7 +29,7 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			authors=row.authors or [],
 			source_url=row.source_url,
 			content=row.content,
-			source_type=row.source_type,
+			source_type=cast(BlogSourceType, row.source_type),
 			user_id=row.user_id,
 			created_at=row.created_at,
 			updated_at=row.updated_at,

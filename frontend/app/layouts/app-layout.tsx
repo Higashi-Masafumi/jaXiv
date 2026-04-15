@@ -1,5 +1,12 @@
 import { NavLink, Outlet } from 'react-router'
-import { ArchiveIcon, BookmarkIcon, FileTextIcon, LogInIcon, LogOutIcon, SparklesIcon } from 'lucide-react'
+import {
+  ArchiveIcon,
+  BookmarkIcon,
+  FileTextIcon,
+  LogInIcon,
+  LogOutIcon,
+  SparklesIcon,
+} from 'lucide-react'
 
 import { useAuth } from '~/contexts/auth-context'
 import {
@@ -96,7 +103,9 @@ function AppSidebar() {
             className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
           >
             <LogInIcon className="h-4 w-4 shrink-0" />
-            <span className="group-data-[collapsible=icon]:hidden">ログイン</span>
+            <span className="group-data-[collapsible=icon]:hidden">
+              ログイン
+            </span>
           </Button>
         ) : (
           <div className="flex flex-col gap-1.5">
@@ -110,7 +119,9 @@ function AppSidebar() {
               className="w-full justify-start gap-2 text-sidebar-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
             >
               <LogOutIcon className="h-4 w-4 shrink-0" />
-              <span className="group-data-[collapsible=icon]:hidden">ログアウト</span>
+              <span className="group-data-[collapsible=icon]:hidden">
+                ログアウト
+              </span>
             </Button>
           </div>
         )}

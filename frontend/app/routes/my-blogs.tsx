@@ -41,16 +41,15 @@ async function fetchMyBlogs(
   } = await supabase.auth.getSession()
   const token = session?.access_token ?? ''
 
-  const url = new URL(
-    `${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/my`,
-  )
+  const url = new URL(`${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/my`)
   url.searchParams.set('page', String(page))
   url.searchParams.set('page_size', String(pageSize))
 
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) throw new Response('Failed to load my blogs', { status: res.status })
+  if (!res.ok)
+    throw new Response('Failed to load my blogs', { status: res.status })
   return res.json() as Promise<PaginatedBlogPostResponseSchema>
 }
 
@@ -131,7 +130,10 @@ function BlogPagination({
             </PaginationItem>
           ) : (
             <PaginationItem key={page}>
-              <PaginationLink href={pageUrl(page)} isActive={page === currentPage}>
+              <PaginationLink
+                href={pageUrl(page)}
+                isActive={page === currentPage}
+              >
                 {page}
               </PaginationLink>
             </PaginationItem>
@@ -139,9 +141,13 @@ function BlogPagination({
         )}
         <PaginationItem>
           <PaginationNext
-            href={currentPage < totalPages ? pageUrl(currentPage + 1) : undefined}
+            href={
+              currentPage < totalPages ? pageUrl(currentPage + 1) : undefined
+            }
             aria-disabled={currentPage >= totalPages}
-            className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''}
+            className={
+              currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''
+            }
           />
         </PaginationItem>
       </PaginationContent>

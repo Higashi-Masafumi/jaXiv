@@ -1,17 +1,7 @@
 import uuid
 
-from pydantic import BaseModel
-
-from domain.entities.blog import BlogPost
+from application.usecase.list_blog_posts import PaginatedBlogPosts
 from domain.repositories import IBlogPostRepository
-
-
-class PaginatedBlogPosts(BaseModel):
-	items: list[BlogPost]
-	total: int
-	page: int
-	page_size: int
-	total_pages: int
 
 
 class ListMyBlogPostsUseCase:

@@ -61,7 +61,10 @@ export default function Pdf() {
         {isAnonymous && (
           <div className="w-full rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-sm text-destructive">
             PDF生成には{' '}
-            <Link to="/login" className="font-semibold underline underline-offset-2">
+            <Link
+              to="/login"
+              className="font-semibold underline underline-offset-2"
+            >
               ログイン
             </Link>{' '}
             が必要です。

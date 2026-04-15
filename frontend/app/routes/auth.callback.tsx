@@ -12,11 +12,9 @@ export default function AuthCallback() {
   useEffect(() => {
     // Supabase redirects back here with ?code=... after Google OAuth.
     // exchangeCodeForSession() exchanges the code for a session and stores it.
-    supabase.auth
-      .exchangeCodeForSession(window.location.href)
-      .finally(() => {
-        navigate('/', { replace: true })
-      })
+    supabase.auth.exchangeCodeForSession(window.location.href).finally(() => {
+      navigate('/', { replace: true })
+    })
   }, [navigate])
 
   return (

@@ -29,11 +29,7 @@ export function useBlogStream() {
   const abortRef = useRef<AbortController | null>(null)
 
   const consume = useCallback(
-    async (
-      url: string,
-      method: Uppercase<HttpMethod>,
-      body?: BodyInit,
-    ) => {
+    async (url: string, method: Uppercase<HttpMethod>, body?: BodyInit) => {
       abortRef.current?.abort()
       const ac = new AbortController()
       abortRef.current = ac
