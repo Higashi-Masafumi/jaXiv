@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Upload
 from sse_starlette import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
+from domain.value_objects.user_id import UserId
+
 from application.usecase import (
 	GenerateBlogPostFromPdfSSEUseCase,
 	GenerateBlogPostFromPdfUseCase,
@@ -69,7 +71,9 @@ async def list_my_blogs(
 	page: Annotated[int, Query(ge=1, description='Page number')] = 1,
 	page_size: Annotated[int, Query(ge=1, le=100, description='Items per page')] = 10,
 ) -> PaginatedBlogPostResponseSchema:
-	paginated = await list_my_blog_posts.execute(user_id=user_id, page=page, page_size=page_size)
+	paginated = await list_my_blog_posts.execute(
+		user_id=UserId(user_id), page=page, page_size=page_size
+	)
 	return PaginatedBlogPostResponseSchema.from_paginated(paginated)
 
 
@@ -83,7 +87,9 @@ async def generate_blog(
 	paper_id = ArxivPaperId(arxiv_paper_id)
 	try:
 		blog_post = await generate_blog_post.execute(
-			arxiv_paper_id=paper_id, output_dir=output_dir, user_id=user_id
+			arxiv_paper_id=paper_id,
+			output_dir=output_dir,
+			user_id=UserId(user_id) if user_id else None,
 		)
 		return BlogPostResponseSchema.from_entity(blog_post)
 	except Exception as e:
@@ -101,7 +107,9 @@ async def generate_blog_stream(
 
 	async def run_workflow():
 		iterator = generate_blog_post.execute(
-			arxiv_paper_id=paper_id, output_dir=output_dir, user_id=user_id
+			arxiv_paper_id=paper_id,
+			output_dir=output_dir,
+			user_id=UserId(user_id) if user_id else None,
 		)
 		async for chunk in iterator:
 			if chunk.type == 'intermediate':
@@ -165,7 +173,7 @@ async def get_blog(
 		raise HTTPException(status_code=404, detail=f'Blog post for {paper_id} not found.')
 	# PDF posts are private: only the owner can view them.
 	# Return 404 (not 403) to avoid leaking the existence of private posts.
-	if blog_post.source_type == 'pdf' and blog_post.user_id != user_id:
+	if blog_post.source_type.is_pdf and blog_post.user_id != (UserId(user_id) if user_id else None):
 		raise HTTPException(status_code=404, detail=f'Blog post for {paper_id} not found.')
 	return BlogPostResponseSchema.from_entity(blog_post)
 
@@ -189,7 +197,9 @@ async def generate_blog_from_pdf(
 		tmp.close()
 
 		try:
-			blog_post = await generate_blog_post_from_pdf.execute(pdf_path=pdf_path, user_id=user_id)
+			blog_post = await generate_blog_post_from_pdf.execute(
+				pdf_path=pdf_path, user_id=UserId(user_id)
+			)
 			return BlogPostResponseSchema.from_entity(blog_post)
 		except Exception as e:
 			raise HTTPException(status_code=500, detail=str(e)) from e
@@ -216,7 +226,7 @@ async def generate_blog_from_pdf_stream(
 
 	async def run_workflow():
 		try:
-			iterator = generate_blog_post_from_pdf.execute(pdf_path=pdf_path, user_id=user_id)
+			iterator = generate_blog_post_from_pdf.execute(pdf_path=pdf_path, user_id=UserId(user_id))
 			async for chunk in iterator:
 				if chunk.type == 'intermediate':
 					yield ServerSentEvent(data=chunk.to_json_string())

@@ -1,10 +1,11 @@
 import asyncio
-import uuid
 from datetime import UTC, datetime
 from logging import getLogger
 from pathlib import Path
 
 from domain.entities.blog import BlogPost
+from domain.value_objects.blog_source_type import BlogSourceType
+from domain.value_objects.user_id import UserId
 from domain.entities.document_chunk import DocumentFigureChunk, DocumentTextChunk
 from domain.entities.figure import UploadedFigure
 from domain.gateways import IPdfBlogPostGenerator, IPdfChunkAnalyzer, IPdfFigureAnalyzer
@@ -48,7 +49,7 @@ class GenerateBlogPostFromPdfUseCase:
 		self._text_chunk_repository = text_chunk_repository
 		self._figure_chunk_repository = figure_chunk_repository
 
-	async def execute(self, pdf_path: Path, user_id: uuid.UUID | None = None) -> BlogPost:
+	async def execute(self, pdf_path: Path, user_id: UserId | None = None) -> BlogPost:
 		paper_id = PdfPaperId.generate()
 		try:
 			source_url: str | None
@@ -142,7 +143,7 @@ class GenerateBlogPostFromPdfUseCase:
 				authors=metadata.authors,
 				source_url=source_url,
 				content=markdown_content,
-				source_type='pdf',
+				source_type=BlogSourceType('pdf'),
 				user_id=user_id,
 				created_at=now,
 				updated_at=now,

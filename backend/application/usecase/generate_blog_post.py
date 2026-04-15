@@ -1,12 +1,13 @@
 import asyncio
 import base64
 import os
-import uuid
 from datetime import UTC, datetime
 from logging import getLogger
 from pathlib import Path
 
 from domain.entities.blog import BlogPost
+from domain.value_objects.blog_source_type import BlogSourceType
+from domain.value_objects.user_id import UserId
 from domain.entities.document_chunk import DocumentFigureChunk, DocumentTextChunk
 from domain.gateways import (
 	IArxivSourceFetcher,
@@ -52,7 +53,7 @@ class GenerateBlogPostUseCase:
 		self._figure_chunk_repository = figure_chunk_repository
 
 	async def execute(
-		self, arxiv_paper_id: ArxivPaperId, output_dir: str, user_id: uuid.UUID | None = None
+		self, arxiv_paper_id: ArxivPaperId, output_dir: str, user_id: UserId | None = None
 	) -> BlogPost:
 		"""Generate (or return cached) a blog post for the given arXiv paper."""
 		try:
@@ -139,7 +140,7 @@ class GenerateBlogPostUseCase:
 				authors=[a.name for a in paper_metadata.authors],
 				source_url=str(paper_metadata.source_url),
 				content=markdown_content,
-				source_type='arxiv',
+				source_type=BlogSourceType('arxiv'),
 				user_id=user_id,
 				created_at=now,
 				updated_at=now,

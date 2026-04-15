@@ -9,26 +9,18 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '~/components/ui/resizable'
-import { supabase } from '~/lib/supabase'
-import type { BlogPostResponseSchema } from '../api/types.gen'
+import { getBlogApiV1BlogPaperIdGet } from '~/api/sdk.gen'
 import type { Route } from './+types/blog.$paperId'
 
 export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  const headers: Record<string, string> = {}
-  if (session?.access_token) {
-    headers['Authorization'] = `Bearer ${session.access_token}`
-  }
-
-  const res = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/${params.paperId}`,
-    { headers },
-  )
-  if (!res.ok) throw new Response('Blog post not found', { status: res.status })
-  const data = (await res.json()) as BlogPostResponseSchema
+  const { data, error } = await getBlogApiV1BlogPaperIdGet({
+    path: { paper_id: params.paperId! },
+    throwOnError: false,
+  })
+  if (!data)
+    throw new Response('Blog post not found', {
+      status: error ? 404 : 500,
+    })
   return {
     ...data,
     contentHtml: await markdownToHtml(data.content),

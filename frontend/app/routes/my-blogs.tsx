@@ -40,8 +40,9 @@ async function fetchMyBlogs(
     query: { page, page_size: pageSize },
     throwOnError: false,
   })
-  if (error) throw new Response('Failed to load my blogs', { status: 500 })
-  return data as PaginatedBlogPostResponseSchema
+  if (error || !data)
+    throw new Response('Failed to load my blogs', { status: 500 })
+  return data
 }
 
 function BlogCardSkeleton() {

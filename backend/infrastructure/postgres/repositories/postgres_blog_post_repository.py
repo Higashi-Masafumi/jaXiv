@@ -1,14 +1,14 @@
-import uuid
 from datetime import UTC, datetime
 from logging import getLogger
-from typing import cast
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from domain.entities.blog import BlogPost, BlogSourceType
+from domain.entities.blog import BlogPost
 from domain.repositories import IBlogPostRepository
+from domain.value_objects.blog_source_type import BlogSourceType
+from domain.value_objects.user_id import UserId
 
 from ..models import BlogPostContentModel
 
@@ -29,8 +29,8 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			authors=row.authors or [],
 			source_url=row.source_url,
 			content=row.content,
-			source_type=cast(BlogSourceType, row.source_type),
-			user_id=row.user_id,
+			source_type=BlogSourceType(row.source_type),
+			user_id=UserId(row.user_id) if row.user_id is not None else None,
 			created_at=row.created_at,
 			updated_at=row.updated_at,
 		)
@@ -60,14 +60,14 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		return result.scalar_one()
 
 	async def find_all_by_user(
-		self, user_id: uuid.UUID, page: int, page_size: int
+		self, user_id: UserId, page: int, page_size: int
 	) -> list[BlogPost]:
 		"""Return a user's PDF blog posts."""
 		offset = (page - 1) * page_size
 		statement = (
 			select(BlogPostContentModel)
 			.where(
-				col(BlogPostContentModel.user_id) == user_id,
+				col(BlogPostContentModel.user_id) == user_id.root,
 				col(BlogPostContentModel.source_type) == 'pdf',
 			)
 			.order_by(col(BlogPostContentModel.created_at).desc())
@@ -78,13 +78,13 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		rows = result.scalars().all()
 		return [self._to_entity(row) for row in rows]
 
-	async def count_all_by_user(self, user_id: uuid.UUID) -> int:
+	async def count_all_by_user(self, user_id: UserId) -> int:
 		"""Return the total number of PDF blog posts for a given user."""
 		statement = (
 			select(func.count())
 			.select_from(BlogPostContentModel)
 			.where(
-				col(BlogPostContentModel.user_id) == user_id,
+				col(BlogPostContentModel.user_id) == user_id.root,
 				col(BlogPostContentModel.source_type) == 'pdf',
 			)
 		)
@@ -114,8 +114,8 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			existing.authors = blog_post.authors
 			existing.source_url = blog_post.source_url
 			existing.content = blog_post.content
-			existing.source_type = blog_post.source_type
-			existing.user_id = blog_post.user_id
+			existing.source_type = blog_post.source_type.root
+			existing.user_id = blog_post.user_id.root if blog_post.user_id is not None else None
 			existing.updated_at = now
 			await self._session.flush()
 			return self._to_entity(existing)
@@ -126,8 +126,8 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			authors=blog_post.authors,
 			source_url=blog_post.source_url,
 			content=blog_post.content,
-			source_type=blog_post.source_type,
-			user_id=blog_post.user_id,
+			source_type=blog_post.source_type.root,
+			user_id=blog_post.user_id.root if blog_post.user_id is not None else None,
 			created_at=now,
 			updated_at=now,
 		)
