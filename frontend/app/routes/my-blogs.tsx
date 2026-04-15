@@ -2,7 +2,7 @@ import { Suspense, useEffect } from 'react'
 import { Await, Link, useNavigate } from 'react-router'
 
 import { useAuth } from '~/contexts/auth-context'
-import { supabase } from '~/lib/supabase'
+import { listMyBlogsApiV1BlogMyGet } from '~/api/sdk.gen'
 import {
   Card,
   CardDescription,
@@ -36,21 +36,12 @@ async function fetchMyBlogs(
   page: number,
   pageSize: number,
 ): Promise<PaginatedBlogPostResponseSchema> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  const token = session?.access_token ?? ''
-
-  const url = new URL(`${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/my`)
-  url.searchParams.set('page', String(page))
-  url.searchParams.set('page_size', String(pageSize))
-
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
+  const { data, error } = await listMyBlogsApiV1BlogMyGet({
+    query: { page, page_size: pageSize },
+    throwOnError: false,
   })
-  if (!res.ok)
-    throw new Response('Failed to load my blogs', { status: res.status })
-  return res.json() as Promise<PaginatedBlogPostResponseSchema>
+  if (error) throw new Response('Failed to load my blogs', { status: 500 })
+  return data as PaginatedBlogPostResponseSchema
 }
 
 function BlogCardSkeleton() {

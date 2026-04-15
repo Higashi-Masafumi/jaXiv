@@ -4,7 +4,8 @@ from functools import lru_cache
 from typing import Annotated
 
 from dotenv import load_dotenv
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from qdrant_client import QdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from application.usecase import (
@@ -66,7 +67,6 @@ from infrastructure.postgres.repositories import (
 	PostgresTranslatedArxivRepository,
 )
 from infrastructure.auth import (
-    extract_bearer_token,
     get_user_id_from_payload,
     verify_supabase_jwt,
 )
@@ -96,24 +96,31 @@ if not all(
 	raise ValueError('One or more required environment variables are not set')
 
 
+# HTTPBearer scheme – used purely to emit the security scheme in the OpenAPI spec.
+# auto_error=False lets us return None for optional auth rather than raising 403.
+_bearer_scheme = HTTPBearer(auto_error=False)
+
+
 # --------------------------------------
 # Auth dependencies
 # --------------------------------------
-async def get_optional_user_id(request: Request) -> uuid.UUID | None:
+async def get_optional_user_id(
+	credentials: Annotated[HTTPAuthorizationCredentials | None, Security(_bearer_scheme)],
+) -> uuid.UUID | None:
 	"""Extract user_id from Bearer JWT if present; return None if missing."""
-	token = extract_bearer_token(request)
-	if token is None:
+	if credentials is None:
 		return None
-	payload = verify_supabase_jwt(token, SUPABASE_JWT_SECRET)
+	payload = verify_supabase_jwt(credentials.credentials, SUPABASE_JWT_SECRET)
 	return get_user_id_from_payload(payload)
 
 
-async def get_required_user_id(request: Request) -> uuid.UUID:
+async def get_required_user_id(
+	credentials: Annotated[HTTPAuthorizationCredentials | None, Security(_bearer_scheme)],
+) -> uuid.UUID:
 	"""Extract user_id from Bearer JWT; raise 401 if missing, 403 if anonymous."""
-	token = extract_bearer_token(request)
-	if token is None:
+	if credentials is None:
 		raise HTTPException(status_code=401, detail='Authentication required.')
-	payload = verify_supabase_jwt(token, SUPABASE_JWT_SECRET)
+	payload = verify_supabase_jwt(credentials.credentials, SUPABASE_JWT_SECRET)
 	if payload.get('is_anonymous', False):
 		raise HTTPException(
 			status_code=403,

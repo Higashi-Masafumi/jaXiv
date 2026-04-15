@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
+import { client } from '~/api/client.gen'
+import { getAuthToken } from '~/api/core/auth.gen'
 import { createSseClient } from '~/api/core/serverSentEvents.gen'
 import type { HttpMethod } from '~/api/core/types.gen'
-import { supabase } from '~/lib/supabase'
 
 type BlogChunk =
   | { type: 'intermediate'; message: string }
@@ -10,16 +11,6 @@ type BlogChunk =
 
 export type BlogStreamStep = { message: string; done: boolean }
 export type BlogStreamStatus = 'idle' | 'streaming' | 'complete' | 'error'
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (session?.access_token) {
-    return { Authorization: `Bearer ${session.access_token}` }
-  }
-  return {}
-}
 
 export function useBlogStream() {
   const [status, setStatus] = useState<BlogStreamStatus>('idle')
@@ -39,12 +30,24 @@ export function useBlogStream() {
       setError(null)
       setPaperId(null)
 
-      const authHeaders = await getAuthHeaders()
-
       const { stream } = createSseClient({
         url,
         method,
-        headers: authHeaders,
+        onRequest: async (_url, init) => {
+          const config = client.getConfig()
+          if (config.auth) {
+            const token = await getAuthToken(
+              { type: 'http', scheme: 'bearer' },
+              config.auth,
+            )
+            const headers = new Headers(
+              init.headers as Record<string, string> | undefined,
+            )
+            if (token) headers.set('Authorization', token)
+            return new Request(_url, { ...init, headers })
+          }
+          return new Request(_url, init)
+        },
         ...(body !== undefined && { serializedBody: body }),
         signal: ac.signal,
         sseMaxRetryAttempts: 0,

@@ -9,6 +9,7 @@ import {
 
 import type { Route } from './+types/root'
 import { AuthProvider } from '~/contexts/auth-context'
+import '~/api/client-config'
 import './app.css'
 import 'zenn-content-css/lib/index.css'
 
