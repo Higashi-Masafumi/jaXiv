@@ -77,11 +77,14 @@ async def list_my_blogs(
 async def generate_blog(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
 	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
+	user_id: Annotated[uuid.UUID | None, Depends(get_optional_user_id)] = None,
 ) -> BlogPostResponseSchema:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
 	try:
-		blog_post = await generate_blog_post.execute(arxiv_paper_id=paper_id, output_dir=output_dir)
+		blog_post = await generate_blog_post.execute(
+			arxiv_paper_id=paper_id, output_dir=output_dir, user_id=user_id
+		)
 		return BlogPostResponseSchema.from_entity(blog_post)
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e)) from e
@@ -155,9 +158,14 @@ async def rag_search_image(
 async def get_blog(
 	paper_id: Annotated[str, Path(description='The paper ID')],
 	get_blog_post: Annotated[GetBlogPostUseCase, Depends(get_get_blog_post)],
+	user_id: Annotated[uuid.UUID | None, Depends(get_optional_user_id)] = None,
 ) -> BlogPostResponseSchema:
 	blog_post = await get_blog_post.execute(paper_id=paper_id)
 	if blog_post is None:
+		raise HTTPException(status_code=404, detail=f'Blog post for {paper_id} not found.')
+	# PDF posts are private: only the owner can view them.
+	# Return 404 (not 403) to avoid leaking the existence of private posts.
+	if blog_post.source_type == 'pdf' and blog_post.user_id != user_id:
 		raise HTTPException(status_code=404, detail=f'Blog post for {paper_id} not found.')
 	return BlogPostResponseSchema.from_entity(blog_post)
 
@@ -168,6 +176,7 @@ async def generate_blog_from_pdf(
 	generate_blog_post_from_pdf: Annotated[
 		GenerateBlogPostFromPdfUseCase, Depends(get_generate_blog_post_from_pdf)
 	],
+	user_id: Annotated[uuid.UUID, Depends(get_required_user_id)],
 ) -> BlogPostResponseSchema:
 	if not file.filename or not file.filename.lower().endswith('.pdf'):
 		raise HTTPException(status_code=400, detail='Uploaded file must be a PDF.')
@@ -180,7 +189,7 @@ async def generate_blog_from_pdf(
 		tmp.close()
 
 		try:
-			blog_post = await generate_blog_post_from_pdf.execute(pdf_path=pdf_path)
+			blog_post = await generate_blog_post_from_pdf.execute(pdf_path=pdf_path, user_id=user_id)
 			return BlogPostResponseSchema.from_entity(blog_post)
 		except Exception as e:
 			raise HTTPException(status_code=500, detail=str(e)) from e

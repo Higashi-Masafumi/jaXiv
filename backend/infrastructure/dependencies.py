@@ -109,11 +109,16 @@ async def get_optional_user_id(request: Request) -> uuid.UUID | None:
 
 
 async def get_required_user_id(request: Request) -> uuid.UUID:
-	"""Extract user_id from Bearer JWT; raise 401 if missing or invalid."""
+	"""Extract user_id from Bearer JWT; raise 401 if missing, 403 if anonymous."""
 	token = extract_bearer_token(request)
 	if token is None:
 		raise HTTPException(status_code=401, detail='Authentication required.')
 	payload = verify_supabase_jwt(token, SUPABASE_JWT_SECRET)
+	if payload.get('is_anonymous', False):
+		raise HTTPException(
+			status_code=403,
+			detail='Full authentication is required. Please sign in with Google.',
+		)
 	return get_user_id_from_payload(payload)
 
 
