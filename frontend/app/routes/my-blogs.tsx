@@ -4,7 +4,10 @@ import { Await, Link } from 'react-router'
 import { listMyBlogsApiV1BlogMyGet } from '~/api/sdk.gen'
 import type { PaginatedBlogPostResponseSchema } from '~/api/types.gen'
 import { BlogListSkeleton } from '~/components/blog/blog-card-skeleton'
-import { BlogListPagination, parsePageParams } from '~/components/blog/blog-list-pagination'
+import {
+  BlogListPagination,
+  parsePageParams,
+} from '~/components/blog/blog-list-pagination'
 import { BlogPostCard } from '~/components/blog/blog-post-card'
 import type { Route } from './+types/my-blogs'
 

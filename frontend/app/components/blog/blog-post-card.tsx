@@ -23,9 +23,7 @@ export function BlogPostCard({ post }: { post: BlogPostResponseSchema }) {
             {post.authors.length > 2 ? ' ほか' : ''}
           </span>
         )}
-        <span>
-          {new Date(post.created_at).toLocaleDateString('ja-JP')}
-        </span>
+        <span>{new Date(post.created_at).toLocaleDateString('ja-JP')}</span>
       </div>
     </Link>
   )
