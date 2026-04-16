@@ -8,14 +8,18 @@ from domain.errors.domain_error import PdfProcessingError
 from domain.gateways.i_pdf_figure_extractor import IPdfFigureExtractor
 from libs import AsyncClient
 
+from infrastructure.pdf.config import get_pdf_config
+
+pdf_config = get_pdf_config()
+
 
 class HttpPdfFigureExtractor(IPdfFigureExtractor):
 	"""Calls the layout-analysis microservice to extract figures from PDFs."""
 
 	TIMEOUT: float = 120.0
 
-	def __init__(self, service_url: str) -> None:
-		self._client = AsyncClient(base_url=service_url, timeout=self.TIMEOUT)
+	def __init__(self) -> None:
+		self._client = AsyncClient(base_url=pdf_config.layout_analysis_url, timeout=self.TIMEOUT)
 
 	def _parse(self, data: dict) -> list[ExtractedFigure]:
 		return [

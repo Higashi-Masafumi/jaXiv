@@ -9,9 +9,7 @@ class ListMyBlogPostsUseCase:
 	def __init__(self, blog_post_repository: IBlogPostRepository):
 		self._blog_post_repository = blog_post_repository
 
-	async def execute(
-		self, user_id: UserId, page: int, page_size: int
-	) -> PaginatedBlogPosts:
+	async def execute(self, user_id: UserId, page: int, page_size: int) -> PaginatedBlogPosts:
 		items = await self._blog_post_repository.find_all_by_user(
 			user_id=user_id, page=page, page_size=page_size
 		)

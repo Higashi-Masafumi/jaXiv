@@ -23,9 +23,7 @@ class IBlogPostRepository(ABC):
 		...
 
 	@abstractmethod
-	async def find_all_by_user(
-		self, user_id: UserId, page: int, page_size: int
-	) -> list[BlogPost]:
+	async def find_all_by_user(self, user_id: UserId, page: int, page_size: int) -> list[BlogPost]:
 		"""Find a user's PDF blog posts ordered by created_at descending with pagination."""
 		...
 

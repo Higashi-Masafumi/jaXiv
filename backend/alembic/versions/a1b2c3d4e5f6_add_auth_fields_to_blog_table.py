@@ -20,23 +20,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Add source_type and user_id columns for Supabase auth support."""
-    op.add_column(
-        'blogpostcontentmodel',
-        sa.Column(
-            'source_type',
-            sa.String(10),
-            nullable=False,
-            server_default='arxiv',
-        ),
-    )
-    op.add_column(
-        'blogpostcontentmodel',
-        sa.Column('user_id', UUID(as_uuid=True), nullable=True),
-    )
+	"""Add source_type and user_id columns for Supabase auth support."""
+	op.add_column(
+		'blogpostcontentmodel',
+		sa.Column(
+			'source_type',
+			sa.String(10),
+			nullable=False,
+			server_default='arxiv',
+		),
+	)
+	op.add_column(
+		'blogpostcontentmodel',
+		sa.Column('user_id', UUID(as_uuid=True), nullable=True),
+	)
 
 
 def downgrade() -> None:
-    """Remove source_type and user_id columns."""
-    op.drop_column('blogpostcontentmodel', 'user_id')
-    op.drop_column('blogpostcontentmodel', 'source_type')
+	"""Remove source_type and user_id columns."""
+	op.drop_column('blogpostcontentmodel', 'user_id')
+	op.drop_column('blogpostcontentmodel', 'source_type')

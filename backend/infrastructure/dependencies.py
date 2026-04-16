@@ -1,12 +1,8 @@
-import os
 import uuid
-from functools import lru_cache
 from typing import Annotated
 
-from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from qdrant_client import QdrantClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from application.usecase import (
 	ArxivRedirector,
@@ -67,60 +63,38 @@ from infrastructure.postgres.repositories import (
 	PostgresTranslatedArxivRepository,
 )
 from infrastructure.auth import (
-    get_user_id_from_payload,
-    verify_supabase_jwt,
+	get_user_id_from_payload,
+	verify_supabase_jwt,
 )
 from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
-
-load_dotenv()
-
-# --------------------------------------
-# Environment variables
-# --------------------------------------
-SUPABASE_URL = os.getenv('SUPABASE_URL', '')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
-SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
-BUCKET_NAME = os.getenv('BUCKET_NAME', '')
-MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '')
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-BLOG_FIGURES_BUCKET_NAME = os.getenv('BLOG_FIGURES_BUCKET_NAME', '')
-LAYOUT_ANALYSIS_URL = os.getenv('LAYOUT_ANALYSIS_URL', 'http://localhost:8001')
-QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
-QDRANT_API_KEY = os.getenv('QDRANT_API_KEY', '')
-
-if not all(
-	[SUPABASE_URL, SUPABASE_KEY, SUPABASE_JWT_SECRET, BUCKET_NAME, MISTRAL_API_KEY, GEMINI_API_KEY, QDRANT_API_KEY]
-):
-	raise ValueError('One or more required environment variables are not set')
-
-
-# HTTPBearer scheme – used purely to emit the security scheme in the OpenAPI spec.
-# auto_error=False lets us return None for optional auth rather than raising 403.
-_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # --------------------------------------
 # Auth dependencies
 # --------------------------------------
 async def get_optional_user_id(
-	credentials: Annotated[HTTPAuthorizationCredentials | None, Security(_bearer_scheme)],
+	credentials: Annotated[
+		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
+	],
 ) -> uuid.UUID | None:
 	"""Extract user_id from Bearer JWT if present; return None if missing."""
 	if credentials is None:
 		return None
-	payload = verify_supabase_jwt(credentials.credentials, SUPABASE_JWT_SECRET)
+	payload = verify_supabase_jwt(credentials.credentials)
 	return get_user_id_from_payload(payload)
 
 
 async def get_required_user_id(
-	credentials: Annotated[HTTPAuthorizationCredentials | None, Security(_bearer_scheme)],
+	credentials: Annotated[
+		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
+	],
 ) -> uuid.UUID:
 	"""Extract user_id from Bearer JWT; raise 401 if missing, 403 if anonymous."""
 	if credentials is None:
 		raise HTTPException(status_code=401, detail='Authentication required.')
-	payload = verify_supabase_jwt(credentials.credentials, SUPABASE_JWT_SECRET)
+	payload = verify_supabase_jwt(credentials.credentials)
 	if payload.get('is_anonymous', False):
 		raise HTTPException(
 			status_code=403,
@@ -139,9 +113,7 @@ async def get_translated_arxiv_repository(
 
 
 def get_file_storage_repository() -> IFileStorageRepository:
-	return SupabaseStorageRepository(
-		supabase_url=SUPABASE_URL, supabase_key=SUPABASE_KEY, bucket_name=BUCKET_NAME
-	)
+	return SupabaseStorageRepository()
 
 
 async def get_blog_post_repository(
@@ -159,32 +131,19 @@ def get_sse_translated_arxiv_unit_of_work() -> TranslatedArxivUnitOfWork:
 
 
 def get_figure_storage_repository() -> IFigureStorageRepository:
-	return SupabaseFigureStorageRepository(
-		supabase_url=SUPABASE_URL,
-		supabase_key=SUPABASE_KEY,
-		bucket_name=BLOG_FIGURES_BUCKET_NAME,
-	)
+	return SupabaseFigureStorageRepository()
 
 
-@lru_cache
-def get_qdrant_client() -> QdrantClient:
-	return QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+def get_figure_chunk_repository() -> IFigureChunkRepository:
+	return QdrantFigureChunkRepository()
 
 
-def get_figure_chunk_repository(
-	client: Annotated[QdrantClient, Depends(get_qdrant_client)],
-) -> IFigureChunkRepository:
-	return QdrantFigureChunkRepository(client=client)
-
-
-def get_text_chunk_repository(
-	client: Annotated[QdrantClient, Depends(get_qdrant_client)],
-) -> ITextChunkRepository:
-	return QdrantTextChunkRepository(client=client)
+def get_text_chunk_repository() -> ITextChunkRepository:
+	return QdrantTextChunkRepository()
 
 
 def get_query_embedding_gateway() -> IQueryEmbeddingGateway:
-	return HttpQueryEmbeddingGateway(service_url=LAYOUT_ANALYSIS_URL)
+	return HttpQueryEmbeddingGateway()
 
 
 def get_rag_search_text_use_case(
@@ -221,31 +180,31 @@ def get_latex_compiler() -> ILatexCompiler:
 
 
 def get_latex_translator() -> ILatexTranslator:
-	return MistralLatexTranslator(api_key=MISTRAL_API_KEY)
+	return MistralLatexTranslator()
 
 
 def get_blog_post_generator() -> IBlogPostGenerator:
-	return GeminiBlogPostGenerator(api_key=GEMINI_API_KEY)
+	return GeminiBlogPostGenerator()
 
 
 def get_pdf_blog_post_generator() -> IPdfBlogPostGenerator:
-	return GeminiBlogPostGenerator(api_key=GEMINI_API_KEY)
+	return GeminiBlogPostGenerator()
 
 
 def get_pdf_figure_extractor() -> IPdfFigureExtractor:
-	return HttpPdfFigureExtractor(service_url=LAYOUT_ANALYSIS_URL)
+	return HttpPdfFigureExtractor()
 
 
 def get_pdf_chunk_analyzer() -> IPdfChunkAnalyzer:
-	return HttpPdfChunkAnalyzer(service_url=LAYOUT_ANALYSIS_URL)
+	return HttpPdfChunkAnalyzer()
 
 
 def get_pdf_figure_analyzer() -> IPdfFigureAnalyzer:
-	return HttpPdfFigureAnalyzer(service_url=LAYOUT_ANALYSIS_URL)
+	return HttpPdfFigureAnalyzer()
 
 
 def get_image_embedder() -> IImageEmbedder:
-	return HttpImageEmbedder(service_url=LAYOUT_ANALYSIS_URL)
+	return HttpImageEmbedder()
 
 
 # --------------------------------------

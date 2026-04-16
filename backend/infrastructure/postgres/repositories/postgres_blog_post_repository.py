@@ -59,9 +59,7 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		result = await self._session.execute(statement)
 		return result.scalar_one()
 
-	async def find_all_by_user(
-		self, user_id: UserId, page: int, page_size: int
-	) -> list[BlogPost]:
+	async def find_all_by_user(self, user_id: UserId, page: int, page_size: int) -> list[BlogPost]:
 		"""Return a user's PDF blog posts."""
 		offset = (page - 1) * page_size
 		statement = (
