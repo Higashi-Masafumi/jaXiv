@@ -11,6 +11,9 @@ services:
       POSTGRES_DB: jaxiv
     volumes:
       - pg-data:/var/lib/postgresql/data
+      # Supabase 互換ロール (anon / authenticated / service_role) と auth.uid() 等を初回起動時に注入
+      # pg-data が空のときだけ実行されるので、既存ボリュームがある場合は `docker compose down -v` が必要
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jaxiv -d jaxiv"]
       interval: 10s
