@@ -23,7 +23,7 @@ mistral_config = get_mistral_config()
 class MistralLatexTranslator(ILatexTranslator):
 	"""Gateway implementation for translating LaTeX using Mistral API."""
 
-	def __init__(self, api_key: str):
+	def __init__(self) -> None:
 		self._client = Mistral(api_key=mistral_config.mistral_api_key.get_secret_value())
 		self._logger = getLogger(__name__)
 

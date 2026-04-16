@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 from controller import router
-from infrastructure.dependencies import get_qdrant_client
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 
 load_dotenv()
@@ -20,9 +19,8 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-	client = get_qdrant_client()
-	QdrantTextChunkRepository(client).ensure_collection()
-	QdrantFigureChunkRepository(client).ensure_collection()
+	QdrantTextChunkRepository().ensure_collection()
+	QdrantFigureChunkRepository().ensure_collection()
 	yield
 
 

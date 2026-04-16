@@ -42,7 +42,6 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 	def __init__(
 		self,
-		api_key: str,
 		model: str = 'gemini-3-flash-preview',
 		max_latex_chars: int = 80_000,
 	):
