@@ -46,6 +46,7 @@ dev = [
 
 [tool.mypy]
 python_version = "3.13"
+exclude = ["alembic/"]
 
 [[tool.mypy.overrides]]
 module = ["uuid6", "uuid6.*"]
