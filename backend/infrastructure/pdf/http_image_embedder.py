@@ -5,14 +5,18 @@ from domain.gateways.i_image_embedder import IImageEmbedder, ImageEmbedItem, Ima
 from domain.value_objects.embedding import Embedding
 from libs import AsyncClient
 
+from infrastructure.pdf.config import get_pdf_config
+
+pdf_config = get_pdf_config()
+
 
 class HttpImageEmbedder(IImageEmbedder):
 	"""Calls the pdf_analysis service /embed/images to get image and caption embeddings."""
 
 	TIMEOUT: float = 300.0
 
-	def __init__(self, service_url: str) -> None:
-		self._client = AsyncClient(base_url=service_url, timeout=self.TIMEOUT)
+	def __init__(self) -> None:
+		self._client = AsyncClient(base_url=pdf_config.layout_analysis_url, timeout=self.TIMEOUT)
 
 	async def embed_images(self, items: list[ImageEmbedItem]) -> list[ImageWithEmbedding]:
 		if not items:

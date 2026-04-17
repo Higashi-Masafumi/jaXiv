@@ -7,6 +7,8 @@ from sqlmodel import col
 
 from domain.entities.blog import BlogPost
 from domain.repositories import IBlogPostRepository
+from domain.value_objects.blog_source_type import BlogSourceType
+from domain.value_objects.user_id import UserId
 
 from ..models import BlogPostContentModel
 
@@ -27,14 +29,18 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			authors=row.authors or [],
 			source_url=row.source_url,
 			content=row.content,
+			source_type=BlogSourceType(row.source_type),
+			user_id=UserId(row.user_id) if row.user_id is not None else None,
 			created_at=row.created_at,
 			updated_at=row.updated_at,
 		)
 
 	async def find_all(self, page: int, page_size: int) -> list[BlogPost]:
+		"""Return arXiv blog posts only (public)."""
 		offset = (page - 1) * page_size
 		statement = (
 			select(BlogPostContentModel)
+			.where(col(BlogPostContentModel.source_type) == 'arxiv')
 			.order_by(col(BlogPostContentModel.created_at).desc())
 			.offset(offset)
 			.limit(page_size)
@@ -44,7 +50,42 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		return [self._to_entity(row) for row in rows]
 
 	async def count_all(self) -> int:
-		statement = select(func.count()).select_from(BlogPostContentModel)
+		"""Return the total number of arXiv blog posts."""
+		statement = (
+			select(func.count())
+			.select_from(BlogPostContentModel)
+			.where(col(BlogPostContentModel.source_type) == 'arxiv')
+		)
+		result = await self._session.execute(statement)
+		return result.scalar_one()
+
+	async def find_all_by_user(self, user_id: UserId, page: int, page_size: int) -> list[BlogPost]:
+		"""Return a user's PDF blog posts."""
+		offset = (page - 1) * page_size
+		statement = (
+			select(BlogPostContentModel)
+			.where(
+				col(BlogPostContentModel.user_id) == user_id.root,
+				col(BlogPostContentModel.source_type) == 'pdf',
+			)
+			.order_by(col(BlogPostContentModel.created_at).desc())
+			.offset(offset)
+			.limit(page_size)
+		)
+		result = await self._session.execute(statement)
+		rows = result.scalars().all()
+		return [self._to_entity(row) for row in rows]
+
+	async def count_all_by_user(self, user_id: UserId) -> int:
+		"""Return the total number of PDF blog posts for a given user."""
+		statement = (
+			select(func.count())
+			.select_from(BlogPostContentModel)
+			.where(
+				col(BlogPostContentModel.user_id) == user_id.root,
+				col(BlogPostContentModel.source_type) == 'pdf',
+			)
+		)
 		result = await self._session.execute(statement)
 		return result.scalar_one()
 
@@ -71,6 +112,8 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			existing.authors = blog_post.authors
 			existing.source_url = blog_post.source_url
 			existing.content = blog_post.content
+			existing.source_type = blog_post.source_type.root
+			existing.user_id = blog_post.user_id.root if blog_post.user_id is not None else None
 			existing.updated_at = now
 			await self._session.flush()
 			return self._to_entity(existing)
@@ -81,6 +124,8 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			authors=blog_post.authors,
 			source_url=blog_post.source_url,
 			content=blog_post.content,
+			source_type=blog_post.source_type.root,
+			user_id=blog_post.user_id.root if blog_post.user_id is not None else None,
 			created_at=now,
 			updated_at=now,
 		)

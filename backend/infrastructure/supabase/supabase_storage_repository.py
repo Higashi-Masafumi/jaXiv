@@ -4,14 +4,18 @@ from domain.entities.latex_file import TranslatedLatexFile
 from domain.repositories import IFileStorageRepository
 from supabase import create_async_client
 
+from infrastructure.supabase.config import get_supabase_config
+
+supabase_config = get_supabase_config()
+
 
 class SupabaseStorageRepository(IFileStorageRepository):
 	"""Repository implementation using Supabase Storage."""
 
-	def __init__(self, supabase_url: str, supabase_key: str, bucket_name: str):
-		self._supabase_url = supabase_url
-		self._supabase_key = supabase_key
-		self._bucket_name = bucket_name
+	def __init__(self):
+		self._supabase_url = supabase_config.supabase_url.get_secret_value()
+		self._supabase_key = supabase_config.supabase_api_key.get_secret_value()
+		self._bucket_name = supabase_config.translated_arxiv_bucket_name
 		self._logger = getLogger(__name__)
 
 	async def save_translated_file_and_get_url(self, translated_file: TranslatedLatexFile) -> str:

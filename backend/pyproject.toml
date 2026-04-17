@@ -34,6 +34,7 @@ dependencies = [
     "tenacity>=9.0.0",
     "uuid6>=2025.0.1",
     "qdrant-client>=1.17.1",
+    "PyJWT>=2.10.0",
 ]
 
 [dependency-groups]
@@ -45,6 +46,7 @@ dev = [
 
 [tool.mypy]
 python_version = "3.13"
+exclude = ["alembic/"]
 
 [[tool.mypy.overrides]]
 module = ["uuid6", "uuid6.*"]

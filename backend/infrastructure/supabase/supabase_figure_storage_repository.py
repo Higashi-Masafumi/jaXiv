@@ -9,6 +9,10 @@ from supabase import create_async_client
 
 from domain.repositories import IFigureStorageRepository
 
+from infrastructure.supabase.config import get_supabase_config
+
+supabase_config = get_supabase_config()
+
 
 class SupabaseFigureStorageRepository(IFigureStorageRepository):
 	"""Uploads figures from a LaTeX source directory to Supabase Storage."""
@@ -24,10 +28,10 @@ class SupabaseFigureStorageRepository(IFigureStorageRepository):
 		'.pdf',
 	}
 
-	def __init__(self, supabase_url: str, supabase_key: str, bucket_name: str):
-		self._supabase_url = supabase_url
-		self._supabase_key = supabase_key
-		self._bucket_name = bucket_name
+	def __init__(self):
+		self._supabase_url = supabase_config.supabase_url.get_secret_value()
+		self._supabase_key = supabase_config.supabase_api_key.get_secret_value()
+		self._bucket_name = supabase_config.blog_figures_bucket_name
 		self._logger = getLogger(__name__)
 
 	async def upload_figures(self, paper_id: str, source_dir: Path) -> dict[str, str]:

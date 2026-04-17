@@ -26,6 +26,9 @@ import type {
   ListBlogsApiV1BlogGetData,
   ListBlogsApiV1BlogGetErrors,
   ListBlogsApiV1BlogGetResponses,
+  ListMyBlogsApiV1BlogMyGetData,
+  ListMyBlogsApiV1BlogMyGetErrors,
+  ListMyBlogsApiV1BlogMyGetResponses,
   RagSearchImageApiV1BlogPaperIdRagImagePostData,
   RagSearchImageApiV1BlogPaperIdRagImagePostErrors,
   RagSearchImageApiV1BlogPaperIdRagImagePostResponses,
@@ -108,6 +111,22 @@ export const listBlogsApiV1BlogGet = <ThrowOnError extends boolean = false>(
   >({ url: '/api/v1/blog/', ...options })
 
 /**
+ * List My Blogs
+ */
+export const listMyBlogsApiV1BlogMyGet = <ThrowOnError extends boolean = false>(
+  options?: Options<ListMyBlogsApiV1BlogMyGetData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListMyBlogsApiV1BlogMyGetResponses,
+    ListMyBlogsApiV1BlogMyGetErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/blog/my',
+    ...options,
+  })
+
+/**
  * Generate Blog
  */
 export const generateBlogApiV1BlogArxivArxivPaperIdPost = <
@@ -122,7 +141,11 @@ export const generateBlogApiV1BlogArxivArxivPaperIdPost = <
     GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses,
     GenerateBlogApiV1BlogArxivArxivPaperIdPostErrors,
     ThrowOnError
-  >({ url: '/api/v1/blog/arxiv/{arxiv_paper_id}', ...options })
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/blog/arxiv/{arxiv_paper_id}',
+    ...options,
+  })
 
 /**
  * Generate Blog Stream
@@ -139,7 +162,11 @@ export const generateBlogStreamApiV1BlogArxivArxivPaperIdStreamGet = <
     GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetResponses,
     GenerateBlogStreamApiV1BlogArxivArxivPaperIdStreamGetErrors,
     ThrowOnError
-  >({ url: '/api/v1/blog/arxiv/{arxiv_paper_id}/stream', ...options })
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/blog/arxiv/{arxiv_paper_id}/stream',
+    ...options,
+  })
 
 /**
  * Rag Search Text
@@ -198,7 +225,11 @@ export const getBlogApiV1BlogPaperIdGet = <
     GetBlogApiV1BlogPaperIdGetResponses,
     GetBlogApiV1BlogPaperIdGetErrors,
     ThrowOnError
-  >({ url: '/api/v1/blog/{paper_id}', ...options })
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/blog/{paper_id}',
+    ...options,
+  })
 
 /**
  * Generate Blog From Pdf
@@ -214,6 +245,7 @@ export const generateBlogFromPdfApiV1BlogPdfPost = <
     ThrowOnError
   >({
     ...formDataBodySerializer,
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/blog/pdf',
     ...options,
     headers: {
@@ -239,6 +271,7 @@ export const generateBlogFromPdfStreamApiV1BlogPdfStreamPost = <
     ThrowOnError
   >({
     ...formDataBodySerializer,
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/blog/pdf/stream',
     ...options,
     headers: {

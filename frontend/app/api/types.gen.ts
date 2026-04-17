@@ -326,6 +326,46 @@ export type ListBlogsApiV1BlogGetResponses = {
 export type ListBlogsApiV1BlogGetResponse =
   ListBlogsApiV1BlogGetResponses[keyof ListBlogsApiV1BlogGetResponses]
 
+export type ListMyBlogsApiV1BlogMyGetData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Page
+     *
+     * Page number
+     */
+    page?: number
+    /**
+     * Page Size
+     *
+     * Items per page
+     */
+    page_size?: number
+  }
+  url: '/api/v1/blog/my'
+}
+
+export type ListMyBlogsApiV1BlogMyGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListMyBlogsApiV1BlogMyGetError =
+  ListMyBlogsApiV1BlogMyGetErrors[keyof ListMyBlogsApiV1BlogMyGetErrors]
+
+export type ListMyBlogsApiV1BlogMyGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: PaginatedBlogPostResponseSchema
+}
+
+export type ListMyBlogsApiV1BlogMyGetResponse =
+  ListMyBlogsApiV1BlogMyGetResponses[keyof ListMyBlogsApiV1BlogMyGetResponses]
+
 export type GenerateBlogApiV1BlogArxivArxivPaperIdPostData = {
   body?: never
   path: {

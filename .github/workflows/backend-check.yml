@@ -31,8 +31,10 @@ jobs:
         run: uv run mypy .
       - name: Check OpenAPI schema diff
         run: |
-          if git diff --name-only origin/main...HEAD | grep -q 'openapi.json'; then
-            echo "openapi.json has uncommitted changes against main"
+          PYTHONPATH=. uv run python scripts/generate_openapi.py
+          if ! git diff --quiet openapi.json; then
+            echo "openapi.json is out of sync with the FastAPI app. Run scripts/generate_openapi.py and commit the result."
+            git diff openapi.json
             exit 1
           fi
           echo "OpenAPI schema is up to date"

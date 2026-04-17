@@ -20,6 +20,7 @@ from domain.entities.arxiv import ArxivPaperMetadata
 from domain.entities.figure import UploadedFigure
 from domain.entities.pdf_paper import PdfPaperMetadata
 from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
+from infrastructure.gemini.config import get_gemini_config
 
 
 class PdfBlogResponse(BaseModel):
@@ -31,6 +32,9 @@ class PdfBlogResponse(BaseModel):
 	content: str = Field(description='日本語ブログ記事の Markdown 本文')
 
 
+gemini_config = get_gemini_config()
+
+
 class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 	"""Gateway implementation for generating blog posts using Gemini API."""
 
@@ -38,11 +42,10 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 	def __init__(
 		self,
-		api_key: str,
 		model: str = 'gemini-3-flash-preview',
 		max_latex_chars: int = 80_000,
 	):
-		self.client = genai.Client(api_key=api_key)
+		self.client = genai.Client(api_key=gemini_config.gemini_api_key.get_secret_value())
 		self.logger = getLogger(__name__)
 		self.model: Final[str] = model
 		self.max_latex_chars: Final[int] = max_latex_chars
@@ -179,7 +182,9 @@ arXiv 論文情報をもとに Markdown 形式でブログ記事を執筆して�
 			'上記の情報をもとに、日本語のブログ記事を Markdown 形式で作成してください。'
 		)
 
-		self.logger.info('Generating blog post for paper %s using %s', paper_metadata.paper_id.root, self.model)
+		self.logger.info(
+			'Generating blog post for paper %s using %s', paper_metadata.paper_id.root, self.model
+		)
 		response = await self._generate_with_retry(
 			model=self.model,
 			config=types.GenerateContentConfig(

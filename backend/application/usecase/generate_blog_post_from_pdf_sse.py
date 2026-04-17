@@ -6,6 +6,8 @@ from pathlib import Path
 
 from application.unit_of_works import BlogPostUnitOfWork
 from domain.entities.blog import BlogPost
+from domain.value_objects.blog_source_type import BlogSourceType
+from domain.value_objects.user_id import UserId
 from domain.entities.blog_stream import (
 	CompleteBlogChunk,
 	ErrorBlogChunk,
@@ -46,7 +48,9 @@ class GenerateBlogPostFromPdfSSEUseCase:
 		self._text_chunk_repository = text_chunk_repository
 		self._figure_chunk_repository = figure_chunk_repository
 
-	async def execute(self, pdf_path: Path) -> AsyncIterator[TypedBlogChunk]:
+	async def execute(
+		self, pdf_path: Path, user_id: UserId | None = None
+	) -> AsyncIterator[TypedBlogChunk]:
 		paper_id = PdfPaperId.generate()
 		try:
 			yield IntermediateBlogChunk(message='PDFをアップロードしています...')
@@ -139,6 +143,8 @@ class GenerateBlogPostFromPdfSSEUseCase:
 				authors=metadata.authors,
 				source_url=source_url,
 				content=markdown_content,
+				source_type=BlogSourceType('pdf'),
+				user_id=user_id,
 				created_at=now,
 				updated_at=now,
 			)

@@ -18,32 +18,38 @@ from domain.value_objects.arxiv_paper_id import ArxivPaperId
 from domain.value_objects.embedding import Embedding
 from domain.value_objects.pdf_paper_id import PdfPaperId
 
+from infrastructure.qdrant.config import get_qdrant_config
+
+qdrant_config = get_qdrant_config()
+
 
 class QdrantTextChunkRepository(ITextChunkRepository):
 	"""Qdrant implementation for text chunks using a single dense vector (BGE)."""
 
-	COLLECTION_NAME = 'text_chunks'
 	VECTOR_DIM = 768
 
-	def __init__(self, client: QdrantClient) -> None:
-		self._client = client
+	def __init__(self) -> None:
+		self._client = QdrantClient(
+			url=qdrant_config.qdrant_url.get_secret_value(),
+			api_key=qdrant_config.qdrant_api_key.get_secret_value(),
+		)
 
 	def ensure_collection(self) -> None:
 		existing = {c.name for c in self._client.get_collections().collections}
-		if self.COLLECTION_NAME not in existing:
+		if qdrant_config.text_collection_name not in existing:
 			self._client.create_collection(
-				collection_name=self.COLLECTION_NAME,
+				collection_name=qdrant_config.text_collection_name,
 				vectors_config=VectorParams(size=self.VECTOR_DIM, distance=Distance.COSINE),
 			)
 		self._client.create_payload_index(
-			collection_name=self.COLLECTION_NAME,
+			collection_name=qdrant_config.text_collection_name,
 			field_name='paper_id',
 			field_schema=PayloadSchemaType.KEYWORD,
 		)
 
 	async def save(self, chunk: DocumentTextChunk) -> None:
 		self._client.upsert(
-			collection_name=self.COLLECTION_NAME,
+			collection_name=qdrant_config.text_collection_name,
 			points=[
 				PointStruct(
 					id=str(uuid.uuid4()),
@@ -65,7 +71,7 @@ class QdrantTextChunkRepository(ITextChunkRepository):
 		limit: int = 5,
 	) -> list[DocumentTextChunk]:
 		response = self._client.query_points(
-			collection_name=self.COLLECTION_NAME,
+			collection_name=qdrant_config.text_collection_name,
 			query=query_embeddings.root,
 			query_filter=Filter(
 				must=[FieldCondition(key='paper_id', match=MatchValue(value=paper_id.root))]

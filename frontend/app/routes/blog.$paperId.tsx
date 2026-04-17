@@ -9,15 +9,18 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '~/components/ui/resizable'
-import { getBlogApiV1BlogPaperIdGet } from '../api/sdk.gen'
+import { getBlogApiV1BlogPaperIdGet } from '~/api/sdk.gen'
 import type { Route } from './+types/blog.$paperId'
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function clientLoader({ params }: Route.ClientLoaderArgs) {
   const { data, error } = await getBlogApiV1BlogPaperIdGet({
-    baseUrl: process.env.API_BASE_URL,
     path: { paper_id: params.paperId! },
+    throwOnError: false,
   })
-  if (error) throw new Response('Blog post not found', { status: 404 })
+  if (!data)
+    throw new Response('Blog post not found', {
+      status: error ? 404 : 500,
+    })
   return {
     ...data,
     contentHtml: await markdownToHtml(data.content),

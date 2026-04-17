@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import ARRAY, Column, Field, SQLModel, String
 
 
@@ -44,6 +45,16 @@ class BlogPostContentModel(SQLModel, table=True):
 		description='URL of the original paper',
 	)
 	content: str = Field(sa_column=Column(Text), description='Blog post content in Markdown')
+	source_type: str = Field(
+		sa_column=Column(String(10), nullable=False, server_default='arxiv'),
+		default='arxiv',
+		description="Source type: 'arxiv' or 'pdf'",
+	)
+	user_id: uuid.UUID | None = Field(
+		sa_column=Column(PG_UUID(as_uuid=True), nullable=True),
+		default=None,
+		description='Supabase user ID (anon or real)',
+	)
 	created_at: datetime = Field(
 		sa_column=Column(DateTime(timezone=True)),
 		description='The creation time',

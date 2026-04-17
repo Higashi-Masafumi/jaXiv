@@ -11,6 +11,9 @@ export default [
     route('pdf', 'routes/pdf.tsx'),
     route('blog', 'routes/blog.tsx'),
     route('blog/:paperId', 'routes/blog.$paperId.tsx'),
+    route('my-blogs', 'routes/my-blogs.tsx'),
   ]),
+  route('login', 'routes/login.tsx'),
+  route('auth/callback', 'routes/auth.callback.tsx'),
   route('api/blog/:paperId/chat', 'routes/api.blog.$paperId.chat.ts'),
 ] satisfies RouteConfig

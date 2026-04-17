@@ -1,49 +1,15 @@
 import { Suspense } from 'react'
-import { Await, Link } from 'react-router'
+import { Await } from 'react-router'
 
-import { listBlogsApiV1BlogGet } from '../api/sdk.gen'
+import { listBlogsApiV1BlogGet } from '~/api/sdk.gen'
+import { BlogListSkeleton } from '~/components/blog/blog-card-skeleton'
 import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '../components/ui/card'
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '../components/ui/pagination'
-import { Skeleton } from '../components/ui/skeleton'
-import type { PaginatedBlogPostResponseSchema } from '../api/types.gen'
+  BlogListPagination,
+  parsePageParams,
+} from '~/components/blog/blog-list-pagination'
+import { BlogPostCard } from '~/components/blog/blog-post-card'
+import type { PaginatedBlogPostResponseSchema } from '~/api/types.gen'
 import type { Route } from './+types/blog'
-
-const PAGE_SIZE = 10
-
-function BlogArchiveCardSkeleton() {
-  return (
-    <Card aria-hidden className="shadow-none">
-      <CardHeader className="flex flex-col gap-2">
-        <CardTitle className="flex flex-col gap-2 font-normal">
-          <Skeleton className="h-5 w-11/12" />
-          <Skeleton className="h-5 w-full" />
-        </CardTitle>
-        <CardDescription className="flex flex-col gap-2">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-2/3" />
-        </CardDescription>
-      </CardHeader>
-      <CardFooter className="flex w-full gap-3">
-        <Skeleton className="h-3.5 flex-1" />
-        <Skeleton className="h-3.5 flex-1" />
-      </CardFooter>
-    </Card>
-  )
-}
 
 export function meta() {
   return [
@@ -53,12 +19,11 @@ export function meta() {
 }
 
 export function clientLoader({ request }: Route.ClientLoaderArgs) {
-  const url = new URL(request.url)
-  const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
+  const { page, pageSize } = parsePageParams(new URL(request.url))
 
   const blogs = listBlogsApiV1BlogGet({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
-    query: { page, page_size: PAGE_SIZE },
+    query: { page, page_size: pageSize },
   }).then(({ data, error }) => {
     if (error || !data)
       throw new Response('Failed to load archive', { status: 500 })
@@ -72,91 +37,9 @@ export function HydrateFallback() {
     <main className="h-full overflow-y-auto px-4 py-12" aria-busy="true">
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
-        <BlogArchiveListSkeleton />
+        <BlogListSkeleton count={4} />
       </div>
     </main>
-  )
-}
-
-function BlogArchiveListSkeleton() {
-  return (
-    <ul className="flex flex-col gap-4">
-      {Array.from({ length: 4 }, (_, i) => (
-        <li key={i}>
-          <BlogArchiveCardSkeleton />
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function buildPages(
-  currentPage: number,
-  totalPages: number,
-): (number | 'ellipsis')[] {
-  const left = Math.max(2, currentPage - 1)
-  const right = Math.min(totalPages - 1, currentPage + 1)
-  const middle = Array.from({ length: right - left + 1 }, (_, i) => left + i)
-  return [
-    1,
-    ...(left > 2 ? (['ellipsis'] as const) : []),
-    ...middle,
-    ...(right < totalPages - 1 ? (['ellipsis'] as const) : []),
-    totalPages,
-  ]
-}
-
-function BlogPagination({
-  currentPage,
-  totalPages,
-}: {
-  currentPage: number
-  totalPages: number
-}) {
-  if (totalPages <= 1) return null
-
-  const pageUrl = (page: number) => `?page=${page}`
-  const pages = buildPages(currentPage, totalPages)
-
-  return (
-    <Pagination className="mt-8">
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious
-            href={currentPage > 1 ? pageUrl(currentPage - 1) : undefined}
-            aria-disabled={currentPage <= 1}
-            className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
-          />
-        </PaginationItem>
-        {pages.map((page, i) =>
-          page === 'ellipsis' ? (
-            <PaginationItem key={`ellipsis-${i}`}>
-              <PaginationEllipsis />
-            </PaginationItem>
-          ) : (
-            <PaginationItem key={page}>
-              <PaginationLink
-                href={pageUrl(page)}
-                isActive={page === currentPage}
-              >
-                {page}
-              </PaginationLink>
-            </PaginationItem>
-          ),
-        )}
-        <PaginationItem>
-          <PaginationNext
-            href={
-              currentPage < totalPages ? pageUrl(currentPage + 1) : undefined
-            }
-            aria-disabled={currentPage >= totalPages}
-            className={
-              currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''
-            }
-          />
-        </PaginationItem>
-      </PaginationContent>
-    </Pagination>
   )
 }
 
@@ -169,34 +52,15 @@ function BlogPostList({ data }: { data: PaginatedBlogPostResponseSchema }) {
       <ul className="flex flex-col gap-4">
         {data.items.map(post => (
           <li key={post.paper_id}>
-            <Link
-              to={`/blog/${post.paper_id}`}
-              className="block rounded-xl border border-border bg-card p-5 transition-colors hover:bg-accent"
-            >
-              <h2 className="mb-1 font-semibold text-card-foreground line-clamp-2">
-                {post.title}
-              </h2>
-              {post.summary && (
-                <p className="mb-3 text-sm text-muted-foreground line-clamp-2">
-                  {post.summary}
-                </p>
-              )}
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {post.authors.length > 0 && (
-                  <span>
-                    {post.authors.slice(0, 2).join(', ')}
-                    {post.authors.length > 2 ? ' ほか' : ''}
-                  </span>
-                )}
-                <span>
-                  {new Date(post.created_at).toLocaleDateString('ja-JP')}
-                </span>
-              </div>
-            </Link>
+            <BlogPostCard post={post} />
           </li>
         ))}
       </ul>
-      <BlogPagination currentPage={data.page} totalPages={data.total_pages} />
+      <BlogListPagination
+        currentPage={data.page}
+        totalPages={data.total_pages}
+        pageSize={data.page_size}
+      />
     </>
   )
 }
@@ -206,7 +70,7 @@ export default function BlogList({ loaderData }: Route.ComponentProps) {
     <main className="h-full overflow-y-auto px-4 py-12">
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
-        <Suspense fallback={<BlogArchiveListSkeleton />}>
+        <Suspense fallback={<BlogListSkeleton count={4} />}>
           <Await resolve={loaderData.blogs}>
             {data => <BlogPostList data={data} />}
           </Await>

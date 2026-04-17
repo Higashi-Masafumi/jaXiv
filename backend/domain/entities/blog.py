@@ -3,6 +3,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from domain.value_objects.blog_source_type import BlogSourceType
+from domain.value_objects.user_id import UserId
+
 
 class BlogPost(BaseModel):
 	id: uuid.UUID = Field(default_factory=uuid.uuid4)
@@ -12,5 +15,10 @@ class BlogPost(BaseModel):
 	authors: list[str] = Field(default_factory=list, description='Author names')
 	source_url: str | None = Field(default=None, description='URL of the original paper')
 	content: str = Field(description='The blog post content in Markdown')
+	source_type: BlogSourceType = Field(
+		default_factory=lambda: BlogSourceType('arxiv'),
+		description="Source type: 'arxiv' or 'pdf'",
+	)
+	user_id: UserId | None = Field(default=None, description='Supabase user ID')
 	created_at: datetime = Field(description='The creation time')
 	updated_at: datetime = Field(description='The last update time')

@@ -21,6 +21,9 @@ from domain.entities.arxiv import ArxivPaperMetadata
 from domain.entities.figure import UploadedFigure
 from domain.entities.pdf_paper import PdfPaperMetadata
 from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
+from infrastructure.mistral.config import get_mistral_config
+
+mistral_config = get_mistral_config()
 
 
 class PdfBlogResponse(BaseModel):
@@ -49,7 +52,7 @@ class MistralBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 		model: str = 'mistral-small-latest',
 		max_latex_chars: int = 80_000,
 	):
-		self._client = Mistral(api_key=api_key)
+		self._client = Mistral(api_key=mistral_config.mistral_api_key.get_secret_value())
 		self._logger = getLogger(__name__)
 		self._model: Final[str] = model
 		self._max_latex_chars: Final[int] = max_latex_chars

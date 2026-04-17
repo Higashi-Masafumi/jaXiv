@@ -8,6 +8,8 @@ from pathlib import Path
 
 from application.unit_of_works import BlogPostUnitOfWork
 from domain.entities.blog import BlogPost
+from domain.value_objects.blog_source_type import BlogSourceType
+from domain.value_objects.user_id import UserId
 from domain.entities.blog_stream import (
 	CompleteBlogChunk,
 	ErrorBlogChunk,
@@ -58,7 +60,10 @@ class GenerateBlogPostSSEUseCase:
 		self._figure_chunk_repository = figure_chunk_repository
 
 	async def execute(
-		self, arxiv_paper_id: ArxivPaperId, output_dir: str
+		self,
+		arxiv_paper_id: ArxivPaperId,
+		output_dir: str,
+		user_id: UserId | None = None,
 	) -> AsyncIterator[TypedBlogChunk]:
 		try:
 			async with self._uow as uow:
@@ -148,6 +153,8 @@ class GenerateBlogPostSSEUseCase:
 				authors=[a.name for a in paper_metadata.authors],
 				source_url=str(paper_metadata.source_url),
 				content=markdown_content,
+				source_type=BlogSourceType('arxiv'),
+				user_id=user_id,
 				created_at=now,
 				updated_at=now,
 			)

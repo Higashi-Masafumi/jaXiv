@@ -1,4 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
+import { client } from '~/api/client.gen'
+import { getAuthToken } from '~/api/core/auth.gen'
 import { createSseClient } from '~/api/core/serverSentEvents.gen'
 import type { HttpMethod } from '~/api/core/types.gen'
 
@@ -31,6 +33,21 @@ export function useBlogStream() {
       const { stream } = createSseClient({
         url,
         method,
+        onRequest: async (_url, init) => {
+          const config = client.getConfig()
+          if (config.auth) {
+            const token = await getAuthToken(
+              { type: 'http', scheme: 'bearer' },
+              config.auth,
+            )
+            const headers = new Headers(
+              init.headers as Record<string, string> | undefined,
+            )
+            if (token) headers.set('Authorization', token)
+            return new Request(_url, { ...init, headers })
+          }
+          return new Request(_url, init)
+        },
         ...(body !== undefined && { serializedBody: body }),
         signal: ac.signal,
         sseMaxRetryAttempts: 0,

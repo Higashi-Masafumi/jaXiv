@@ -1,9 +1,18 @@
 import { NavLink, Outlet } from 'react-router'
-import { ArchiveIcon, FileTextIcon, SparklesIcon } from 'lucide-react'
+import {
+  ArchiveIcon,
+  BookmarkIcon,
+  FileTextIcon,
+  LogInIcon,
+  LogOutIcon,
+  SparklesIcon,
+} from 'lucide-react'
 
+import { useAuth } from '~/contexts/auth-context'
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -15,6 +24,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '~/components/ui/sidebar'
+import { Button } from '~/components/ui/button'
 
 const NAV_ITEMS = [
   { title: 'arXiv', url: '/', icon: SparklesIcon },
@@ -23,6 +33,8 @@ const NAV_ITEMS = [
 ] as const
 
 function AppSidebar() {
+  const { user, isAnonymous, signInWithGoogle, signOut } = useAuth()
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-4 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
@@ -34,6 +46,7 @@ function AppSidebar() {
           aria-label="サイドバーを切り替え"
         />
       </SidebarHeader>
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
@@ -56,10 +69,64 @@ function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* マイブログ: ログイン済みユーザーのみ表示 */}
+              {!isAnonymous && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="マイブログ">
+                    <NavLink
+                      to="/my-blogs"
+                      end
+                      className={({ isActive }) =>
+                        isActive
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                          : 'text-sidebar-foreground'
+                      }
+                    >
+                      <BookmarkIcon />
+                      <span>マイブログ</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="px-3 py-3">
+        {isAnonymous ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={signInWithGoogle}
+            className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+          >
+            <LogInIcon className="h-4 w-4 shrink-0" />
+            <span className="group-data-[collapsible=icon]:hidden">
+              ログイン
+            </span>
+          </Button>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <p className="truncate px-1 text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
+              {user?.email ?? ''}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="w-full justify-start gap-2 text-sidebar-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+            >
+              <LogOutIcon className="h-4 w-4 shrink-0" />
+              <span className="group-data-[collapsible=icon]:hidden">
+                ログアウト
+              </span>
+            </Button>
+          </div>
+        )}
+      </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   )
