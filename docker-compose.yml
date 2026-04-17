@@ -1,30 +1,6 @@
 name: jaxiv
 
 services:
-  db:
-    container_name: jaxiv-db
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: jaxiv
-      POSTGRES_PASSWORD: jaxiv
-      POSTGRES_DB: jaxiv
-    volumes:
-      - pg-data:/var/lib/postgresql/data
-      # Supabase 互換ロール (anon / authenticated / service_role) と auth.uid() 等を初回起動時に注入
-      # pg-data が空のときだけ実行されるので、既存ボリュームがある場合は `docker compose down -v` が必要
-      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jaxiv -d jaxiv"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    ports:
-      # ホスト側の PostgreSQL と衝突しにくいよう 5433 に割り当て（コンテナ内は 5432）
-      - "5434:5432"
-    networks:
-      - jaxiv
-
   pdf-analysis:
     container_name: pdf-analysis
     build:
@@ -77,19 +53,24 @@ services:
     restart: unless-stopped
     working_dir: /app
     depends_on:
-      db:
-        condition: service_healthy
       pdf-analysis:
         condition: service_started
     ports:
       - "8001:8000"
+    # Linux で host.docker.internal を解決するために host-gateway を明示
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      # ローカル用に固定（ホストからは localhost:5433 / DBeaver 等）
-      POSTGRES_URL: postgresql://jaxiv:jaxiv@db:5432/jaxiv
+      # Supabase ローカルエミュレータ（ホスト側で `supabase start` したもの）へ接続
+      POSTGRES_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      SUPABASE_URL: http://host.docker.internal:54321
+      JWKS_URL: http://host.docker.internal:54321/auth/v1/.well-known/jwks.json
+      BUCKET_NAME: translated-arxiv-bucket
+      BLOG_FIGURES_BUCKET_NAME: blog-figures
       LAYOUT_ANALYSIS_URL: http://pdf-analysis:7860
       OUTPUT_DIR: /app/output
       QDRANT_URL: http://qdrant:6333
-      # 機密値は env_file(./backend/.env) からコンテナ環境変数へ注入
+      # API キー等の機密値のみ env_file(./backend/.env) からコンテナ環境変数へ注入
     volumes:
       - api-venv:/app/.venv
       - ./backend/output:/app/output
@@ -135,7 +116,6 @@ services:
       - jaxiv
 
 volumes:
-  pg-data:
   api-venv:
   pdf-analysis-venv:
   qdrant-data:
