@@ -6,7 +6,6 @@ services:
     repo: https://github.com/Higashi-Masafumi/jaXiv
     dockerfilePath: Dockerfile.render
     rootDir: ./backend
-    preDeployCommand: just migrate
     envVars:
       - key: LAYOUT_ANALYSIS_URL
         value: https://masamasa4-jaxiv-pdf-analysis.hf.space
