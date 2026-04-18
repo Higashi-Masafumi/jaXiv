@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from application.usecase.get_my_generation_count import GenerationCount
 from application.usecase.list_blog_posts import PaginatedBlogPosts
 from domain.entities.blog import BlogPost
 
@@ -48,3 +49,13 @@ class PaginatedBlogPostResponseSchema(BaseModel):
 			page_size=paginated.page_size,
 			total_pages=paginated.total_pages,
 		)
+
+
+class GenerationCountResponseSchema(BaseModel):
+	monthly: int
+	total: int
+	limit: int
+
+	@classmethod
+	def from_entity(cls, count: GenerationCount) -> GenerationCountResponseSchema:
+		return cls(monthly=count.monthly, total=count.total, limit=count.limit)

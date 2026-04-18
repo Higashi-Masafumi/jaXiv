@@ -6,6 +6,7 @@ from logging import getLogger
 from pathlib import Path
 
 from domain.entities.blog import BlogPost
+from domain.errors.domain_error import GenerationLimitExceededError
 from domain.value_objects.blog_source_type import BlogSourceType
 from domain.value_objects.user_id import UserId
 from domain.entities.document_chunk import DocumentFigureChunk, DocumentTextChunk
@@ -26,6 +27,8 @@ from domain.value_objects import ArxivPaperId
 from domain.value_objects.image_url import ImageUrl
 
 _EMBED_EXTENSIONS: frozenset[str] = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp'})
+_ANONYMOUS_MONTHLY_LIMIT = 3
+_FREE_MONTHLY_LIMIT = 10
 
 
 class GenerateBlogPostUseCase:
@@ -53,7 +56,11 @@ class GenerateBlogPostUseCase:
 		self._figure_chunk_repository = figure_chunk_repository
 
 	async def execute(
-		self, arxiv_paper_id: ArxivPaperId, output_dir: str, user_id: UserId | None = None
+		self,
+		arxiv_paper_id: ArxivPaperId,
+		output_dir: str,
+		user_id: UserId | None = None,
+		is_anonymous: bool = True,
 	) -> BlogPost:
 		"""Generate (or return cached) a blog post for the given arXiv paper."""
 		try:
@@ -61,6 +68,13 @@ class GenerateBlogPostUseCase:
 			if existing is not None:
 				self._logger.info('Returning cached blog post for %s', arxiv_paper_id.root)
 				return existing
+
+			if user_id is not None:
+				limit = _ANONYMOUS_MONTHLY_LIMIT if is_anonymous else _FREE_MONTHLY_LIMIT
+				month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+				count = await self._blog_post_repository.count_generated_by_user(user_id, since=month_start)
+				if count >= limit:
+					raise GenerationLimitExceededError(monthly_count=count, limit=limit)
 
 			paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
 				paper_id=arxiv_paper_id

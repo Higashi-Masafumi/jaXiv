@@ -68,3 +68,12 @@ class PdfProcessingError(DomainError):
 	def __init__(self, detail: str = ''):
 		super().__init__(f'PDF processing failed: {detail}')
 		self.detail = detail
+
+
+class GenerationLimitExceededError(DomainError):
+	"""Raised when a user exceeds their monthly blog generation limit."""
+
+	def __init__(self, monthly_count: int, limit: int):
+		super().__init__(f'Monthly generation limit exceeded: {monthly_count}/{limit}')
+		self.monthly_count = monthly_count
+		self.limit = limit

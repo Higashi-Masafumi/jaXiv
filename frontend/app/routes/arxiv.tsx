@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
+import { useAuth } from '~/contexts/auth-context'
 import { useBlogStream } from '../hooks/use-blog-stream'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -17,6 +18,7 @@ export function meta() {
 
 export default function Arxiv() {
   const navigate = useNavigate()
+  const { isAnonymous, signInWithGoogle } = useAuth()
   const { status, steps, error, paperId, startArxivStream } = useBlogStream()
 
   useEffect(() => {
@@ -98,7 +100,29 @@ export default function Arxiv() {
             </ul>
           )}
 
-          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+          {error === 'limit_exceeded' ? (
+            <div className="mt-3 rounded-lg border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
+              {isAnonymous ? (
+                <span>
+                  今月の無料生成回数（3回）を使い切りました。
+                  <button
+                    type="button"
+                    onClick={signInWithGoogle}
+                    className="ml-1 font-semibold underline underline-offset-2"
+                  >
+                    Googleでログイン
+                  </button>
+                  すると月10回まで生成できます。
+                </span>
+              ) : (
+                <span>
+                  今月の生成回数（10回）を使い切りました。有料プランは近日公開予定です。
+                </span>
+              )}
+            </div>
+          ) : error ? (
+            <p className="mt-3 text-sm text-destructive">{error}</p>
+          ) : null}
         </form>
       </section>
     </main>

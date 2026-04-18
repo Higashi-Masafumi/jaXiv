@@ -25,6 +25,8 @@ from domain.repositories import (
 from domain.value_objects import PdfPaperId
 from domain.value_objects.image_url import ImageUrl
 
+_FREE_MONTHLY_LIMIT = 10
+
 
 class GenerateBlogPostFromPdfSSEUseCase:
 	"""Use case for generating and persisting a PDF blog post with an SSE-safe UoW."""
@@ -53,6 +55,14 @@ class GenerateBlogPostFromPdfSSEUseCase:
 	) -> AsyncIterator[TypedBlogChunk]:
 		paper_id = PdfPaperId.generate()
 		try:
+			if user_id is not None:
+				month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+				async with self._uow as uow:
+					count = await uow.blog_posts_repository.count_generated_by_user(user_id, since=month_start)
+				if count >= _FREE_MONTHLY_LIMIT:
+					yield ErrorBlogChunk(message='limit_exceeded', error_details='limit_exceeded')
+					return
+
 			yield IntermediateBlogChunk(message='PDFをアップロードしています...')
 			source_url: str | None
 			try:

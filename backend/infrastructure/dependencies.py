@@ -12,6 +12,7 @@ from application.usecase import (
 	GenerateBlogPostUseCase,
 	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
+	GetMyGenerationCountUseCase,
 	ListBlogPostsUseCase,
 	ListMyBlogPostsUseCase,
 	RagSearchImageUseCase,
@@ -84,6 +85,20 @@ async def get_optional_user_id(
 		return None
 	payload = verify_supabase_jwt(credentials.credentials)
 	return get_user_id_from_payload(payload)
+
+
+async def get_user_with_anon_flag(
+	credentials: Annotated[
+		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
+	],
+) -> tuple[uuid.UUID | None, bool]:
+	"""Extract user_id and is_anonymous from Bearer JWT; return (None, True) if missing."""
+	if credentials is None:
+		return None, True
+	payload = verify_supabase_jwt(credentials.credentials)
+	user_id = get_user_id_from_payload(payload)
+	is_anonymous = bool(payload.get('is_anonymous', False))
+	return user_id, is_anonymous
 
 
 async def get_required_user_id(
@@ -288,6 +303,12 @@ async def get_list_my_blog_posts(
 	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
 ) -> ListMyBlogPostsUseCase:
 	return ListMyBlogPostsUseCase(blog_post_repository=blog_post_repository)
+
+
+async def get_get_my_generation_count(
+	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
+) -> GetMyGenerationCountUseCase:
+	return GetMyGenerationCountUseCase(blog_post_repository=blog_post_repository)
 
 
 async def get_generate_blog_post(

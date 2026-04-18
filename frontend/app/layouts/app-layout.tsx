@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import {
   ArchiveIcon,
@@ -32,8 +33,25 @@ const NAV_ITEMS = [
   { title: 'ブログ一覧', url: '/blog', icon: ArchiveIcon },
 ] as const
 
+function useGenerationCount(enabled: boolean, token: string | undefined) {
+  const [count, setCount] = useState<{ monthly: number; limit: number } | null>(null)
+
+  useEffect(() => {
+    if (!enabled || !token) return
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/my/generation-count`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => data && setCount({ monthly: data.monthly, limit: data.limit }))
+      .catch(() => {})
+  }, [enabled, token])
+
+  return count
+}
+
 function AppSidebar() {
-  const { user, isAnonymous, signInWithGoogle, signOut } = useAuth()
+  const { user, isAnonymous, signInWithGoogle, signOut, session } = useAuth()
+  const generationCount = useGenerationCount(!isAnonymous, session?.access_token)
 
   return (
     <Sidebar collapsible="icon">
@@ -112,6 +130,11 @@ function AppSidebar() {
             <p className="truncate px-1 text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
               {user?.email ?? ''}
             </p>
+            {generationCount && (
+              <p className="px-1 text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
+                今月の生成: {generationCount.monthly}/{generationCount.limit} 回
+              </p>
+            )}
             <Button
               variant="ghost"
               size="sm"

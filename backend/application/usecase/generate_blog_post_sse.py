@@ -33,6 +33,8 @@ from domain.value_objects import ArxivPaperId
 from domain.value_objects.image_url import ImageUrl
 
 _EMBED_EXTENSIONS: frozenset[str] = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp'})
+_ANONYMOUS_MONTHLY_LIMIT = 3
+_FREE_MONTHLY_LIMIT = 10
 
 
 class GenerateBlogPostSSEUseCase:
@@ -64,6 +66,7 @@ class GenerateBlogPostSSEUseCase:
 		arxiv_paper_id: ArxivPaperId,
 		output_dir: str,
 		user_id: UserId | None = None,
+		is_anonymous: bool = True,
 	) -> AsyncIterator[TypedBlogChunk]:
 		try:
 			async with self._uow as uow:
@@ -75,6 +78,15 @@ class GenerateBlogPostSSEUseCase:
 					paper_id=existing.paper_id,
 				)
 				return
+
+			if user_id is not None:
+				limit = _ANONYMOUS_MONTHLY_LIMIT if is_anonymous else _FREE_MONTHLY_LIMIT
+				month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+				async with self._uow as uow:
+					count = await uow.blog_posts_repository.count_generated_by_user(user_id, since=month_start)
+				if count >= limit:
+					yield ErrorBlogChunk(message='limit_exceeded', error_details='limit_exceeded')
+					return
 
 			yield IntermediateBlogChunk(message='メタデータを取得しています...')
 			paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(

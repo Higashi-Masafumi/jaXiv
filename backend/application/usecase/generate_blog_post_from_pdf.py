@@ -4,6 +4,7 @@ from logging import getLogger
 from pathlib import Path
 
 from domain.entities.blog import BlogPost
+from domain.errors.domain_error import GenerationLimitExceededError
 from domain.value_objects.blog_source_type import BlogSourceType
 from domain.value_objects.user_id import UserId
 from domain.entities.document_chunk import DocumentFigureChunk, DocumentTextChunk
@@ -17,6 +18,8 @@ from domain.repositories import (
 )
 from domain.value_objects import PdfPaperId
 from domain.value_objects.image_url import ImageUrl
+
+_FREE_MONTHLY_LIMIT = 10
 
 
 class GenerateBlogPostFromPdfUseCase:
@@ -52,6 +55,11 @@ class GenerateBlogPostFromPdfUseCase:
 	async def execute(self, pdf_path: Path, user_id: UserId | None = None) -> BlogPost:
 		paper_id = PdfPaperId.generate()
 		try:
+			if user_id is not None:
+				month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+				count = await self._blog_post_repository.count_generated_by_user(user_id, since=month_start)
+				if count >= _FREE_MONTHLY_LIMIT:
+					raise GenerationLimitExceededError(monthly_count=count, limit=_FREE_MONTHLY_LIMIT)
 			source_url: str | None
 			try:
 				source_url = await self._figure_storage_repository.upload_pdf(
