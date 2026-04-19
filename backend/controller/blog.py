@@ -99,7 +99,7 @@ async def get_my_generation_count(
 async def generate_blog(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
 	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
-	auth_user: Annotated[AuthUser | None, Depends(get_auth_user)],
+	auth_user: Annotated[AuthUser, Depends(get_auth_user)],
 ) -> BlogPostResponseSchema:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
@@ -123,7 +123,7 @@ async def generate_blog(
 async def generate_blog_stream(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
 	generate_blog_post: Annotated[GenerateBlogPostSSEUseCase, Depends(get_sse_generate_blog_post)],
-	auth_user: Annotated[AuthUser | None, Depends(get_auth_user)],
+	auth_user: Annotated[AuthUser, Depends(get_auth_user)],
 ) -> EventSourceResponse:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)

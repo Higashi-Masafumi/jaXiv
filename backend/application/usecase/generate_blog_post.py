@@ -60,7 +60,7 @@ class GenerateBlogPostUseCase:
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		output_dir: str,
-		auth_user: AuthUser | None = None,
+		auth_user: AuthUser,
 	) -> BlogPost:
 		"""Generate (or return cached) a blog post for the given arXiv paper."""
 		try:
@@ -69,12 +69,11 @@ class GenerateBlogPostUseCase:
 				self._logger.info('Returning cached blog post for %s', arxiv_paper_id.root)
 				return existing
 
-			if auth_user is not None:
-				max_count = await self._usage_repository.get_max_usage_count(auth_user)
-				month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-				count = await self._blog_post_repository.count_generated_by_user(auth_user.user_id, since=month_start)
-				if count >= max_count:
-					raise GenerationLimitExceededError(monthly_count=count, limit=max_count)
+			max_count = await self._usage_repository.get_max_usage_count(auth_user)
+			month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+			count = await self._blog_post_repository.count_generated_by_user(auth_user.user_id, since=month_start)
+			if count >= max_count:
+				raise GenerationLimitExceededError(monthly_count=count, limit=max_count)
 
 			paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
 				paper_id=arxiv_paper_id
@@ -155,7 +154,7 @@ class GenerateBlogPostUseCase:
 				source_url=str(paper_metadata.source_url),
 				content=markdown_content,
 				source_type=BlogSourceType('arxiv'),
-				user_id=auth_user.user_id if auth_user is not None else None,
+				user_id=auth_user.user_id,
 				created_at=now,
 				updated_at=now,
 			)

@@ -96,10 +96,10 @@ async def get_auth_user(
 	credentials: Annotated[
 		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
 	],
-) -> AuthUser | None:
-	"""Build AuthUser from Bearer JWT; return None if no token provided."""
+) -> AuthUser:
+	"""Build AuthUser from Bearer JWT; raise 401 if no token provided."""
 	if credentials is None:
-		return None
+		raise HTTPException(status_code=401, detail='Authentication required.')
 	payload = verify_supabase_jwt(credentials.credentials)
 	user_id = get_user_id_from_payload(payload)
 	role = UserRole.ANONYMOUS if payload.get('is_anonymous', False) else UserRole.FREE

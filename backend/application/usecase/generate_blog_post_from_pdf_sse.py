@@ -52,18 +52,17 @@ class GenerateBlogPostFromPdfSSEUseCase:
 		self._usage_repository = usage_repository
 
 	async def execute(
-		self, pdf_path: Path, auth_user: AuthUser | None = None
+		self, pdf_path: Path, auth_user: AuthUser
 	) -> AsyncIterator[TypedBlogChunk]:
 		paper_id = PdfPaperId.generate()
 		try:
-			if auth_user is not None:
-				max_count = await self._usage_repository.get_max_usage_count(auth_user)
-				month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-				async with self._uow as uow:
-					count = await uow.blog_posts_repository.count_generated_by_user(auth_user.user_id, since=month_start)
-				if count >= max_count:
-					yield ErrorBlogChunk(message='limit_exceeded', error_details='limit_exceeded')
-					return
+			max_count = await self._usage_repository.get_max_usage_count(auth_user)
+			month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+			async with self._uow as uow:
+				count = await uow.blog_posts_repository.count_generated_by_user(auth_user.user_id, since=month_start)
+			if count >= max_count:
+				yield ErrorBlogChunk(message='limit_exceeded', error_details='limit_exceeded')
+				return
 
 			yield IntermediateBlogChunk(message='PDFをアップロードしています...')
 			source_url: str | None
@@ -156,7 +155,7 @@ class GenerateBlogPostFromPdfSSEUseCase:
 				source_url=source_url,
 				content=markdown_content,
 				source_type=BlogSourceType('pdf'),
-				user_id=auth_user.user_id if auth_user is not None else None,
+				user_id=auth_user.user_id,
 				created_at=now,
 				updated_at=now,
 			)
