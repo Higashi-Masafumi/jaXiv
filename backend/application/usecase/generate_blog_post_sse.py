@@ -7,9 +7,9 @@ from logging import getLogger
 from pathlib import Path
 
 from application.unit_of_works import BlogPostUnitOfWork
+from domain.entities.auth_user import AuthUser
 from domain.entities.blog import BlogPost
 from domain.value_objects.blog_source_type import BlogSourceType
-from domain.value_objects.user_id import UserId
 from domain.entities.blog_stream import (
 	CompleteBlogChunk,
 	ErrorBlogChunk,
@@ -28,13 +28,12 @@ from domain.repositories import (
 	IFigureChunkRepository,
 	IFigureStorageRepository,
 	ITextChunkRepository,
+	IUsageRepository,
 )
 from domain.value_objects import ArxivPaperId
 from domain.value_objects.image_url import ImageUrl
 
 _EMBED_EXTENSIONS: frozenset[str] = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp'})
-_ANONYMOUS_MONTHLY_LIMIT = 3
-_FREE_MONTHLY_LIMIT = 10
 
 
 class GenerateBlogPostSSEUseCase:
@@ -50,6 +49,7 @@ class GenerateBlogPostSSEUseCase:
 		image_embedder: IImageEmbedder,
 		text_chunk_repository: ITextChunkRepository,
 		figure_chunk_repository: IFigureChunkRepository,
+		usage_repository: IUsageRepository,
 	):
 		self._logger = getLogger(__name__)
 		self._uow = blog_post_unit_of_work
@@ -60,13 +60,13 @@ class GenerateBlogPostSSEUseCase:
 		self._image_embedder = image_embedder
 		self._text_chunk_repository = text_chunk_repository
 		self._figure_chunk_repository = figure_chunk_repository
+		self._usage_repository = usage_repository
 
 	async def execute(
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		output_dir: str,
-		user_id: UserId | None = None,
-		is_anonymous: bool = True,
+		auth_user: AuthUser | None = None,
 	) -> AsyncIterator[TypedBlogChunk]:
 		try:
 			async with self._uow as uow:
@@ -79,12 +79,12 @@ class GenerateBlogPostSSEUseCase:
 				)
 				return
 
-			if user_id is not None:
-				limit = _ANONYMOUS_MONTHLY_LIMIT if is_anonymous else _FREE_MONTHLY_LIMIT
+			if auth_user is not None:
+				max_count = await self._usage_repository.get_max_usage_count(auth_user)
 				month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 				async with self._uow as uow:
-					count = await uow.blog_posts_repository.count_generated_by_user(user_id, since=month_start)
-				if count >= limit:
+					count = await uow.blog_posts_repository.count_generated_by_user(auth_user.user_id, since=month_start)
+				if count >= max_count:
 					yield ErrorBlogChunk(message='limit_exceeded', error_details='limit_exceeded')
 					return
 
@@ -166,7 +166,7 @@ class GenerateBlogPostSSEUseCase:
 				source_url=str(paper_metadata.source_url),
 				content=markdown_content,
 				source_type=BlogSourceType('arxiv'),
-				user_id=user_id,
+				user_id=auth_user.user_id if auth_user is not None else None,
 				created_at=now,
 				updated_at=now,
 			)

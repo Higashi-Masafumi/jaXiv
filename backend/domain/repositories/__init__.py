@@ -4,6 +4,7 @@ from .i_figure_storage_repository import IFigureStorageRepository
 from .i_file_storage_repository import IFileStorageRepository
 from .i_text_chunk_repository import ITextChunkRepository
 from .i_translated_arxiv_repository import ITranslatedArxivRepository
+from .i_usage_repository import IUsageRepository
 
 __all__ = [
 	'IBlogPostRepository',
@@ -12,4 +13,5 @@ __all__ = [
 	'IFileStorageRepository',
 	'ITextChunkRepository',
 	'ITranslatedArxivRepository',
+	'IUsageRepository',
 ]

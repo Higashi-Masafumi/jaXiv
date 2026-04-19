@@ -9,6 +9,7 @@ import {
   SparklesIcon,
 } from 'lucide-react'
 
+import { getMyGenerationCountApiV1BlogMyGenerationCountGet } from '~/api/sdk.gen'
 import { useAuth } from '~/contexts/auth-context'
 import {
   Sidebar,
@@ -33,25 +34,27 @@ const NAV_ITEMS = [
   { title: 'ブログ一覧', url: '/blog', icon: ArchiveIcon },
 ] as const
 
-function useGenerationCount(enabled: boolean, token: string | undefined) {
-  const [count, setCount] = useState<{ monthly: number; limit: number } | null>(null)
+function useGenerationCount(enabled: boolean) {
+  const [count, setCount] = useState<{ monthly: number; limit: number } | null>(
+    null,
+  )
 
   useEffect(() => {
-    if (!enabled || !token) return
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/blog/my/generation-count`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => data && setCount({ monthly: data.monthly, limit: data.limit }))
+    if (!enabled) return
+    getMyGenerationCountApiV1BlogMyGenerationCountGet({ throwOnError: false })
+      .then(
+        ({ data }) =>
+          data && setCount({ monthly: data.monthly, limit: data.limit }),
+      )
       .catch(() => {})
-  }, [enabled, token])
+  }, [enabled])
 
   return count
 }
 
 function AppSidebar() {
-  const { user, isAnonymous, signInWithGoogle, signOut, session } = useAuth()
-  const generationCount = useGenerationCount(!isAnonymous, session?.access_token)
+  const { user, isAnonymous, signInWithGoogle, signOut } = useAuth()
+  const generationCount = useGenerationCount(!isAnonymous)
 
   return (
     <Sidebar collapsible="icon">

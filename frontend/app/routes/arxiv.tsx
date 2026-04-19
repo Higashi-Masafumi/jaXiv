@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 
 import { useAuth } from '~/contexts/auth-context'
 import { useBlogStream } from '../hooks/use-blog-stream'

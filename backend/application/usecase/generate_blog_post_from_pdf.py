@@ -3,10 +3,10 @@ from datetime import UTC, datetime
 from logging import getLogger
 from pathlib import Path
 
+from domain.entities.auth_user import AuthUser
 from domain.entities.blog import BlogPost
 from domain.errors.domain_error import GenerationLimitExceededError
 from domain.value_objects.blog_source_type import BlogSourceType
-from domain.value_objects.user_id import UserId
 from domain.entities.document_chunk import DocumentFigureChunk, DocumentTextChunk
 from domain.entities.figure import UploadedFigure
 from domain.gateways import IPdfBlogPostGenerator, IPdfChunkAnalyzer, IPdfFigureAnalyzer
@@ -15,11 +15,10 @@ from domain.repositories import (
 	IFigureChunkRepository,
 	IFigureStorageRepository,
 	ITextChunkRepository,
+	IUsageRepository,
 )
 from domain.value_objects import PdfPaperId
 from domain.value_objects.image_url import ImageUrl
-
-_FREE_MONTHLY_LIMIT = 10
 
 
 class GenerateBlogPostFromPdfUseCase:
@@ -42,6 +41,7 @@ class GenerateBlogPostFromPdfUseCase:
 		chunk_analyzer: IPdfChunkAnalyzer,
 		text_chunk_repository: ITextChunkRepository,
 		figure_chunk_repository: IFigureChunkRepository,
+		usage_repository: IUsageRepository,
 	):
 		self._logger = getLogger(__name__)
 		self._blog_post_repository = blog_post_repository
@@ -51,15 +51,17 @@ class GenerateBlogPostFromPdfUseCase:
 		self._chunk_analyzer = chunk_analyzer
 		self._text_chunk_repository = text_chunk_repository
 		self._figure_chunk_repository = figure_chunk_repository
+		self._usage_repository = usage_repository
 
-	async def execute(self, pdf_path: Path, user_id: UserId | None = None) -> BlogPost:
+	async def execute(self, pdf_path: Path, auth_user: AuthUser | None = None) -> BlogPost:
 		paper_id = PdfPaperId.generate()
 		try:
-			if user_id is not None:
+			if auth_user is not None:
+				max_count = await self._usage_repository.get_max_usage_count(auth_user)
 				month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-				count = await self._blog_post_repository.count_generated_by_user(user_id, since=month_start)
-				if count >= _FREE_MONTHLY_LIMIT:
-					raise GenerationLimitExceededError(monthly_count=count, limit=_FREE_MONTHLY_LIMIT)
+				count = await self._blog_post_repository.count_generated_by_user(auth_user.user_id, since=month_start)
+				if count >= max_count:
+					raise GenerationLimitExceededError(monthly_count=count, limit=max_count)
 			source_url: str | None
 			try:
 				source_url = await self._figure_storage_repository.upload_pdf(
@@ -152,7 +154,7 @@ class GenerateBlogPostFromPdfUseCase:
 				source_url=source_url,
 				content=markdown_content,
 				source_type=BlogSourceType('pdf'),
-				user_id=user_id,
+				user_id=auth_user.user_id if auth_user is not None else None,
 				created_at=now,
 				updated_at=now,
 			)

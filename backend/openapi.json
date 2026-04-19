@@ -219,6 +219,29 @@
         }
       }
     },
+    "/api/v1/blog/my/generation-count": {
+      "get": {
+        "summary": "Get My Generation Count",
+        "operationId": "get_my_generation_count_api_v1_blog_my_generation_count_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationCountResponseSchema"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/blog/arxiv/{arxiv_paper_id}": {
       "post": {
         "summary": "Generate Blog",
@@ -655,6 +678,29 @@
           "file"
         ],
         "title": "Body_generate_blog_from_pdf_stream_api_v1_blog_pdf_stream_post"
+      },
+      "GenerationCountResponseSchema": {
+        "properties": {
+          "monthly": {
+            "type": "integer",
+            "title": "Monthly"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "monthly",
+          "total",
+          "limit"
+        ],
+        "title": "GenerationCountResponseSchema"
       },
       "HTTPValidationError": {
         "properties": {

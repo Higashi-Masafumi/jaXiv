@@ -1,28 +1,29 @@
-import asyncio
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from domain.repositories import IBlogPostRepository
-from domain.value_objects.user_id import UserId
+from pydantic import BaseModel
 
-_FREE_MONTHLY_LIMIT = 10
+from domain.entities.auth_user import AuthUser
+from domain.repositories import IBlogPostRepository, IUsageRepository
 
 
-@dataclass(frozen=True)
-class GenerationCount:
+class GenerationCount(BaseModel):
 	monthly: int
 	total: int
 	limit: int
 
 
 class GetMyGenerationCountUseCase:
-	def __init__(self, blog_post_repository: IBlogPostRepository):
+	def __init__(
+		self,
+		blog_post_repository: IBlogPostRepository,
+		usage_repository: IUsageRepository,
+	):
 		self._repo = blog_post_repository
+		self._usage_repo = usage_repository
 
-	async def execute(self, user_id: UserId) -> GenerationCount:
+	async def execute(self, auth_user: AuthUser) -> GenerationCount:
 		month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-		monthly, total = await asyncio.gather(
-			self._repo.count_generated_by_user(user_id, since=month_start),
-			self._repo.count_generated_by_user(user_id),
-		)
-		return GenerationCount(monthly=monthly, total=total, limit=_FREE_MONTHLY_LIMIT)
+		limit = await self._usage_repo.get_max_usage_count(auth_user)
+		monthly = await self._repo.count_generated_by_user(auth_user.user_id, since=month_start)
+		total = await self._repo.count_generated_by_user(auth_user.user_id)
+		return GenerationCount(monthly=monthly, total=total, limit=limit)

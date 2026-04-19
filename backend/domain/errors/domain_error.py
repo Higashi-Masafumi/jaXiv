@@ -76,4 +76,3 @@ class GenerationLimitExceededError(DomainError):
 	def __init__(self, monthly_count: int, limit: int):
 		super().__init__(f'Monthly generation limit exceeded: {monthly_count}/{limit}')
 		self.monthly_count = monthly_count
-		self.limit = limit
