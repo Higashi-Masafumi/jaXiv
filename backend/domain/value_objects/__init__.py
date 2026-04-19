@@ -5,6 +5,7 @@ from .compile_setting import CompileSetting
 from .pdf_paper_id import PdfPaperId
 from .target_language import TargetLanguage
 from .user_id import UserId
+from .user_role import UserRole
 
 __all__ = [
 	'ArxivPaperId',
@@ -16,4 +17,5 @@ __all__ = [
 	'PdfPaperId',
 	'TargetLanguage',
 	'UserId',
+	'UserRole',
 ]

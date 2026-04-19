@@ -67,6 +67,24 @@ export type BodyGenerateBlogFromPdfStreamApiV1BlogPdfStreamPost = {
 }
 
 /**
+ * GenerationCountResponseSchema
+ */
+export type GenerationCountResponseSchema = {
+  /**
+   * Monthly
+   */
+  monthly: number
+  /**
+   * Total
+   */
+  total: number
+  /**
+   * Limit
+   */
+  limit: number
+}
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -365,6 +383,23 @@ export type ListMyBlogsApiV1BlogMyGetResponses = {
 
 export type ListMyBlogsApiV1BlogMyGetResponse =
   ListMyBlogsApiV1BlogMyGetResponses[keyof ListMyBlogsApiV1BlogMyGetResponses]
+
+export type GetMyGenerationCountApiV1BlogMyGenerationCountGetData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/blog/my/generation-count'
+}
+
+export type GetMyGenerationCountApiV1BlogMyGenerationCountGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: GenerationCountResponseSchema
+}
+
+export type GetMyGenerationCountApiV1BlogMyGenerationCountGetResponse =
+  GetMyGenerationCountApiV1BlogMyGenerationCountGetResponses[keyof GetMyGenerationCountApiV1BlogMyGenerationCountGetResponses]
 
 export type GenerateBlogApiV1BlogArxivArxivPaperIdPostData = {
   body?: never

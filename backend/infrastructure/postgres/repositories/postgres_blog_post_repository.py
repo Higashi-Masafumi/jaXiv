@@ -89,6 +89,17 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		result = await self._session.execute(statement)
 		return result.scalar_one()
 
+	async def count_generated_by_user(self, user_id: UserId, since: datetime | None = None) -> int:
+		statement = (
+			select(func.count())
+			.select_from(BlogPostContentModel)
+			.where(col(BlogPostContentModel.user_id) == user_id.root)
+		)
+		if since is not None:
+			statement = statement.where(col(BlogPostContentModel.created_at) >= since)
+		result = await self._session.execute(statement)
+		return result.scalar_one()
+
 	async def find_by_paper_id(self, paper_id: str) -> BlogPost | None:
 		statement = select(BlogPostContentModel).where(
 			col(BlogPostContentModel.paper_id) == paper_id

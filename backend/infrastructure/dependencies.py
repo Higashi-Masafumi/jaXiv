@@ -12,6 +12,7 @@ from application.usecase import (
 	GenerateBlogPostUseCase,
 	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
+	GetMyGenerationCountUseCase,
 	ListBlogPostsUseCase,
 	ListMyBlogPostsUseCase,
 	RagSearchImageUseCase,
@@ -34,6 +35,7 @@ from domain.gateways import (
 	IPdfFigureExtractor,
 	IQueryEmbeddingGateway,
 )
+from domain.entities.auth_user import AuthUser
 from domain.repositories import (
 	IBlogPostRepository,
 	IFigureChunkRepository,
@@ -41,7 +43,10 @@ from domain.repositories import (
 	IFileStorageRepository,
 	ITextChunkRepository,
 	ITranslatedArxivRepository,
+	IUsageRepository,
 )
+from domain.value_objects.user_id import UserId
+from domain.value_objects.user_role import UserRole
 from infrastructure.arxiv_api import ArxivSourceFetcher
 from infrastructure.gemini import GeminiBlogPostGenerator
 from infrastructure.latex_subprocess import LatexCompiler
@@ -69,6 +74,7 @@ from infrastructure.auth import (
 from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
+from infrastructure.usage.hardcoded_usage_repository import HardcodedUsageRepository
 
 
 # --------------------------------------
@@ -84,6 +90,38 @@ async def get_optional_user_id(
 		return None
 	payload = verify_supabase_jwt(credentials.credentials)
 	return get_user_id_from_payload(payload)
+
+
+async def get_auth_user(
+	credentials: Annotated[
+		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
+	],
+) -> AuthUser:
+	"""Build AuthUser from Bearer JWT; raise 401 if no token provided."""
+	if credentials is None:
+		raise HTTPException(status_code=401, detail='Authentication required.')
+	payload = verify_supabase_jwt(credentials.credentials)
+	user_id = get_user_id_from_payload(payload)
+	role = UserRole.ANONYMOUS if payload.get('is_anonymous', False) else UserRole.FREE
+	return AuthUser(user_id=UserId(user_id), role=role)
+
+
+async def get_required_auth_user(
+	credentials: Annotated[
+		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
+	],
+) -> AuthUser:
+	"""Build AuthUser from Bearer JWT; raise 401 if missing, 403 if anonymous."""
+	if credentials is None:
+		raise HTTPException(status_code=401, detail='Authentication required.')
+	payload = verify_supabase_jwt(credentials.credentials)
+	if payload.get('is_anonymous', False):
+		raise HTTPException(
+			status_code=403,
+			detail='Full authentication is required. Please sign in with Google.',
+		)
+	user_id = get_user_id_from_payload(payload)
+	return AuthUser(user_id=UserId(user_id), role=UserRole.FREE)
 
 
 async def get_required_user_id(
@@ -140,6 +178,10 @@ def get_figure_chunk_repository() -> IFigureChunkRepository:
 
 def get_text_chunk_repository() -> ITextChunkRepository:
 	return QdrantTextChunkRepository()
+
+
+def get_usage_repository() -> IUsageRepository:
+	return HardcodedUsageRepository()
 
 
 def get_query_embedding_gateway() -> IQueryEmbeddingGateway:
@@ -290,6 +332,16 @@ async def get_list_my_blog_posts(
 	return ListMyBlogPostsUseCase(blog_post_repository=blog_post_repository)
 
 
+async def get_get_my_generation_count(
+	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
+	usage_repository: Annotated[IUsageRepository, Depends(get_usage_repository)],
+) -> GetMyGenerationCountUseCase:
+	return GetMyGenerationCountUseCase(
+		blog_post_repository=blog_post_repository,
+		usage_repository=usage_repository,
+	)
+
+
 async def get_generate_blog_post(
 	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
 	blog_post_generator: Annotated[IBlogPostGenerator, Depends(get_blog_post_generator)],
@@ -303,6 +355,7 @@ async def get_generate_blog_post(
 	figure_chunk_repository: Annotated[
 		IFigureChunkRepository, Depends(get_figure_chunk_repository)
 	],
+	usage_repository: Annotated[IUsageRepository, Depends(get_usage_repository)],
 ) -> GenerateBlogPostUseCase:
 	return GenerateBlogPostUseCase(
 		blog_post_repository=blog_post_repository,
@@ -313,6 +366,7 @@ async def get_generate_blog_post(
 		image_embedder=image_embedder,
 		text_chunk_repository=text_chunk_repository,
 		figure_chunk_repository=figure_chunk_repository,
+		usage_repository=usage_repository,
 	)
 
 
@@ -329,6 +383,7 @@ def get_sse_generate_blog_post(
 	figure_chunk_repository: Annotated[
 		IFigureChunkRepository, Depends(get_figure_chunk_repository)
 	],
+	usage_repository: Annotated[IUsageRepository, Depends(get_usage_repository)],
 ) -> GenerateBlogPostSSEUseCase:
 	return GenerateBlogPostSSEUseCase(
 		blog_post_unit_of_work=blog_post_unit_of_work,
@@ -339,6 +394,7 @@ def get_sse_generate_blog_post(
 		image_embedder=image_embedder,
 		text_chunk_repository=text_chunk_repository,
 		figure_chunk_repository=figure_chunk_repository,
+		usage_repository=usage_repository,
 	)
 
 
@@ -354,6 +410,7 @@ async def get_generate_blog_post_from_pdf(
 	figure_chunk_repository: Annotated[
 		IFigureChunkRepository, Depends(get_figure_chunk_repository)
 	],
+	usage_repository: Annotated[IUsageRepository, Depends(get_usage_repository)],
 ) -> GenerateBlogPostFromPdfUseCase:
 	return GenerateBlogPostFromPdfUseCase(
 		blog_post_repository=blog_post_repository,
@@ -363,6 +420,7 @@ async def get_generate_blog_post_from_pdf(
 		chunk_analyzer=chunk_analyzer,
 		text_chunk_repository=text_chunk_repository,
 		figure_chunk_repository=figure_chunk_repository,
+		usage_repository=usage_repository,
 	)
 
 
@@ -378,6 +436,7 @@ def get_sse_generate_blog_post_from_pdf(
 	figure_chunk_repository: Annotated[
 		IFigureChunkRepository, Depends(get_figure_chunk_repository)
 	],
+	usage_repository: Annotated[IUsageRepository, Depends(get_usage_repository)],
 ) -> GenerateBlogPostFromPdfSSEUseCase:
 	return GenerateBlogPostFromPdfSSEUseCase(
 		blog_post_unit_of_work=blog_post_unit_of_work,
@@ -387,4 +446,5 @@ def get_sse_generate_blog_post_from_pdf(
 		chunk_analyzer=chunk_analyzer,
 		text_chunk_repository=text_chunk_repository,
 		figure_chunk_repository=figure_chunk_repository,
+		usage_repository=usage_repository,
 	)

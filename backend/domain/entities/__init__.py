@@ -3,6 +3,7 @@ from .arxiv import (
 	ArxivPaperMetadata,
 	ArxivPaperMetadataWithTranslatedUrl,
 )
+from .auth_user import AuthUser
 from .blog import BlogPost
 from .blog_stream import (
 	CompleteBlogChunk,
@@ -26,6 +27,7 @@ __all__ = [
 	'ArxivPaperAuthor',
 	'ArxivPaperMetadata',
 	'ArxivPaperMetadataWithTranslatedUrl',
+	'AuthUser',
 	'BlogPost',
 	'CompleteBlogChunk',
 	'DocumentChunk',

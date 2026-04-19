@@ -112,7 +112,13 @@ export default function Pdf() {
             </ul>
           )}
 
-          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+          {error === 'limit_exceeded' ? (
+            <div className="mt-3 rounded-lg border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
+              今月の生成回数（10回）を使い切りました。有料プランは近日公開予定です。
+            </div>
+          ) : error ? (
+            <p className="mt-3 text-sm text-destructive">{error}</p>
+          ) : null}
         </form>
       </section>
     </main>

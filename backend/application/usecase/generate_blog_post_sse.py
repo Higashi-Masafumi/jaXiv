@@ -7,9 +7,9 @@ from logging import getLogger
 from pathlib import Path
 
 from application.unit_of_works import BlogPostUnitOfWork
+from domain.entities.auth_user import AuthUser
 from domain.entities.blog import BlogPost
 from domain.value_objects.blog_source_type import BlogSourceType
-from domain.value_objects.user_id import UserId
 from domain.entities.blog_stream import (
 	CompleteBlogChunk,
 	ErrorBlogChunk,
@@ -28,6 +28,7 @@ from domain.repositories import (
 	IFigureChunkRepository,
 	IFigureStorageRepository,
 	ITextChunkRepository,
+	IUsageRepository,
 )
 from domain.value_objects import ArxivPaperId
 from domain.value_objects.image_url import ImageUrl
@@ -48,6 +49,7 @@ class GenerateBlogPostSSEUseCase:
 		image_embedder: IImageEmbedder,
 		text_chunk_repository: ITextChunkRepository,
 		figure_chunk_repository: IFigureChunkRepository,
+		usage_repository: IUsageRepository,
 	):
 		self._logger = getLogger(__name__)
 		self._uow = blog_post_unit_of_work
@@ -58,12 +60,13 @@ class GenerateBlogPostSSEUseCase:
 		self._image_embedder = image_embedder
 		self._text_chunk_repository = text_chunk_repository
 		self._figure_chunk_repository = figure_chunk_repository
+		self._usage_repository = usage_repository
 
 	async def execute(
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		output_dir: str,
-		user_id: UserId | None = None,
+		auth_user: AuthUser,
 	) -> AsyncIterator[TypedBlogChunk]:
 		try:
 			async with self._uow as uow:
@@ -74,6 +77,14 @@ class GenerateBlogPostSSEUseCase:
 					message='キャッシュ済みのブログを返します。',
 					paper_id=existing.paper_id,
 				)
+				return
+
+			max_count = await self._usage_repository.get_max_usage_count(auth_user)
+			month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+			async with self._uow as uow:
+				count = await uow.blog_posts_repository.count_generated_by_user(auth_user.user_id, since=month_start)
+			if count >= max_count:
+				yield ErrorBlogChunk(message='limit_exceeded', error_details='limit_exceeded')
 				return
 
 			yield IntermediateBlogChunk(message='メタデータを取得しています...')
@@ -154,7 +165,7 @@ class GenerateBlogPostSSEUseCase:
 				source_url=str(paper_metadata.source_url),
 				content=markdown_content,
 				source_type=BlogSourceType('arxiv'),
-				user_id=user_id,
+				user_id=auth_user.user_id,
 				created_at=now,
 				updated_at=now,
 			)

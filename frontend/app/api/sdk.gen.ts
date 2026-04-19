@@ -23,6 +23,8 @@ import type {
   GetBlogApiV1BlogPaperIdGetData,
   GetBlogApiV1BlogPaperIdGetErrors,
   GetBlogApiV1BlogPaperIdGetResponses,
+  GetMyGenerationCountApiV1BlogMyGenerationCountGetData,
+  GetMyGenerationCountApiV1BlogMyGenerationCountGetResponses,
   ListBlogsApiV1BlogGetData,
   ListBlogsApiV1BlogGetErrors,
   ListBlogsApiV1BlogGetResponses,
@@ -123,6 +125,27 @@ export const listMyBlogsApiV1BlogMyGet = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/api/v1/blog/my',
+    ...options,
+  })
+
+/**
+ * Get My Generation Count
+ */
+export const getMyGenerationCountApiV1BlogMyGenerationCountGet = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<
+    GetMyGenerationCountApiV1BlogMyGenerationCountGetData,
+    ThrowOnError
+  >,
+) =>
+  (options?.client ?? client).get<
+    GetMyGenerationCountApiV1BlogMyGenerationCountGetResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/blog/my/generation-count',
     ...options,
   })
 

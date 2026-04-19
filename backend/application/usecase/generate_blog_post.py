@@ -5,9 +5,10 @@ from datetime import UTC, datetime
 from logging import getLogger
 from pathlib import Path
 
+from domain.entities.auth_user import AuthUser
 from domain.entities.blog import BlogPost
+from domain.errors.domain_error import GenerationLimitExceededError
 from domain.value_objects.blog_source_type import BlogSourceType
-from domain.value_objects.user_id import UserId
 from domain.entities.document_chunk import DocumentFigureChunk, DocumentTextChunk
 from domain.gateways import (
 	IArxivSourceFetcher,
@@ -21,6 +22,7 @@ from domain.repositories import (
 	IFigureChunkRepository,
 	IFigureStorageRepository,
 	ITextChunkRepository,
+	IUsageRepository,
 )
 from domain.value_objects import ArxivPaperId
 from domain.value_objects.image_url import ImageUrl
@@ -41,6 +43,7 @@ class GenerateBlogPostUseCase:
 		image_embedder: IImageEmbedder,
 		text_chunk_repository: ITextChunkRepository,
 		figure_chunk_repository: IFigureChunkRepository,
+		usage_repository: IUsageRepository,
 	):
 		self._logger = getLogger(__name__)
 		self._blog_post_repository = blog_post_repository
@@ -51,9 +54,13 @@ class GenerateBlogPostUseCase:
 		self._image_embedder = image_embedder
 		self._text_chunk_repository = text_chunk_repository
 		self._figure_chunk_repository = figure_chunk_repository
+		self._usage_repository = usage_repository
 
 	async def execute(
-		self, arxiv_paper_id: ArxivPaperId, output_dir: str, user_id: UserId | None = None
+		self,
+		arxiv_paper_id: ArxivPaperId,
+		output_dir: str,
+		auth_user: AuthUser,
 	) -> BlogPost:
 		"""Generate (or return cached) a blog post for the given arXiv paper."""
 		try:
@@ -61,6 +68,12 @@ class GenerateBlogPostUseCase:
 			if existing is not None:
 				self._logger.info('Returning cached blog post for %s', arxiv_paper_id.root)
 				return existing
+
+			max_count = await self._usage_repository.get_max_usage_count(auth_user)
+			month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+			count = await self._blog_post_repository.count_generated_by_user(auth_user.user_id, since=month_start)
+			if count >= max_count:
+				raise GenerationLimitExceededError(monthly_count=count, limit=max_count)
 
 			paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
 				paper_id=arxiv_paper_id
@@ -141,7 +154,7 @@ class GenerateBlogPostUseCase:
 				source_url=str(paper_metadata.source_url),
 				content=markdown_content,
 				source_type=BlogSourceType('arxiv'),
-				user_id=user_id,
+				user_id=auth_user.user_id,
 				created_at=now,
 				updated_at=now,
 			)

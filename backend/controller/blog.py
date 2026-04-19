@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, Upload
 from sse_starlette import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
+from domain.entities.auth_user import AuthUser
 from domain.value_objects.user_id import UserId
 
 from application.usecase import (
@@ -16,29 +17,37 @@ from application.usecase import (
 	GenerateBlogPostSSEUseCase,
 	GenerateBlogPostUseCase,
 	GetBlogPostUseCase,
+	GetMyGenerationCountUseCase,
 	ListBlogPostsUseCase,
 	ListMyBlogPostsUseCase,
 	RagSearchImageUseCase,
 	RagSearchTextUseCase,
 )
-from controller.schemas.blog_response import BlogPostResponseSchema, PaginatedBlogPostResponseSchema
+from controller.schemas.blog_response import (
+	BlogPostResponseSchema,
+	GenerationCountResponseSchema,
+	PaginatedBlogPostResponseSchema,
+)
 from controller.schemas.rag_response import (
 	RagSearchImageResponseSchema,
 	RagSearchRequestSchema,
 	RagSearchTextResponseSchema,
 )
-from domain.errors.domain_error import PdfProcessingError
+from domain.errors.domain_error import GenerationLimitExceededError, PdfProcessingError
 from domain.value_objects.arxiv_paper_id import ArxivPaperId
 from domain.value_objects.blog_paper_id import InvalidBlogPaperIdError
 from infrastructure.dependencies import (
+	get_auth_user,
 	get_generate_blog_post,
 	get_generate_blog_post_from_pdf,
 	get_get_blog_post,
+	get_get_my_generation_count,
 	get_list_blog_posts,
 	get_list_my_blog_posts,
 	get_optional_user_id,
 	get_rag_search_image_use_case,
 	get_rag_search_text_use_case,
+	get_required_auth_user,
 	get_required_user_id,
 	get_sse_generate_blog_post,
 	get_sse_generate_blog_post_from_pdf,
@@ -77,11 +86,20 @@ async def list_my_blogs(
 	return PaginatedBlogPostResponseSchema.from_paginated(paginated)
 
 
+@router.get('/my/generation-count', response_model=GenerationCountResponseSchema)
+async def get_my_generation_count(
+	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
+	use_case: Annotated[GetMyGenerationCountUseCase, Depends(get_get_my_generation_count)],
+) -> GenerationCountResponseSchema:
+	count = await use_case.execute(auth_user=auth_user)
+	return GenerationCountResponseSchema.from_entity(count)
+
+
 @router.post('/arxiv/{arxiv_paper_id}', response_model=BlogPostResponseSchema)
 async def generate_blog(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
 	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
-	user_id: Annotated[uuid.UUID | None, Depends(get_optional_user_id)] = None,
+	auth_user: Annotated[AuthUser, Depends(get_auth_user)],
 ) -> BlogPostResponseSchema:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
@@ -89,9 +107,14 @@ async def generate_blog(
 		blog_post = await generate_blog_post.execute(
 			arxiv_paper_id=paper_id,
 			output_dir=output_dir,
-			user_id=UserId(user_id) if user_id else None,
+			auth_user=auth_user,
 		)
 		return BlogPostResponseSchema.from_entity(blog_post)
+	except GenerationLimitExceededError as e:
+		raise HTTPException(
+			status_code=429,
+			detail={'reason': 'limit_exceeded', 'monthly': e.monthly_count},
+		) from e
 	except Exception as e:
 		raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -100,7 +123,7 @@ async def generate_blog(
 async def generate_blog_stream(
 	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
 	generate_blog_post: Annotated[GenerateBlogPostSSEUseCase, Depends(get_sse_generate_blog_post)],
-	user_id: Annotated[uuid.UUID | None, Depends(get_optional_user_id)] = None,
+	auth_user: Annotated[AuthUser, Depends(get_auth_user)],
 ) -> EventSourceResponse:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
@@ -109,7 +132,7 @@ async def generate_blog_stream(
 		iterator = generate_blog_post.execute(
 			arxiv_paper_id=paper_id,
 			output_dir=output_dir,
-			user_id=UserId(user_id) if user_id else None,
+			auth_user=auth_user,
 		)
 		async for chunk in iterator:
 			if chunk.type == 'intermediate':
@@ -184,7 +207,7 @@ async def generate_blog_from_pdf(
 	generate_blog_post_from_pdf: Annotated[
 		GenerateBlogPostFromPdfUseCase, Depends(get_generate_blog_post_from_pdf)
 	],
-	user_id: Annotated[uuid.UUID, Depends(get_required_user_id)],
+	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 ) -> BlogPostResponseSchema:
 	if not file.filename or not file.filename.lower().endswith('.pdf'):
 		raise HTTPException(status_code=400, detail='Uploaded file must be a PDF.')
@@ -198,9 +221,14 @@ async def generate_blog_from_pdf(
 
 		try:
 			blog_post = await generate_blog_post_from_pdf.execute(
-				pdf_path=pdf_path, user_id=UserId(user_id)
+				pdf_path=pdf_path, auth_user=auth_user
 			)
 			return BlogPostResponseSchema.from_entity(blog_post)
+		except GenerationLimitExceededError as e:
+			raise HTTPException(
+				status_code=429,
+				detail={'reason': 'limit_exceeded', 'monthly': e.monthly_count},
+			) from e
 		except Exception as e:
 			raise HTTPException(status_code=500, detail=str(e)) from e
 	finally:
@@ -213,7 +241,7 @@ async def generate_blog_from_pdf_stream(
 	generate_blog_post_from_pdf: Annotated[
 		GenerateBlogPostFromPdfSSEUseCase, Depends(get_sse_generate_blog_post_from_pdf)
 	],
-	user_id: Annotated[uuid.UUID, Depends(get_required_user_id)],
+	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 ) -> EventSourceResponse:
 	if not file.filename or not file.filename.lower().endswith('.pdf'):
 		raise HTTPException(status_code=400, detail='Uploaded file must be a PDF.')
@@ -227,7 +255,7 @@ async def generate_blog_from_pdf_stream(
 	async def run_workflow():
 		try:
 			iterator = generate_blog_post_from_pdf.execute(
-				pdf_path=pdf_path, user_id=UserId(user_id)
+				pdf_path=pdf_path, auth_user=auth_user
 			)
 			async for chunk in iterator:
 				if chunk.type == 'intermediate':
