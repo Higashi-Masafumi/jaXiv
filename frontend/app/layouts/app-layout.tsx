@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import {
   ArchiveIcon,
@@ -9,7 +8,6 @@ import {
   SparklesIcon,
 } from 'lucide-react'
 
-import { getMyGenerationCountApiV1BlogMyGenerationCountGet } from '~/api/sdk.gen'
 import { useAuth } from '~/contexts/auth-context'
 import {
   Sidebar,
@@ -34,27 +32,8 @@ const NAV_ITEMS = [
   { title: 'ブログ一覧', url: '/blog', icon: ArchiveIcon },
 ] as const
 
-function useGenerationCount(enabled: boolean) {
-  const [count, setCount] = useState<{ monthly: number; limit: number } | null>(
-    null,
-  )
-
-  useEffect(() => {
-    if (!enabled) return
-    getMyGenerationCountApiV1BlogMyGenerationCountGet({ throwOnError: false })
-      .then(
-        ({ data }) =>
-          data && setCount({ monthly: data.monthly, limit: data.limit }),
-      )
-      .catch(() => {})
-  }, [enabled])
-
-  return count
-}
-
 function AppSidebar() {
   const { user, isAnonymous, signInWithGoogle, signOut } = useAuth()
-  const generationCount = useGenerationCount(!isAnonymous)
 
   return (
     <Sidebar collapsible="icon">
@@ -133,11 +112,6 @@ function AppSidebar() {
             <p className="truncate px-1 text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
               {user?.email ?? ''}
             </p>
-            {generationCount && (
-              <p className="px-1 text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
-                今月の生成: {generationCount.monthly}/{generationCount.limit} 回
-              </p>
-            )}
             <Button
               variant="ghost"
               size="sm"
