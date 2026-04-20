@@ -1,4 +1,5 @@
 from .i_blog_post_repository import IBlogPostRepository
+from .i_chat_thread_repository import IChatThreadRepository
 from .i_figure_chunk_repository import IFigureChunkRepository
 from .i_figure_storage_repository import IFigureStorageRepository
 from .i_file_storage_repository import IFileStorageRepository
@@ -8,6 +9,7 @@ from .i_usage_repository import IUsageRepository
 
 __all__ = [
 	'IBlogPostRepository',
+	'IChatThreadRepository',
 	'IFigureChunkRepository',
 	'IFigureStorageRepository',
 	'IFileStorageRepository',

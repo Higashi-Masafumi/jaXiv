@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import ARRAY, Column, Field, SQLModel, String
 
@@ -63,3 +64,20 @@ class BlogPostContentModel(SQLModel, table=True):
 		sa_column=Column(DateTime(timezone=True)),
 		description='The last update time',
 	)
+
+
+class ChatThreadModel(SQLModel, table=True):
+	__tablename__ = 'chat_thread'  # type: ignore[assignment]
+
+	id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+	paper_id: str = Field(index=True, description='The paper ID this thread belongs to')
+	user_id: uuid.UUID = Field(
+		sa_column=Column(PG_UUID(as_uuid=True), nullable=False, index=True),
+		description='Supabase user ID (login required)',
+	)
+	messages: list = Field(
+		sa_column=Column(JSONB, nullable=False, server_default='[]'),
+		description='JSON array of chat messages',
+	)
+	created_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+	updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))

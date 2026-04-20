@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.usecase import (
 	ArxivRedirector,
 	ArxivRedirectorSSEUseCase,
+	ChatWithPaperUseCase,
 	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostFromPdfSSEUseCase,
 	GenerateBlogPostUseCase,
@@ -26,6 +27,7 @@ from application.unit_of_works import BlogPostUnitOfWork, TranslatedArxivUnitOfW
 from domain.gateways import (
 	IArxivSourceFetcher,
 	IBlogPostGenerator,
+	IChatLLMGateway,
 	IImageEmbedder,
 	ILatexCompiler,
 	ILatexTranslator,
@@ -38,6 +40,7 @@ from domain.gateways import (
 from domain.entities.auth_user import AuthUser
 from domain.repositories import (
 	IBlogPostRepository,
+	IChatThreadRepository,
 	IFigureChunkRepository,
 	IFigureStorageRepository,
 	IFileStorageRepository,
@@ -48,7 +51,7 @@ from domain.repositories import (
 from domain.value_objects.user_id import UserId
 from domain.value_objects.user_role import UserRole
 from infrastructure.arxiv_api import ArxivSourceFetcher
-from infrastructure.gemini import GeminiBlogPostGenerator
+from infrastructure.gemini import GeminiBlogPostGenerator, GeminiChatLLM
 from infrastructure.latex_subprocess import LatexCompiler
 from infrastructure.mistral import MistralLatexTranslator
 from infrastructure.pdf import (
@@ -65,6 +68,7 @@ from infrastructure.postgres import (
 )
 from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
+	PostgresChatThreadRepository,
 	PostgresTranslatedArxivRepository,
 )
 from infrastructure.auth import (
@@ -447,4 +451,31 @@ def get_sse_generate_blog_post_from_pdf(
 		text_chunk_repository=text_chunk_repository,
 		figure_chunk_repository=figure_chunk_repository,
 		usage_repository=usage_repository,
+	)
+
+
+# --------------------------------------
+# Chat use case providers
+# --------------------------------------
+def get_gemini_chat_llm() -> IChatLLMGateway:
+	return GeminiChatLLM()
+
+
+async def get_chat_thread_repository(
+	session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> IChatThreadRepository:
+	return PostgresChatThreadRepository(session=session)
+
+
+async def get_chat_with_paper_use_case(
+	llm: Annotated[IChatLLMGateway, Depends(get_gemini_chat_llm)],
+	thread_repo: Annotated[IChatThreadRepository, Depends(get_chat_thread_repository)],
+	rag_text: Annotated[RagSearchTextUseCase, Depends(get_rag_search_text_use_case)],
+	rag_image: Annotated[RagSearchImageUseCase, Depends(get_rag_search_image_use_case)],
+) -> ChatWithPaperUseCase:
+	return ChatWithPaperUseCase(
+		llm=llm,
+		thread_repo=thread_repo,
+		rag_text=rag_text,
+		rag_image=rag_image,
 	)

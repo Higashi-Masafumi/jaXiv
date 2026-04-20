@@ -6,7 +6,6 @@ declare namespace Cloudflare {
     mainModule: typeof import('./workers/app')
   }
   interface Env {
-    AI: Ai
     VITE_API_BASE_URL: string
     API_BASE_URL: string
   }

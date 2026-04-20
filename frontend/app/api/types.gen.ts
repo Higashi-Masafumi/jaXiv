@@ -67,6 +67,24 @@ export type BodyGenerateBlogFromPdfStreamApiV1BlogPdfStreamPost = {
 }
 
 /**
+ * ChatRequest
+ */
+export type ChatRequest = {
+  /**
+   * Message
+   *
+   * User message text
+   */
+  message: string
+  /**
+   * Thread Id
+   *
+   * Existing thread ID to continue
+   */
+  thread_id?: string | null
+}
+
+/**
  * GenerationCountResponseSchema
  */
 export type GenerationCountResponseSchema = {
@@ -228,6 +246,186 @@ export type ValidationError = {
    */
   type: string
 }
+
+/**
+ * BlockDeltaEvent
+ */
+export type BlockDeltaEvent = {
+  /**
+   * Type
+   */
+  type?: 'block_delta'
+  /**
+   * Index
+   */
+  index: number
+  delta: TextDelta
+}
+
+/**
+ * BlockStartEvent
+ */
+export type BlockStartEvent = {
+  /**
+   * Type
+   */
+  type?: 'block_start'
+  /**
+   * Index
+   */
+  index: number
+  /**
+   * Block
+   */
+  block:
+    | ({
+        type: 'text'
+      } & TextBlock)
+    | ({
+        type: 'tool_use'
+      } & ToolUseBlock)
+}
+
+/**
+ * BlockStopEvent
+ */
+export type BlockStopEvent = {
+  /**
+   * Type
+   */
+  type?: 'block_stop'
+  /**
+   * Index
+   */
+  index: number
+}
+
+/**
+ * ErrorEvent
+ */
+export type ErrorEvent = {
+  /**
+   * Type
+   */
+  type?: 'error'
+  /**
+   * Message
+   */
+  message: string
+}
+
+/**
+ * MessageStopEvent
+ */
+export type MessageStopEvent = {
+  /**
+   * Type
+   */
+  type?: 'message_stop'
+}
+
+/**
+ * TextBlock
+ */
+export type TextBlock = {
+  /**
+   * Type
+   */
+  type?: 'text'
+}
+
+/**
+ * TextDelta
+ */
+export type TextDelta = {
+  /**
+   * Type
+   */
+  type?: 'text_delta'
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * ThreadIdEvent
+ */
+export type ThreadIdEvent = {
+  /**
+   * Type
+   */
+  type?: 'thread_id'
+  /**
+   * Thread Id
+   */
+  thread_id: string
+}
+
+/**
+ * ToolResultEvent
+ */
+export type ToolResultEvent = {
+  /**
+   * Type
+   */
+  type?: 'tool_result'
+  /**
+   * Tool Use Id
+   */
+  tool_use_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Content
+   */
+  content: {
+    [key: string]: unknown
+  }
+}
+
+/**
+ * ToolUseBlock
+ */
+export type ToolUseBlock = {
+  /**
+   * Type
+   */
+  type?: 'tool_use'
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+}
+
+export type ChatStreamEvent =
+  | ({
+      type: 'thread_id'
+    } & ThreadIdEvent)
+  | ({
+      type: 'block_start'
+    } & BlockStartEvent)
+  | ({
+      type: 'block_delta'
+    } & BlockDeltaEvent)
+  | ({
+      type: 'block_stop'
+    } & BlockStopEvent)
+  | ({
+      type: 'tool_result'
+    } & ToolResultEvent)
+  | ({
+      type: 'message_stop'
+    } & MessageStopEvent)
+  | ({
+      type: 'error'
+    } & ErrorEvent)
 
 export type TranslateSyncApiV1TranslateArxivArxivPaperIdPostData = {
   body?: never
@@ -618,6 +816,38 @@ export type GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostResponses = {
    */
   200: unknown
 }
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostData = {
+  body: ChatRequest
+  path: {
+    /**
+     * Paper Id
+     */
+    paper_id: string
+  }
+  query?: never
+  url: '/api/v1/chat/paper/{paper_id}'
+}
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostError =
+  ChatWithPaperApiV1ChatPaperPaperIdPostErrors[keyof ChatWithPaperApiV1ChatPaperPaperIdPostErrors]
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostResponses = {
+  /**
+   * SSE stream of ChatStreamEvent objects
+   */
+  200: ChatStreamEvent
+}
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostResponse =
+  ChatWithPaperApiV1ChatPaperPaperIdPostResponses[keyof ChatWithPaperApiV1ChatPaperPaperIdPostResponses]
 
 export type RootGetData = {
   body?: never

@@ -1,11 +1,3 @@
-import type { DynamicToolUIPart, ToolUIPart, UIMessage } from 'ai'
-import {
-  DefaultChatTransport,
-  getToolName,
-  isToolUIPart,
-  isTextUIPart,
-} from 'ai'
-import { useChat } from '@ai-sdk/react'
 import {
   AlertCircleIcon,
   ArrowUpIcon,
@@ -20,8 +12,14 @@ import { Button } from '~/components/ui/button'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { Textarea } from '~/components/ui/textarea'
 import { cn } from '~/lib/utils'
+import {
+  type MessagePart,
+  type PaperChatMessage,
+  type TextPart,
+  type ToolCallPart,
+  usePaperChat,
+} from '~/hooks/use-paper-chat'
 
-/** 下部固定の丸みのある入力（textarea + 円形送信） */
 function ChatComposer(props: {
   value: string
   onChange: (v: string) => void
@@ -80,43 +78,55 @@ function ChatComposer(props: {
   )
 }
 
-function ToolPart({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
-  const toolName = getToolName(part)
-  if (part.state === 'input-streaming') {
-    return (
-      <pre className="text-xs text-muted-foreground">
-        {JSON.stringify(part.input, null, 2)}
-      </pre>
-    )
-  }
-  if (part.state === 'input-available') {
+function ToolCallPartView({ part }: { part: ToolCallPart }) {
+  if (part.state === 'executing') {
     return (
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <WrenchIcon className="size-3 shrink-0" />
-        <span>{toolName}を実行中…</span>
+        <span>{part.name}を実行中…</span>
       </div>
     )
   }
-  if (part.state === 'output-available') {
+  if (part.state === 'done') {
     return (
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <CheckIcon className="size-3 shrink-0 text-green-500" />
-        <span>{toolName}を実行完了</span>
+        <span>{part.name}を実行完了</span>
       </div>
     )
   }
-  if (part.state === 'output-error') {
+  if (part.state === 'error') {
     return (
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <AlertCircleIcon className="size-3 shrink-0 text-red-500" />
-        <span>{toolName}を実行エラー</span>
+        <span>{part.name}を実行エラー</span>
       </div>
     )
   }
   return null
 }
 
-function MessageContent({ m }: { m: UIMessage }) {
+function MessagePartView({
+  part,
+  isUser,
+}: {
+  part: MessagePart
+  isUser: boolean
+}) {
+  if (part.type === 'text') {
+    return (
+      <MarkdownWithMath variant={isUser ? 'primary' : 'default'}>
+        {part.text}
+      </MarkdownWithMath>
+    )
+  }
+  if (part.type === 'tool-call') {
+    return <ToolCallPartView part={part} />
+  }
+  return null
+}
+
+function MessageContent({ m }: { m: PaperChatMessage }) {
   const isUser = m.role === 'user'
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
@@ -128,22 +138,9 @@ function MessageContent({ m }: { m: UIMessage }) {
             : 'bg-muted text-foreground',
         )}
       >
-        {m.parts.map((part, i) => {
-          if (isTextUIPart(part)) {
-            return (
-              <MarkdownWithMath
-                key={i}
-                variant={isUser ? 'primary' : 'default'}
-              >
-                {part.text}
-              </MarkdownWithMath>
-            )
-          }
-          if (isToolUIPart(part)) {
-            return <ToolPart key={part.toolCallId} part={part} />
-          }
-          return null
-        })}
+        {m.parts.map((part, i) => (
+          <MessagePartView key={i} part={part} isUser={isUser} />
+        ))}
       </div>
     </div>
   )
@@ -153,11 +150,7 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const { messages, sendMessage, status, error } = useChat({
-    transport: new DefaultChatTransport({
-      api: `/api/blog/${encodeURIComponent(paperId)}/chat`,
-    }),
-  })
+  const { messages, sendMessage, status, error } = usePaperChat(paperId)
 
   const isSubmitted = status === 'submitted'
   const busy = isSubmitted || status === 'streaming'
@@ -169,7 +162,7 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
   const submitChat = () => {
     const t = input.trim()
     if (!t || busy) return
-    void sendMessage({ text: t })
+    void sendMessage(t)
     setInput('')
   }
 
