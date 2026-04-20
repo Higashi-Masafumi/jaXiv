@@ -14,3 +14,4 @@ storybook-static
 .dev.vars*
 !.dev.vars.example
 !.env.example
+openapi-ts-error*.log
