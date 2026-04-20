@@ -19,6 +19,7 @@ class ChatMessage(BaseModel):
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
+    name: str | None = None  # tool name for role='tool' messages
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

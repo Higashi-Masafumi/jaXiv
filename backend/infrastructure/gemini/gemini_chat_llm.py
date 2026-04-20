@@ -16,7 +16,6 @@ from tenacity import (
     wait_exponential,
 )
 
-from domain.entities.chat import ChatMessage
 from domain.gateways.i_chat_llm_gateway import (
     IChatLLMGateway,
     LLMResponse,
@@ -73,7 +72,7 @@ def _build_gemini_tools(tool_defs: list[ToolDefinition]) -> list[types.Tool] | N
         types.FunctionDeclaration(
             name=td.name,
             description=td.description,
-            parameters=td.parameters,
+            parameters=td.parameters,  # type: ignore[arg-type]
         )
         for td in tool_defs
     ]
@@ -101,7 +100,7 @@ class GeminiChatLLM(IChatLLMGateway):
 
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
-            tools=gemini_tools,
+            tools=gemini_tools,  # type: ignore[arg-type]
         )
 
         response = await self._generate_with_retry(
@@ -110,16 +109,18 @@ class GeminiChatLLM(IChatLLMGateway):
             config=config,
         )
 
+        if not response.candidates:
+            return LLMResponse(text='')
         candidate = response.candidates[0]
-        parts = candidate.content.parts if candidate.content else []
+        parts = (candidate.content.parts if candidate.content else None) or []
 
         func_calls = [p for p in parts if p.function_call is not None]
         if func_calls:
             tool_calls = [
                 ToolCallItem(
                     id=str(uuid.uuid4()),
-                    name=fc.function_call.name,
-                    args=dict(fc.function_call.args),
+                    name=fc.function_call.name,  # type: ignore[union-attr,arg-type]
+                    args=dict(fc.function_call.args),  # type: ignore[union-attr,arg-type]
                 )
                 for fc in func_calls
             ]
@@ -138,7 +139,7 @@ class GeminiChatLLM(IChatLLMGateway):
 
         async for chunk in await self._client.aio.models.generate_content_stream(
             model=self._model,
-            contents=contents,
+            contents=contents,  # type: ignore[arg-type]
             config=config,
         ):
             if chunk.text:

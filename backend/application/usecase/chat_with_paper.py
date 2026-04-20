@@ -69,7 +69,8 @@ def _thread_to_llm_messages(thread: ChatThread) -> list[dict[str, Any]]:
             ]
         if m.tool_call_id:
             d['tool_call_id'] = m.tool_call_id
-            d['name'] = m.content  # reuse content field for tool name lookup
+            if m.name:
+                d['name'] = m.name
         result.append(d)
     return result
 
@@ -165,6 +166,7 @@ class ChatWithPaperUseCase:
                                 role='tool',
                                 content=json.dumps(tool_result, ensure_ascii=False),
                                 tool_call_id=tc.id,
+                                name=tc.name,
                             )
                         )
 
@@ -207,9 +209,9 @@ class ChatWithPaperUseCase:
     ) -> dict[str, Any]:
         query = args.get('query', '')
         if name == 'textSearch':
-            result = await self._rag_text.execute(paper_id, query)
-            return result.model_dump()
+            text_result = await self._rag_text.execute(paper_id, query)
+            return text_result.model_dump()
         if name == 'imageSearch':
-            result = await self._rag_image.execute(paper_id, query)
-            return result.model_dump()
+            image_result = await self._rag_image.execute(paper_id, query)
+            return image_result.model_dump()
         return {'error': f'Unknown tool: {name}'}

@@ -92,7 +92,9 @@ export function usePaperChat(paperId: string) {
       } = await supabase.auth.getSession()
       if (!session || session.user.is_anonymous) {
         setError(
-          new Error('チャットを使用するにはGoogleアカウントでログインしてください'),
+          new Error(
+            'チャットを使用するにはGoogleアカウントでログインしてください',
+          ),
         )
         return
       }
@@ -135,7 +137,10 @@ export function usePaperChat(paperId: string) {
             if (event.block.type === 'text') {
               updateAssistant(m => ({
                 ...m,
-                parts: [...m.parts, { type: 'text', text: '' } satisfies TextPart],
+                parts: [
+                  ...m.parts,
+                  { type: 'text', text: '' } satisfies TextPart,
+                ],
               }))
             } else {
               updateAssistant(m => ({
@@ -247,9 +252,7 @@ export function usePaperChat(paperId: string) {
         setError(e instanceof Error ? e : new Error(String(e)))
         // Remove empty assistant placeholder on error
         setMessages(prev =>
-          prev.filter(
-            m => !(m.id === assistantId && m.parts.length === 0),
-          ),
+          prev.filter(m => !(m.id === assistantId && m.parts.length === 0)),
         )
       } finally {
         setStatus('idle')

@@ -35,7 +35,7 @@ app.include_router(router)
 def _rewrite_refs(obj: Any, old_prefix: str, new_prefix: str) -> Any:
     """Recursively rewrite JSON Schema $ref paths and discriminator mappings."""
     if isinstance(obj, dict):
-        result = {}
+        result: dict[str, Any] = {}
         for k, v in obj.items():
             if k == '$ref' and isinstance(v, str):
                 result[k] = v.replace(old_prefix, new_prefix)
@@ -62,7 +62,7 @@ def custom_openapi() -> dict[str, Any]:
         routes=app.routes,
     )
     # Inject chat stream event schemas so hey-api can generate TypeScript types
-    adapter = TypeAdapter(ChatStreamEvent)
+    adapter: TypeAdapter[ChatStreamEvent] = TypeAdapter(ChatStreamEvent)
     event_schemas = adapter.json_schema(mode='serialization')
     defs = event_schemas.pop('$defs', {})
     # Rewrite internal $refs from #/$defs/X → #/components/schemas/X

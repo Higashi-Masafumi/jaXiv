@@ -15,7 +15,6 @@ import { cn } from '~/lib/utils'
 import {
   type MessagePart,
   type PaperChatMessage,
-  type TextPart,
   type ToolCallPart,
   usePaperChat,
 } from '~/hooks/use-paper-chat'

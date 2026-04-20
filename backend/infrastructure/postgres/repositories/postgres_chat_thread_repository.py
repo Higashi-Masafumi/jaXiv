@@ -30,6 +30,7 @@ class PostgresChatThreadRepository(IChatThreadRepository):
                     for tc in (m.get('tool_calls') or [])
                 ] or None,
                 tool_call_id=m.get('tool_call_id'),
+                name=m.get('name'),
                 timestamp=datetime.fromisoformat(m['timestamp']),
             )
             for m in (row.messages or [])
@@ -60,7 +61,8 @@ class PostgresChatThreadRepository(IChatThreadRepository):
                 ]
             if m.tool_call_id:
                 d['tool_call_id'] = m.tool_call_id
-                d['name'] = m.role  # store tool name for context
+            if m.name:
+                d['name'] = m.name
             result.append(d)
         return result
 
@@ -70,7 +72,7 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 
     async def find_by_id(self, thread_id: uuid.UUID) -> ChatThread | None:
         result = await self._session.execute(
-            select(ChatThreadModel).where(ChatThreadModel.id == thread_id)
+            select(ChatThreadModel).where(ChatThreadModel.id == thread_id)  # type: ignore[arg-type]
         )
         row = result.scalar_one_or_none()
         return self._row_to_entity(row) if row else None
@@ -80,8 +82,8 @@ class PostgresChatThreadRepository(IChatThreadRepository):
     ) -> ChatThread | None:
         result = await self._session.execute(
             select(ChatThreadModel).where(
-                ChatThreadModel.id == thread_id,
-                ChatThreadModel.user_id == user_id,
+                ChatThreadModel.id == thread_id,  # type: ignore[arg-type]
+                ChatThreadModel.user_id == user_id,  # type: ignore[arg-type]
             )
         )
         row = result.scalar_one_or_none()
@@ -89,7 +91,7 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 
     async def save(self, thread: ChatThread) -> None:
         result = await self._session.execute(
-            select(ChatThreadModel).where(ChatThreadModel.id == thread.id)
+            select(ChatThreadModel).where(ChatThreadModel.id == thread.id)  # type: ignore[arg-type]
         )
         row = result.scalar_one_or_none()
         if row is None:
