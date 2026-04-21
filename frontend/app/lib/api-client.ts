@@ -1,5 +1,5 @@
 import { supabase } from '~/lib/supabase'
-import { client } from './client.gen'
+import { client } from '~/api/client.gen'
 
 client.setConfig({
   baseUrl: import.meta.env.VITE_API_BASE_URL,
