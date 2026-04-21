@@ -28,8 +28,6 @@ from application.chat_events import (
 from .rag_search_image import RagSearchImageUseCase
 from .rag_search_text import RagSearchTextUseCase
 
-_MAX_TOOL_ROUNDS = 3
-
 _SYSTEM_PROMPT = """\
 あなたは論文の内容についての質問に答えるアシスタントです。
 論文内容を検索するツールを使用して事実に基づいた正確な回答を行なってください。
@@ -59,7 +57,7 @@ _TOOLS: list[ToolDefinition] = [
 ]
 
 
-def _thread_to_llm_messages(thread: ChatThread) -> list[dict[str, Any]]:
+def _to_llm_messages(thread: ChatThread) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for m in thread.messages:
         d: dict[str, Any] = {'role': m.role, 'content': m.content}
@@ -106,7 +104,6 @@ class ChatWithPaperUseCase:
         thread_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> AsyncIterator[ChatStreamEvent]:
-        # 1. スレッド取得 or 新規作成
         thread: ChatThread | None = None
         if thread_id:
             thread = await self._thread_repo.find_by_id_and_user(thread_id, user_id)
@@ -115,22 +112,19 @@ class ChatWithPaperUseCase:
 
         yield ThreadIdEvent(thread_id=str(thread.id))
 
-        # 2. ユーザーメッセージ追加
         thread.messages.append(ChatMessage(role='user', content=message))
 
-        # 3. アジェンティックループ
         tool_rounds = 0
         block_index = 0
 
         try:
             while True:
-                active_tools = _TOOLS if tool_rounds < _MAX_TOOL_ROUNDS else []
-                llm_messages = _thread_to_llm_messages(thread)
+                active_tools = _TOOLS if tool_rounds < 3 else []
+                response = await self._llm.generate(
+                    _to_llm_messages(thread), active_tools, _SYSTEM_PROMPT
+                )
 
-                response = await self._llm.generate(llm_messages, active_tools, _SYSTEM_PROMPT)
-
-                if response.tool_calls and tool_rounds < _MAX_TOOL_ROUNDS:
-                    # アシスタントのツール呼び出しメッセージを記録
+                if response.tool_calls and tool_rounds < 3:
                     thread.messages.append(
                         ChatMessage(
                             role='assistant',
@@ -142,7 +136,6 @@ class ChatWithPaperUseCase:
                     )
 
                     for tc in response.tool_calls:
-                        # ブロック開始
                         yield BlockStartEvent(
                             index=block_index,
                             block=ToolUseBlock(id=tc.id, name=tc.name),
@@ -150,17 +143,23 @@ class ChatWithPaperUseCase:
                         yield BlockStopEvent(index=block_index)
                         block_index += 1
 
-                        # ツール実行
-                        tool_result = await self._execute_tool(tc.name, tc.args, paper_id)
+                        query = tc.args.get('query', '')
+                        if tc.name == 'textSearch':
+                            tool_result = (
+                                await self._rag_text.execute(paper_id, query)
+                            ).model_dump()
+                        elif tc.name == 'imageSearch':
+                            tool_result = (
+                                await self._rag_image.execute(paper_id, query)
+                            ).model_dump()
+                        else:
+                            tool_result = {'error': f'Unknown tool: {tc.name}'}
 
-                        # ツール結果をストリームに送信
                         yield ToolResultEvent(
                             tool_use_id=tc.id,
                             name=tc.name,
                             content=tool_result,
                         )
-
-                        # ツール結果メッセージを記録
                         thread.messages.append(
                             ChatMessage(
                                 role='tool',
@@ -173,13 +172,12 @@ class ChatWithPaperUseCase:
                     tool_rounds += 1
 
                 else:
-                    # 最終テキストレスポンスをストリーミング
-                    llm_messages_final = _thread_to_llm_messages(thread)
                     accumulated = ''
-
                     yield BlockStartEvent(index=block_index, block=TextBlock())
 
-                    async for delta in self._llm.stream_text(llm_messages_final, _SYSTEM_PROMPT):
+                    async for delta in self._llm.stream_text(
+                        _to_llm_messages(thread), _SYSTEM_PROMPT
+                    ):
                         accumulated += delta
                         yield BlockDeltaEvent(
                             index=block_index,
@@ -187,7 +185,6 @@ class ChatWithPaperUseCase:
                         )
 
                     yield BlockStopEvent(index=block_index)
-
                     thread.messages.append(
                         ChatMessage(role='assistant', content=accumulated)
                     )
@@ -198,20 +195,6 @@ class ChatWithPaperUseCase:
             yield ErrorEvent(message=str(e))
             return
 
-        # 4. スレッド保存
         thread.updated_at = datetime.now(UTC)
         await self._thread_repo.save(thread)
-
         yield MessageStopEvent()
-
-    async def _execute_tool(
-        self, name: str, args: dict[str, Any], paper_id: str
-    ) -> dict[str, Any]:
-        query = args.get('query', '')
-        if name == 'textSearch':
-            text_result = await self._rag_text.execute(paper_id, query)
-            return text_result.model_dump()
-        if name == 'imageSearch':
-            image_result = await self._rag_image.execute(paper_id, query)
-            return image_result.model_dump()
-        return {'error': f'Unknown tool: {name}'}

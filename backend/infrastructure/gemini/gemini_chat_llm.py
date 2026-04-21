@@ -24,70 +24,64 @@ from domain.gateways.i_chat_llm_gateway import (
 )
 from infrastructure.gemini.config import get_gemini_config
 
-_gemini_config = get_gemini_config()
-
-
-def _messages_to_gemini_contents(
-    messages: list[dict[str, Any]],
-) -> list[types.Content]:
-    """Convert internal message dicts to Gemini Content objects."""
-    contents: list[types.Content] = []
-    for msg in messages:
-        role = msg['role']
-        if role == 'user':
-            contents.append(types.Content(role='user', parts=[types.Part.from_text(text=msg['content'])]))
-        elif role == 'assistant':
-            parts: list[types.Part] = []
-            if msg.get('tool_calls'):
-                for tc in msg['tool_calls']:
-                    parts.append(
-                        types.Part.from_function_call(
-                            name=tc['name'],
-                            args=tc['args'],
-                        )
-                    )
-            elif msg.get('content'):
-                parts.append(types.Part.from_text(text=msg['content']))
-            if parts:
-                contents.append(types.Content(role='model', parts=parts))
-        elif role == 'tool':
-            contents.append(
-                types.Content(
-                    role='user',
-                    parts=[
-                        types.Part.from_function_response(
-                            name=msg.get('name', 'tool'),
-                            response={'result': json.loads(msg['content'])},
-                        )
-                    ],
-                )
-            )
-    return contents
-
-
-def _build_gemini_tools(tool_defs: list[ToolDefinition]) -> list[types.Tool] | None:
-    if not tool_defs:
-        return None
-    declarations = [
-        types.FunctionDeclaration(
-            name=td.name,
-            description=td.description,
-            parameters=td.parameters,  # type: ignore[arg-type]
-        )
-        for td in tool_defs
-    ]
-    return [types.Tool(function_declarations=declarations)]
-
 
 class GeminiChatLLM(IChatLLMGateway):
     """Chat LLM gateway backed by Gemini."""
 
     def __init__(self, model: str = 'gemini-3-flash-preview') -> None:
         self._client = genai.Client(
-            api_key=_gemini_config.gemini_api_key.get_secret_value()
+            api_key=get_gemini_config().gemini_api_key.get_secret_value()
         )
         self._model = model
         self._logger = getLogger(__name__)
+
+    @staticmethod
+    def _to_contents(messages: list[dict[str, Any]]) -> list[types.Content]:
+        contents: list[types.Content] = []
+        for msg in messages:
+            role = msg['role']
+            if role == 'user':
+                contents.append(
+                    types.Content(role='user', parts=[types.Part.from_text(text=msg['content'])])
+                )
+            elif role == 'assistant':
+                parts: list[types.Part] = []
+                if msg.get('tool_calls'):
+                    for tc in msg['tool_calls']:
+                        parts.append(
+                            types.Part.from_function_call(name=tc['name'], args=tc['args'])
+                        )
+                elif msg.get('content'):
+                    parts.append(types.Part.from_text(text=msg['content']))
+                if parts:
+                    contents.append(types.Content(role='model', parts=parts))
+            elif role == 'tool':
+                contents.append(
+                    types.Content(
+                        role='user',
+                        parts=[
+                            types.Part.from_function_response(
+                                name=msg.get('name', 'tool'),
+                                response={'result': json.loads(msg['content'])},
+                            )
+                        ],
+                    )
+                )
+        return contents
+
+    @staticmethod
+    def _to_gemini_tools(tool_defs: list[ToolDefinition]) -> list[types.Tool] | None:
+        if not tool_defs:
+            return None
+        declarations = [
+            types.FunctionDeclaration(
+                name=td.name,
+                description=td.description,
+                parameters=td.parameters,  # type: ignore[arg-type]
+            )
+            for td in tool_defs
+        ]
+        return [types.Tool(function_declarations=declarations)]
 
     async def generate(
         self,
@@ -95,17 +89,13 @@ class GeminiChatLLM(IChatLLMGateway):
         tools: list[ToolDefinition],
         system_prompt: str,
     ) -> LLMResponse:
-        contents = _messages_to_gemini_contents(messages)
-        gemini_tools = _build_gemini_tools(tools)
-
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
-            tools=gemini_tools,  # type: ignore[arg-type]
+            tools=self._to_gemini_tools(tools),  # type: ignore[arg-type]
         )
-
         response = await self._generate_with_retry(
             model=self._model,
-            contents=contents,
+            contents=self._to_contents(messages),
             config=config,
         )
 
@@ -116,30 +106,28 @@ class GeminiChatLLM(IChatLLMGateway):
 
         func_calls = [p for p in parts if p.function_call is not None]
         if func_calls:
-            tool_calls = [
-                ToolCallItem(
-                    id=str(uuid.uuid4()),
-                    name=fc.function_call.name,  # type: ignore[union-attr,arg-type]
-                    args=dict(fc.function_call.args),  # type: ignore[union-attr,arg-type]
-                )
-                for fc in func_calls
-            ]
-            return LLMResponse(tool_calls=tool_calls)
+            return LLMResponse(
+                tool_calls=[
+                    ToolCallItem(
+                        id=str(uuid.uuid4()),
+                        name=fc.function_call.name,  # type: ignore[union-attr,arg-type]
+                        args=dict(fc.function_call.args),  # type: ignore[union-attr,arg-type]
+                    )
+                    for fc in func_calls
+                ]
+            )
 
-        text = response.text or ''
-        return LLMResponse(text=text)
+        return LLMResponse(text=response.text or '')
 
     async def stream_text(
         self,
         messages: list[dict[str, Any]],
         system_prompt: str,
     ) -> AsyncIterator[str]:
-        contents = _messages_to_gemini_contents(messages)
         config = types.GenerateContentConfig(system_instruction=system_prompt)
-
         async for chunk in await self._client.aio.models.generate_content_stream(
             model=self._model,
-            contents=contents,  # type: ignore[arg-type]
+            contents=self._to_contents(messages),  # type: ignore[arg-type]
             config=config,
         ):
             if chunk.text:

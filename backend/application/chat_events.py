@@ -8,11 +8,9 @@ Stream event protocol is inspired by Anthropic's streaming format:
   ThreadIdEvent    -> emitted first, carries the thread_id for the session
   MessageStopEvent -> final event, stream is complete
   ErrorEvent       -> an error occurred
-
-These are exposed via FastAPI's OpenAPI schema so that hey-api can
-generate matching TypeScript discriminated-union types for the frontend.
 """
 
+import uuid
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -118,4 +116,4 @@ ChatStreamEvent = Annotated[
 
 class ChatRequest(BaseModel):
     message: str = Field(description='User message text')
-    thread_id: str | None = Field(default=None, description='Existing thread ID to continue')
+    thread_id: uuid.UUID | None = Field(default=None, description='Existing thread ID to continue')

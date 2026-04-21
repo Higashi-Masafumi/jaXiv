@@ -1,7 +1,6 @@
-import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sse_starlette import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
@@ -33,16 +32,11 @@ async def chat_with_paper(
     use_case: Annotated[ChatWithPaperUseCase, Depends(get_chat_with_paper_use_case)],
     auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 ) -> EventSourceResponse:
-    try:
-        thread_id = uuid.UUID(body.thread_id) if body.thread_id else None
-    except ValueError:
-        raise HTTPException(status_code=422, detail='Invalid thread_id format')
-
     async def generate():
         async for event in use_case.execute(
             paper_id=paper_id,
             message=body.message,
-            thread_id=thread_id,
+            thread_id=body.thread_id,
             user_id=auth_user.user_id.root,
         ):
             yield ServerSentEvent(data=event.model_dump_json())
