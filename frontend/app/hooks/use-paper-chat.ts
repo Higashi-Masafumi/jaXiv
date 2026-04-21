@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { chatWithPaperApiV1ChatPaperPaperIdPost } from '~/api/sdk.gen'
 import { supabase } from '~/lib/supabase'
-import type { ChatRequest } from '~/api/types.gen'
 
 // ---------------------------------------------------------------------------
 // Message types for UI rendering
@@ -159,54 +159,14 @@ export function usePaperChat(paperId: string) {
       }
 
       try {
-        const body: ChatRequest = {
-          message: text,
-          thread_id: threadIdRef.current,
-        }
-        const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/api/v1/chat/paper/${encodeURIComponent(paperId)}`,
-          {
-            method: 'POST',
-            signal: abort.signal,
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify(body),
-          },
-        )
-
-        if (!response.ok) {
-          const msg = await response.text().catch(() => response.statusText)
-          throw new Error(`${response.status}: ${msg}`)
-        }
-
+        const { stream } = await chatWithPaperApiV1ChatPaperPaperIdPost({
+          path: { paper_id: paperId },
+          body: { message: text, thread_id: threadIdRef.current },
+          signal: abort.signal,
+        })
         setStatus('streaming')
-
-        const reader = response
-          .body!.pipeThrough(new TextDecoderStream())
-          .getReader()
-        let buf = ''
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buf += value
-          buf = buf.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-          const chunks = buf.split('\n\n')
-          buf = chunks.pop() ?? ''
-          for (const chunk of chunks) {
-            const data = chunk
-              .split('\n')
-              .filter(l => l.startsWith('data:'))
-              .map(l => l.slice('data:'.length).trimStart())
-              .join('\n')
-            if (!data) continue
-            try {
-              applyEvent(JSON.parse(data) as ChatStreamEvent)
-            } catch {
-              // malformed event — skip
-            }
-          }
+        for await (const raw of stream) {
+          applyEvent(raw as ChatStreamEvent)
         }
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') return

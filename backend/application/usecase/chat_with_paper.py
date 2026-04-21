@@ -57,22 +57,6 @@ RAG_TOOLS: list[ToolDefinition] = [
 ]
 
 
-def thread_to_messages(thread: ChatThread) -> list[dict[str, Any]]:
-    result: list[dict[str, Any]] = []
-    for m in thread.messages:
-        d: dict[str, Any] = {'role': m.role, 'content': m.content}
-        if m.tool_calls:
-            d['tool_calls'] = [
-                {'id': tc.id, 'name': tc.name, 'args': tc.args} for tc in m.tool_calls
-            ]
-        if m.tool_call_id:
-            d['tool_call_id'] = m.tool_call_id
-            if m.name:
-                d['name'] = m.name
-        result.append(d)
-    return result
-
-
 class ChatWithPaperUseCase:
     def __init__(
         self,
@@ -113,9 +97,21 @@ class ChatWithPaperUseCase:
                 accumulated = ''
                 text_started = False
 
-                async for chunk in self._llm.stream(
-                    thread_to_messages(thread), tools, SYSTEM_PROMPT
-                ):
+                msgs: list[dict[str, Any]] = []
+                for m in thread.messages:
+                    d: dict[str, Any] = {'role': m.role, 'content': m.content}
+                    if m.tool_calls:
+                        d['tool_calls'] = [
+                            {'id': tc.id, 'name': tc.name, 'args': tc.args}
+                            for tc in m.tool_calls
+                        ]
+                    if m.tool_call_id:
+                        d['tool_call_id'] = m.tool_call_id
+                        if m.name:
+                            d['name'] = m.name
+                    msgs.append(d)
+
+                async for chunk in self._llm.stream(msgs, tools, SYSTEM_PROMPT):
                     if isinstance(chunk, list):
                         tool_calls = chunk
                     else:
