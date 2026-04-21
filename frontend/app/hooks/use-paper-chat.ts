@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { chatWithPaperApiV1ChatPaperPaperIdPost } from '~/api/sdk.gen'
-import type { ChatRequest } from '~/api/types.gen'
 import { supabase } from '~/lib/supabase'
 
 export type TextPart = { type: 'text'; text: string }
@@ -33,9 +32,7 @@ type ChatStreamEvent =
       index: number
       delta: { type: 'text_delta'; text: string }
     }
-  | { type: 'block_stop'; index: number }
   | { type: 'tool_result'; tool_use_id: string; name: string }
-  | { type: 'message_stop' }
   | { type: 'error'; message: string }
 
 export type ChatStatus = 'idle' | 'submitted' | 'streaming'
@@ -66,11 +63,14 @@ export function usePaperChat(paperId: string) {
         return
       }
 
-      const userMsgId = crypto.randomUUID()
       const assistantId = crypto.randomUUID()
       setMessages(prev => [
         ...prev,
-        { id: userMsgId, role: 'user', parts: [{ type: 'text', text }] },
+        {
+          id: crypto.randomUUID(),
+          role: 'user',
+          parts: [{ type: 'text', text }],
+        },
         { id: assistantId, role: 'assistant', parts: [] },
       ])
       setStatus('submitted')
@@ -92,42 +92,37 @@ export function usePaperChat(paperId: string) {
             threadIdRef.current = event.thread_id
             localStorage.setItem(threadKey(paperId), event.thread_id)
             break
-          case 'block_start':
-            updateAssistant(m => ({
-              ...m,
-              parts: [
-                ...m.parts,
-                event.block.type === 'text'
-                  ? ({ type: 'text', text: '' } satisfies TextPart)
-                  : ({
-                      type: 'tool-call',
-                      toolCallId: event.block.id,
-                      name: event.block.name,
-                      state: 'executing',
-                    } satisfies ToolCallPart),
-              ],
-            }))
-            break
-          case 'block_delta':
-            if (event.delta.type === 'text_delta') {
-              updateAssistant(m => {
-                const parts = [...m.parts]
-                const idx = parts.findLastIndex(p => p.type === 'text')
-                if (idx >= 0)
-                  parts[idx] = {
-                    type: 'text',
-                    text: (parts[idx] as TextPart).text + event.delta.text,
+          case 'block_start': {
+            const part: MessagePart =
+              event.block.type === 'text'
+                ? { type: 'text', text: '' }
+                : {
+                    type: 'tool-call',
+                    toolCallId: event.block.id,
+                    name: event.block.name,
+                    state: 'executing',
                   }
-                return { ...m, parts }
-              })
-            }
+            updateAssistant(m => ({ ...m, parts: [...m.parts, part] }))
+            break
+          }
+          case 'block_delta':
+            updateAssistant(m => {
+              const parts = [...m.parts]
+              const idx = parts.findLastIndex(p => p.type === 'text')
+              if (idx >= 0)
+                parts[idx] = {
+                  type: 'text',
+                  text: (parts[idx] as TextPart).text + event.delta.text,
+                }
+              return { ...m, parts }
+            })
             break
           case 'tool_result':
             updateAssistant(m => ({
               ...m,
               parts: m.parts.map(p =>
                 p.type === 'tool-call' && p.toolCallId === event.tool_use_id
-                  ? ({ ...p, state: 'done' } satisfies ToolCallPart)
+                  ? { ...p, state: 'done' as const }
                   : p,
               ),
             }))
@@ -139,13 +134,9 @@ export function usePaperChat(paperId: string) {
       }
 
       try {
-        const body: ChatRequest = {
-          message: text,
-          thread_id: threadIdRef.current,
-        }
         const { stream } = await chatWithPaperApiV1ChatPaperPaperIdPost({
           path: { paper_id: paperId },
-          body,
+          body: { message: text, thread_id: threadIdRef.current },
           signal: abort.signal,
         })
         setStatus('streaming')
