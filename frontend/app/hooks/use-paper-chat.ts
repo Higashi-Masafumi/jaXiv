@@ -23,8 +23,16 @@ export type PaperChatMessage = {
 type ChatStreamEvent =
   | { type: 'thread_id'; thread_id: string }
   | { type: 'block_start'; index: number; block: { type: 'text' } }
-  | { type: 'block_start'; index: number; block: { type: 'tool_use'; id: string; name: string } }
-  | { type: 'block_delta'; index: number; delta: { type: 'text_delta'; text: string } }
+  | {
+      type: 'block_start'
+      index: number
+      block: { type: 'tool_use'; id: string; name: string }
+    }
+  | {
+      type: 'block_delta'
+      index: number
+      delta: { type: 'text_delta'; text: string }
+    }
   | { type: 'block_stop'; index: number }
   | { type: 'tool_result'; tool_use_id: string; name: string }
   | { type: 'message_stop' }
@@ -131,7 +139,10 @@ export function usePaperChat(paperId: string) {
       }
 
       try {
-        const body: ChatRequest = { message: text, thread_id: threadIdRef.current }
+        const body: ChatRequest = {
+          message: text,
+          thread_id: threadIdRef.current,
+        }
         const { stream } = await chatWithPaperApiV1ChatPaperPaperIdPost({
           path: { paper_id: paperId },
           body,
