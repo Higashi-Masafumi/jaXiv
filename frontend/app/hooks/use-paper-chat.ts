@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { chatWithPaperApiV1ChatPaperPaperIdPost } from '~/api/sdk.gen'
+import type { ChatRequest } from '~/api/types.gen'
 import { supabase } from '~/lib/supabase'
-
-// ---------------------------------------------------------------------------
-// Message types for UI rendering
-// ---------------------------------------------------------------------------
 
 export type TextPart = { type: 'text'; text: string }
 export type ToolCallPart = {
@@ -22,41 +19,16 @@ export type PaperChatMessage = {
   parts: MessagePart[]
 }
 
-// ---------------------------------------------------------------------------
-// SSE event types (mirrors application/chat_events.py)
-// ---------------------------------------------------------------------------
-
-type ThreadIdEvent = { type: 'thread_id'; thread_id: string }
-type BlockStartEvent =
-  | { type: 'block_start'; index: number; block: { type: 'text' } }
-  | {
-      type: 'block_start'
-      index: number
-      block: { type: 'tool_use'; id: string; name: string }
-    }
-type BlockDeltaEvent = {
-  type: 'block_delta'
-  index: number
-  delta: { type: 'text_delta'; text: string }
-}
-type BlockStopEvent = { type: 'block_stop'; index: number }
-type ToolResultEvent = {
-  type: 'tool_result'
-  tool_use_id: string
-  name: string
-}
-type MessageStopEvent = { type: 'message_stop' }
-type ErrorEvent = { type: 'error'; message: string }
+// SSE event shapes — mirrors application/chat_events.py (response is `unknown` in OpenAPI schema)
 type ChatStreamEvent =
-  | ThreadIdEvent
-  | BlockStartEvent
-  | BlockDeltaEvent
-  | BlockStopEvent
-  | ToolResultEvent
-  | MessageStopEvent
-  | ErrorEvent
-
-// ---------------------------------------------------------------------------
+  | { type: 'thread_id'; thread_id: string }
+  | { type: 'block_start'; index: number; block: { type: 'text' } }
+  | { type: 'block_start'; index: number; block: { type: 'tool_use'; id: string; name: string } }
+  | { type: 'block_delta'; index: number; delta: { type: 'text_delta'; text: string } }
+  | { type: 'block_stop'; index: number }
+  | { type: 'tool_result'; tool_use_id: string; name: string }
+  | { type: 'message_stop' }
+  | { type: 'error'; message: string }
 
 export type ChatStatus = 'idle' | 'submitted' | 'streaming'
 
@@ -159,9 +131,10 @@ export function usePaperChat(paperId: string) {
       }
 
       try {
+        const body: ChatRequest = { message: text, thread_id: threadIdRef.current }
         const { stream } = await chatWithPaperApiV1ChatPaperPaperIdPost({
           path: { paper_id: paperId },
-          body: { message: text, thread_id: threadIdRef.current },
+          body,
           signal: abort.signal,
         })
         setStatus('streaming')
