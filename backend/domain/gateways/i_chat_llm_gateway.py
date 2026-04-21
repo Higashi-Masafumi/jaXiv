@@ -21,25 +21,17 @@ class ToolCallItem(BaseModel):
     args: dict[str, Any]
 
 
-class LLMResponse(BaseModel):
-    text: str | None = None
-    tool_calls: list[ToolCallItem] | None = None
-
-
 class IChatLLMGateway(ABC):
-    """Abstract gateway for LLM chat with tool-calling support."""
+    """Abstract gateway for LLM chat with tool-calling support.
+
+    stream() yields str (text delta) or list[ToolCallItem] (tool calls).
+    Tool calls are yielded as a single batch after the stream ends.
+    """
 
     @abstractmethod
-    async def generate(
+    def stream(
         self,
         messages: list[dict[str, Any]],
         tools: list[ToolDefinition],
         system_prompt: str,
-    ) -> LLMResponse: ...
-
-    @abstractmethod
-    def stream_text(
-        self,
-        messages: list[dict[str, Any]],
-        system_prompt: str,
-    ) -> AsyncIterator[str]: ...
+    ) -> AsyncIterator[str | list[ToolCallItem]]: ...

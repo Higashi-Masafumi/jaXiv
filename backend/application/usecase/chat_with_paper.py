@@ -8,7 +8,7 @@ from logging import getLogger
 from typing import Any
 
 from domain.entities.chat import ChatMessage, ChatThread, ToolCall
-from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolDefinition
+from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolCallItem, ToolDefinition
 from domain.repositories.i_chat_thread_repository import IChatThreadRepository
 
 from application.chat_events import (
@@ -28,14 +28,14 @@ from application.chat_events import (
 from .rag_search_image import RagSearchImageUseCase
 from .rag_search_text import RagSearchTextUseCase
 
-_SYSTEM_PROMPT = """\
+SYSTEM_PROMPT = """\
 あなたは論文の内容についての質問に答えるアシスタントです。
 論文内容を検索するツールを使用して事実に基づいた正確な回答を行なってください。
 回答はマークダウン形式で記述してください。
 数式はKaTeX形式（ブロック数式は $$...$$ 、インライン数式は $...$ ）で記述してください。
 """
 
-_RAG_TOOLS: list[ToolDefinition] = [
+RAG_TOOLS: list[ToolDefinition] = [
     ToolDefinition(
         name='textSearch',
         description='論文本文チャンクの意味的検索。要約・定義・手法の説明などテキストに関する質問に使う。',
@@ -57,7 +57,7 @@ _RAG_TOOLS: list[ToolDefinition] = [
 ]
 
 
-def _to_llm_messages(thread: ChatThread) -> list[dict[str, Any]]:
+def thread_to_messages(thread: ChatThread) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for m in thread.messages:
         d: dict[str, Any] = {'role': m.role, 'content': m.content}
@@ -101,7 +101,6 @@ class ChatWithPaperUseCase:
             thread = await self._thread_repo.create(paper_id, user_id)
 
         yield ThreadIdEvent(thread_id=str(thread.id))
-
         thread.messages.append(ChatMessage(role='user', content=message))
 
         tool_rounds = 0
@@ -109,24 +108,36 @@ class ChatWithPaperUseCase:
 
         try:
             while True:
-                response = await self._llm.generate(
-                    _to_llm_messages(thread),
-                    _RAG_TOOLS if tool_rounds < 3 else [],
-                    _SYSTEM_PROMPT,
-                )
+                tools = RAG_TOOLS if tool_rounds < 3 else []
+                tool_calls: list[ToolCallItem] = []
+                accumulated = ''
+                text_started = False
 
-                if response.tool_calls and tool_rounds < 3:
+                async for chunk in self._llm.stream(
+                    thread_to_messages(thread), tools, SYSTEM_PROMPT
+                ):
+                    if isinstance(chunk, list):
+                        tool_calls = chunk
+                    else:
+                        if not text_started:
+                            text_started = True
+                            yield BlockStartEvent(index=block_index, block=TextBlock())
+                        accumulated += chunk
+                        yield BlockDeltaEvent(
+                            index=block_index, delta=TextDelta(text=chunk)
+                        )
+
+                if tool_calls and tool_rounds < 3:
                     thread.messages.append(
                         ChatMessage(
                             role='assistant',
                             tool_calls=[
                                 ToolCall(id=tc.id, name=tc.name, args=tc.args)
-                                for tc in response.tool_calls
+                                for tc in tool_calls
                             ],
                         )
                     )
-
-                    for tc in response.tool_calls:
+                    for tc in tool_calls:
                         yield BlockStartEvent(
                             index=block_index,
                             block=ToolUseBlock(id=tc.id, name=tc.name),
@@ -147,9 +158,7 @@ class ChatWithPaperUseCase:
                             tool_result = {'error': f'Unknown tool: {tc.name}'}
 
                         yield ToolResultEvent(
-                            tool_use_id=tc.id,
-                            name=tc.name,
-                            content=tool_result,
+                            tool_use_id=tc.id, name=tc.name, content=tool_result
                         )
                         thread.messages.append(
                             ChatMessage(
@@ -159,23 +168,11 @@ class ChatWithPaperUseCase:
                                 name=tc.name,
                             )
                         )
-
                     tool_rounds += 1
 
                 else:
-                    accumulated = ''
-                    yield BlockStartEvent(index=block_index, block=TextBlock())
-
-                    async for delta in self._llm.stream_text(
-                        _to_llm_messages(thread), _SYSTEM_PROMPT
-                    ):
-                        accumulated += delta
-                        yield BlockDeltaEvent(
-                            index=block_index,
-                            delta=TextDelta(text=delta),
-                        )
-
-                    yield BlockStopEvent(index=block_index)
+                    if text_started:
+                        yield BlockStopEvent(index=block_index)
                     thread.messages.append(
                         ChatMessage(role='assistant', content=accumulated)
                     )

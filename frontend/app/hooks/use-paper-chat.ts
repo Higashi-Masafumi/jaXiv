@@ -1,16 +1,10 @@
-/**
- * usePaperChat — replaces Vercel AI SDK's useChat.
- *
- * Streams chat responses from the FastAPI backend using the Anthropic-inspired
- * block protocol (BlockStart / BlockDelta / BlockStop + ToolResult events).
- * Thread IDs are persisted in localStorage so conversations survive page reloads.
- */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { supabase } from '~/lib/supabase'
+import type { ChatRequest } from '~/api/types.gen'
 
 // ---------------------------------------------------------------------------
-// Local message types
-// (will be replaced by hey-api generated types after `npm run generate-api`)
+// Message types for UI rendering
 // ---------------------------------------------------------------------------
 
 export type TextPart = { type: 'text'; text: string }
@@ -29,7 +23,7 @@ export type PaperChatMessage = {
 }
 
 // ---------------------------------------------------------------------------
-// SSE event types (mirrors application/chat_events.py on the backend)
+// SSE event types (mirrors application/chat_events.py)
 // ---------------------------------------------------------------------------
 
 type ThreadIdEvent = { type: 'thread_id'; thread_id: string }
@@ -50,11 +44,9 @@ type ToolResultEvent = {
   type: 'tool_result'
   tool_use_id: string
   name: string
-  content: unknown
 }
 type MessageStopEvent = { type: 'message_stop' }
 type ErrorEvent = { type: 'error'; message: string }
-
 type ChatStreamEvent =
   | ThreadIdEvent
   | BlockStartEvent
@@ -66,9 +58,9 @@ type ChatStreamEvent =
 
 // ---------------------------------------------------------------------------
 
-const threadKey = (paperId: string) => `chat_thread_${paperId}`
-
 export type ChatStatus = 'idle' | 'submitted' | 'streaming'
+
+const threadKey = (paperId: string) => `chat_thread_${paperId}`
 
 export function usePaperChat(paperId: string) {
   const [messages, setMessages] = useState<PaperChatMessage[]>([])
@@ -76,8 +68,8 @@ export function usePaperChat(paperId: string) {
   const [error, setError] = useState<Error | null>(null)
   const threadIdRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const navigate = useNavigate()
 
-  // Restore thread_id from localStorage on mount / paperId change
   useEffect(() => {
     threadIdRef.current = localStorage.getItem(threadKey(paperId))
   }, [paperId])
@@ -86,95 +78,71 @@ export function usePaperChat(paperId: string) {
     async (text: string) => {
       if (status !== 'idle') return
 
-      // Auth check — login required, anonymous blocked
       const {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session || session.user.is_anonymous) {
-        setError(
-          new Error(
-            'チャットを使用するにはGoogleアカウントでログインしてください',
-          ),
-        )
+        void navigate('/login')
         return
       }
 
-      // Optimistically add user message
       const userMsgId = crypto.randomUUID()
-      setMessages(prev => [
-        ...prev,
-        { id: userMsgId, role: 'user', parts: [{ type: 'text', text }] },
-      ])
-      setStatus('submitted')
-      setError(null)
-
-      // Placeholder for the streaming assistant message
       const assistantId = crypto.randomUUID()
       setMessages(prev => [
         ...prev,
+        { id: userMsgId, role: 'user', parts: [{ type: 'text', text }] },
         { id: assistantId, role: 'assistant', parts: [] },
       ])
+      setStatus('submitted')
+      setError(null)
 
       const abort = new AbortController()
       abortRef.current = abort
 
       const updateAssistant = (
         updater: (m: PaperChatMessage) => PaperChatMessage,
-      ) => {
+      ) =>
         setMessages(prev =>
           prev.map(m => (m.id === assistantId ? updater(m) : m)),
         )
-      }
 
       const applyEvent = (event: ChatStreamEvent) => {
         switch (event.type) {
-          case 'thread_id': {
+          case 'thread_id':
             threadIdRef.current = event.thread_id
             localStorage.setItem(threadKey(paperId), event.thread_id)
             break
-          }
-          case 'block_start': {
-            if (event.block.type === 'text') {
-              updateAssistant(m => ({
-                ...m,
-                parts: [
-                  ...m.parts,
-                  { type: 'text', text: '' } satisfies TextPart,
-                ],
-              }))
-            } else {
-              updateAssistant(m => ({
-                ...m,
-                parts: [
-                  ...m.parts,
-                  {
-                    type: 'tool-call',
-                    toolCallId: event.block.id,
-                    name: event.block.name,
-                    state: 'executing',
-                  } satisfies ToolCallPart,
-                ],
-              }))
-            }
+          case 'block_start':
+            updateAssistant(m => ({
+              ...m,
+              parts: [
+                ...m.parts,
+                event.block.type === 'text'
+                  ? ({ type: 'text', text: '' } satisfies TextPart)
+                  : ({
+                      type: 'tool-call',
+                      toolCallId: event.block.id,
+                      name: event.block.name,
+                      state: 'executing',
+                    } satisfies ToolCallPart),
+              ],
+            }))
             break
-          }
-          case 'block_delta': {
+          case 'block_delta':
             if (event.delta.type === 'text_delta') {
               updateAssistant(m => {
                 const parts = [...m.parts]
                 const idx = parts.findLastIndex(p => p.type === 'text')
-                if (idx >= 0) {
+                if (idx >= 0)
                   parts[idx] = {
                     type: 'text',
                     text: (parts[idx] as TextPart).text + event.delta.text,
                   }
-                }
                 return { ...m, parts }
               })
             }
             break
-          }
-          case 'tool_result': {
+          case 'tool_result':
             updateAssistant(m => ({
               ...m,
               parts: m.parts.map(p =>
@@ -184,17 +152,17 @@ export function usePaperChat(paperId: string) {
               ),
             }))
             break
-          }
-          case 'error': {
+          case 'error':
             setError(new Error(event.message))
-            break
-          }
-          default:
             break
         }
       }
 
       try {
+        const body: ChatRequest = {
+          message: text,
+          thread_id: threadIdRef.current,
+        }
         const response = await fetch(
           `${import.meta.env.VITE_API_BASE_URL}/api/v1/chat/paper/${encodeURIComponent(paperId)}`,
           {
@@ -204,44 +172,37 @@ export function usePaperChat(paperId: string) {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({
-              message: text,
-              thread_id: threadIdRef.current,
-            }),
+            body: JSON.stringify(body),
           },
         )
 
         if (!response.ok) {
-          const body = await response.text().catch(() => response.statusText)
-          throw new Error(`${response.status}: ${body}`)
+          const msg = await response.text().catch(() => response.statusText)
+          throw new Error(`${response.status}: ${msg}`)
         }
 
         setStatus('streaming')
 
-        // Read the SSE response body line-by-line
         const reader = response
           .body!.pipeThrough(new TextDecoderStream())
           .getReader()
-        let buffer = ''
-
+        let buf = ''
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          buffer += value
-          buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-          const chunks = buffer.split('\n\n')
-          buffer = chunks.pop() ?? ''
-
+          buf += value
+          buf = buf.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+          const chunks = buf.split('\n\n')
+          buf = chunks.pop() ?? ''
           for (const chunk of chunks) {
-            const dataLines = chunk
+            const data = chunk
               .split('\n')
               .filter(l => l.startsWith('data:'))
               .map(l => l.slice('data:'.length).trimStart())
-
-            if (!dataLines.length) continue
+              .join('\n')
+            if (!data) continue
             try {
-              const event = JSON.parse(dataLines.join('\n')) as ChatStreamEvent
-              applyEvent(event)
+              applyEvent(JSON.parse(data) as ChatStreamEvent)
             } catch {
               // malformed event — skip
             }
@@ -250,7 +211,6 @@ export function usePaperChat(paperId: string) {
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') return
         setError(e instanceof Error ? e : new Error(String(e)))
-        // Remove empty assistant placeholder on error
         setMessages(prev =>
           prev.filter(m => !(m.id === assistantId && m.parts.length === 0)),
         )
@@ -259,7 +219,7 @@ export function usePaperChat(paperId: string) {
         abortRef.current = null
       }
     },
-    [paperId, status],
+    [paperId, status, navigate],
   )
 
   const stop = useCallback(() => {
