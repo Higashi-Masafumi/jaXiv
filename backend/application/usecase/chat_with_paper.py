@@ -35,7 +35,7 @@ _SYSTEM_PROMPT = """\
 数式はKaTeX形式（ブロック数式は $$...$$ 、インライン数式は $...$ ）で記述してください。
 """
 
-_TOOLS: list[ToolDefinition] = [
+_RAG_TOOLS: list[ToolDefinition] = [
     ToolDefinition(
         name='textSearch',
         description='論文本文チャンクの意味的検索。要約・定義・手法の説明などテキストに関する質問に使う。',
@@ -94,16 +94,6 @@ class ChatWithPaperUseCase:
         thread_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> AsyncIterator[ChatStreamEvent]:
-        async for event in self._run(paper_id, message, thread_id, user_id):
-            yield event
-
-    async def _run(
-        self,
-        paper_id: str,
-        message: str,
-        thread_id: uuid.UUID | None,
-        user_id: uuid.UUID,
-    ) -> AsyncIterator[ChatStreamEvent]:
         thread: ChatThread | None = None
         if thread_id:
             thread = await self._thread_repo.find_by_id_and_user(thread_id, user_id)
@@ -119,9 +109,10 @@ class ChatWithPaperUseCase:
 
         try:
             while True:
-                active_tools = _TOOLS if tool_rounds < 3 else []
                 response = await self._llm.generate(
-                    _to_llm_messages(thread), active_tools, _SYSTEM_PROMPT
+                    _to_llm_messages(thread),
+                    _RAG_TOOLS if tool_rounds < 3 else [],
+                    _SYSTEM_PROMPT,
                 )
 
                 if response.tool_calls and tool_rounds < 3:
