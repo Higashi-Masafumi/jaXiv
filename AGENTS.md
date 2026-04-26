@@ -53,6 +53,8 @@ $ npm run dev
     $ cd frontend
     $ npm run generate-api
     ```
+- フロントエンドのコンポーネント追加
+    基本的なコンポーネントは`shadcn`を使って実装します。shadcn skillを使ってコンポーネントを追加しましょう
 
 ## コーディング規約
 

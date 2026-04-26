@@ -2,11 +2,17 @@ import {
   AlertCircleIcon,
   ArrowUpIcon,
   CheckIcon,
+  ChevronRightIcon,
   Loader2Icon,
-  WrenchIcon,
+  SearchIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '~/components/ui/collapsible'
 import { MarkdownWithMath } from '~/components/markdown-with-math'
 import { Button } from '~/components/ui/button'
 import { ScrollArea } from '~/components/ui/scroll-area'
@@ -77,32 +83,87 @@ function ChatComposer(props: {
   )
 }
 
-function ToolCallPartView({ part }: { part: ToolCallPart }) {
-  if (part.state === 'executing') {
+function ToolCallResultSummary({ part }: { part: ToolCallPart }) {
+  if (!part.result) return null
+  const chunks =
+    (part.result.chunks as { text: string; page_number: number }[]) ?? []
+  const items =
+    (part.result.items as {
+      caption: string | null
+      page_number: number
+    }[]) ?? []
+
+  if (chunks.length > 0) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <WrenchIcon className="size-3 shrink-0" />
-        <span>{part.name}を実行中…</span>
-      </div>
+      <ul className="mt-1 space-y-1">
+        {chunks.map((c, i) => (
+          <li key={i} className="rounded bg-background/60 px-2 py-1">
+            <span className="text-muted-foreground">p.{c.page_number}</span>{' '}
+            {c.text.length > 120 ? `${c.text.slice(0, 120)}…` : c.text}
+          </li>
+        ))}
+      </ul>
     )
   }
-  if (part.state === 'done') {
+  if (items.length > 0) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <CheckIcon className="size-3 shrink-0 text-green-500" />
-        <span>{part.name}を実行完了</span>
-      </div>
-    )
-  }
-  if (part.state === 'error') {
-    return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <AlertCircleIcon className="size-3 shrink-0 text-red-500" />
-        <span>{part.name}を実行エラー</span>
-      </div>
+      <ul className="mt-1 space-y-1">
+        {items.map((item, i) => (
+          <li key={i} className="rounded bg-background/60 px-2 py-1">
+            <span className="text-muted-foreground">p.{item.page_number}</span>{' '}
+            {item.caption ?? '(no caption)'}
+          </li>
+        ))}
+      </ul>
     )
   }
   return null
+}
+
+function ToolCallPartView({ part }: { part: ToolCallPart }) {
+  const [open, setOpen] = useState(false)
+  const query = (part.input.query as string) ?? ''
+
+  const stateIcon =
+    part.state === 'executing' ? (
+      <Loader2Icon className="size-3 shrink-0 animate-spin" />
+    ) : part.state === 'done' ? (
+      <CheckIcon className="size-3 shrink-0 text-green-500" />
+    ) : (
+      <AlertCircleIcon className="size-3 shrink-0 text-red-500" />
+    )
+
+  const stateLabel =
+    part.state === 'executing'
+      ? '実行中…'
+      : part.state === 'done'
+        ? '完了'
+        : 'エラー'
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex w-full items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <ChevronRightIcon
+          className={cn(
+            'size-3 shrink-0 transition-transform',
+            open && 'rotate-90',
+          )}
+        />
+        <SearchIcon className="size-3 shrink-0" />
+        <span className="truncate">
+          {part.name}
+          {query && `: "${query}"`}
+        </span>
+        <span className="ml-auto flex items-center gap-1">
+          {stateIcon}
+          <span>{stateLabel}</span>
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1 text-xs text-muted-foreground">
+        <ToolCallResultSummary part={part} />
+      </CollapsibleContent>
+    </Collapsible>
+  )
 }
 
 function MessagePartView({

@@ -8,6 +8,8 @@ export type ToolCallPart = {
   type: 'tool-call'
   toolCallId: string
   name: string
+  input: Record<string, unknown>
+  result: Record<string, unknown> | null
   state: 'executing' | 'done' | 'error'
 }
 export type MessagePart = TextPart | ToolCallPart
@@ -25,14 +27,24 @@ type ChatStreamEvent =
   | {
       type: 'block_start'
       index: number
-      block: { type: 'tool_use'; id: string; name: string }
+      block: {
+        type: 'tool_use'
+        id: string
+        name: string
+        input: Record<string, unknown>
+      }
     }
   | {
       type: 'block_delta'
       index: number
       delta: { type: 'text_delta'; text: string }
     }
-  | { type: 'tool_result'; tool_use_id: string; name: string }
+  | {
+      type: 'tool_result'
+      tool_use_id: string
+      name: string
+      content: Record<string, unknown>
+    }
   | { type: 'error'; message: string }
 
 export type ChatStatus = 'idle' | 'submitted' | 'streaming'
@@ -93,6 +105,8 @@ export function usePaperChat(paperId: string) {
                     type: 'tool-call',
                     toolCallId: event.block.id,
                     name: event.block.name,
+                    input: event.block.input,
+                    result: null,
                     state: 'executing',
                   }
             updateAssistant(m => ({ ...m, parts: [...m.parts, part] }))
@@ -121,7 +135,7 @@ export function usePaperChat(paperId: string) {
               ...m,
               parts: m.parts.map(p =>
                 p.type === 'tool-call' && p.toolCallId === event.tool_use_id
-                  ? { ...p, state: 'done' as const }
+                  ? { ...p, state: 'done' as const, result: event.content }
                   : p,
               ),
             }))

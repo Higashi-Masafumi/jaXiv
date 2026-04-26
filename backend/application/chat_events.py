@@ -31,6 +31,7 @@ class ToolUseBlock(BaseModel):
 	type: Literal['tool_use'] = 'tool_use'
 	id: str
 	name: str
+	input: dict[str, Any] = Field(default_factory=dict)
 
 
 Block = Annotated[TextBlock | ToolUseBlock, Field(discriminator='type')]
