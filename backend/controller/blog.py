@@ -254,9 +254,7 @@ async def generate_blog_from_pdf_stream(
 
 	async def run_workflow():
 		try:
-			iterator = generate_blog_post_from_pdf.execute(
-				pdf_path=pdf_path, auth_user=auth_user
-			)
+			iterator = generate_blog_post_from_pdf.execute(pdf_path=pdf_path, auth_user=auth_user)
 			async for chunk in iterator:
 				if chunk.type == 'intermediate':
 					yield ServerSentEvent(data=chunk.to_json_string())

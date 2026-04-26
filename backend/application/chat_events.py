@@ -22,15 +22,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TextBlock(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['text'] = 'text'
+	model_config = ConfigDict(frozen=True)
+	type: Literal['text'] = 'text'
 
 
 class ToolUseBlock(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['tool_use'] = 'tool_use'
-    id: str
-    name: str
+	model_config = ConfigDict(frozen=True)
+	type: Literal['tool_use'] = 'tool_use'
+	id: str
+	name: str
 
 
 Block = Annotated[TextBlock | ToolUseBlock, Field(discriminator='type')]
@@ -42,9 +42,9 @@ Block = Annotated[TextBlock | ToolUseBlock, Field(discriminator='type')]
 
 
 class TextDelta(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['text_delta'] = 'text_delta'
-    text: str
+	model_config = ConfigDict(frozen=True)
+	type: Literal['text_delta'] = 'text_delta'
+	text: str
 
 
 # ---------------------------------------------------------------------------
@@ -53,59 +53,59 @@ class TextDelta(BaseModel):
 
 
 class ThreadIdEvent(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['thread_id'] = 'thread_id'
-    thread_id: str
+	model_config = ConfigDict(frozen=True)
+	type: Literal['thread_id'] = 'thread_id'
+	thread_id: str
 
 
 class BlockStartEvent(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['block_start'] = 'block_start'
-    index: int
-    block: Block
+	model_config = ConfigDict(frozen=True)
+	type: Literal['block_start'] = 'block_start'
+	index: int
+	block: Block
 
 
 class BlockDeltaEvent(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['block_delta'] = 'block_delta'
-    index: int
-    delta: TextDelta
+	model_config = ConfigDict(frozen=True)
+	type: Literal['block_delta'] = 'block_delta'
+	index: int
+	delta: TextDelta
 
 
 class BlockStopEvent(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['block_stop'] = 'block_stop'
-    index: int
+	model_config = ConfigDict(frozen=True)
+	type: Literal['block_stop'] = 'block_stop'
+	index: int
 
 
 class ToolResultEvent(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['tool_result'] = 'tool_result'
-    tool_use_id: str
-    name: str
-    content: dict[str, Any]
+	model_config = ConfigDict(frozen=True)
+	type: Literal['tool_result'] = 'tool_result'
+	tool_use_id: str
+	name: str
+	content: dict[str, Any]
 
 
 class MessageStopEvent(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['message_stop'] = 'message_stop'
+	model_config = ConfigDict(frozen=True)
+	type: Literal['message_stop'] = 'message_stop'
 
 
 class ErrorEvent(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Literal['error'] = 'error'
-    message: str
+	model_config = ConfigDict(frozen=True)
+	type: Literal['error'] = 'error'
+	message: str
 
 
 ChatStreamEvent = Annotated[
-    ThreadIdEvent
-    | BlockStartEvent
-    | BlockDeltaEvent
-    | BlockStopEvent
-    | ToolResultEvent
-    | MessageStopEvent
-    | ErrorEvent,
-    Field(discriminator='type'),
+	ThreadIdEvent
+	| BlockStartEvent
+	| BlockDeltaEvent
+	| BlockStopEvent
+	| ToolResultEvent
+	| MessageStopEvent
+	| ErrorEvent,
+	Field(discriminator='type'),
 ]
 
 
@@ -115,5 +115,5 @@ ChatStreamEvent = Annotated[
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(description='User message text')
-    thread_id: uuid.UUID | None = Field(default=None, description='Existing thread ID to continue')
+	message: str = Field(description='User message text')
+	thread_id: uuid.UUID | None = Field(default=None, description='Existing thread ID to continue')
