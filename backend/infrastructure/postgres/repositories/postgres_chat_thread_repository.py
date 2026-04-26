@@ -27,9 +27,9 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 	async def update(self, thread: ChatThread) -> None:
 		await self._session.execute(
 			update(ChatThreadModel)
-			.where(ChatThreadModel.id == thread.id)
+			.where(ChatThreadModel.id == thread.id)  # type: ignore[arg-type]
 			.values(
-				messages=[m.model_dump() for m in thread.messages],
+				messages=[m.model_dump(mode='json') for m in thread.messages],
 				updated_at=thread.updated_at,
 			)
 		)

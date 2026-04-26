@@ -1,6 +1,5 @@
 """Agentic chat use case: routes user messages to Gemini with RAG tool support."""
 
-import json
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -117,29 +116,38 @@ class ChatWithPaperUseCase:
 
 					query = tc.args.get('query', '')
 					if tc.name == 'textSearch':
-						tool_result = await self._rag_text.execute(paper_id, query)
-						yield ToolResultEvent(
-							tool_use_id=tc.id, name=tc.name, content=tool_result.model_dump()
-						)
-					elif tc.name == 'imageSearch':
-						tool_result = await self._rag_image.execute(paper_id, query)
-						yield ToolResultEvent(
-							tool_use_id=tc.id, name=tc.name, content=tool_result.model_dump()
-						)
-					else:
+						text_search_result = await self._rag_text.execute(paper_id, query)
 						yield ToolResultEvent(
 							tool_use_id=tc.id,
 							name=tc.name,
-							content={'error': f'Unknown tool: {tc.name}'},
+							content=text_search_result.model_dump(),
 						)
-					thread.messages.append(
-						ChatMessage(
-							role='tool',
-							content=json.dumps(tool_result, ensure_ascii=False),
-							tool_call_id=tc.id,
+						thread.messages.append(
+							ChatMessage(
+								role='tool',
+								content=text_search_result.model_dump_json(),
+								tool_call_id=tc.id,
+								name=tc.name,
+							)
+						)
+					elif tc.name == 'imageSearch':
+						image_search_result = await self._rag_image.execute(paper_id, query)
+						yield ToolResultEvent(
+							tool_use_id=tc.id,
 							name=tc.name,
+							content=image_search_result.model_dump(),
 						)
-					)
+						thread.messages.append(
+							ChatMessage(
+								role='tool',
+								content=image_search_result.model_dump_json(),
+								tool_call_id=tc.id,
+								name=tc.name,
+							)
+						)
+					else:
+						yield ErrorEvent(message=f'Unknown tool: {tc.name}')
+						break
 
 			# 最終応答（toolなし）
 			yield BlockStartEvent(index=block_index, block=TextBlock())

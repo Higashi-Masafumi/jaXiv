@@ -16,7 +16,7 @@ from infrastructure.gemini.config import get_gemini_config
 
 
 class GeminiChatLLM(IChatLLMGateway):
-	def __init__(self, model: str = 'gemini-3-flash-preview') -> None:
+	def __init__(self, model: str = 'gemini-2.5-flash') -> None:
 		self._client = genai.Client(api_key=get_gemini_config().gemini_api_key.get_secret_value())
 		self._model = model
 		self._logger = getLogger(__name__)
