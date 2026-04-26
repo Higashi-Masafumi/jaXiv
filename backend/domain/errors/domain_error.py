@@ -1,10 +1,7 @@
-class DomainError(Exception):
-	"""Base class for all domain errors."""
-
-	pass
+from domain.errors._base import DomainExhaustedError, DomainNotFoundError, DomainUnexpectedError
 
 
-class ArxivPaperNotFoundError(DomainError):
+class ArxivPaperNotFoundError(DomainNotFoundError):
 	"""Raised when an arXiv paper cannot be found."""
 
 	def __init__(self, paper_id: str):
@@ -12,7 +9,7 @@ class ArxivPaperNotFoundError(DomainError):
 		self.paper_id = paper_id
 
 
-class TexFileNotFoundError(DomainError):
+class TexFileNotFoundError(DomainNotFoundError):
 	"""Raised when no tex file is found in the source directory."""
 
 	def __init__(self, source_directory: str, detail: str = ''):
@@ -23,7 +20,7 @@ class TexFileNotFoundError(DomainError):
 		self.source_directory = source_directory
 
 
-class TranslationFailedError(DomainError):
+class TranslationFailedError(DomainUnexpectedError):
 	"""Raised when translation of a LaTeX file fails."""
 
 	def __init__(self, detail: str = ''):
@@ -31,14 +28,14 @@ class TranslationFailedError(DomainError):
 		self.detail = detail
 
 
-class TranslationEmptyResultError(DomainError):
+class TranslationEmptyResultError(DomainUnexpectedError):
 	"""Raised when translation produces an empty result."""
 
 	def __init__(self):
 		super().__init__('Translated text is empty')
 
 
-class LatexCompilationError(DomainError):
+class LatexCompilationError(DomainUnexpectedError):
 	"""Raised when LaTeX compilation fails."""
 
 	def __init__(self, target_file: str, detail: str = ''):
@@ -46,7 +43,7 @@ class LatexCompilationError(DomainError):
 		self.target_file = target_file
 
 
-class LatexCompilationTimeoutError(DomainError):
+class LatexCompilationTimeoutError(DomainUnexpectedError):
 	"""Raised when LaTeX compilation times out."""
 
 	def __init__(self, target_file: str):
@@ -54,7 +51,7 @@ class LatexCompilationTimeoutError(DomainError):
 		self.target_file = target_file
 
 
-class PdfNotGeneratedError(DomainError):
+class PdfNotGeneratedError(DomainUnexpectedError):
 	"""Raised when the compiled PDF file is not found."""
 
 	def __init__(self, pdf_path: str):
@@ -62,7 +59,7 @@ class PdfNotGeneratedError(DomainError):
 		self.pdf_path = pdf_path
 
 
-class PdfProcessingError(DomainError):
+class PdfProcessingError(DomainUnexpectedError):
 	"""Raised when PDF figure extraction or processing fails."""
 
 	def __init__(self, detail: str = ''):
@@ -70,9 +67,15 @@ class PdfProcessingError(DomainError):
 		self.detail = detail
 
 
-class GenerationLimitExceededError(DomainError):
+class GenerationLimitExceededError(DomainExhaustedError):
 	"""Raised when a user exceeds their monthly blog generation limit."""
 
 	def __init__(self, monthly_count: int, limit: int):
 		super().__init__(f'Monthly generation limit exceeded: {monthly_count}/{limit}')
 		self.monthly_count = monthly_count
+
+
+class ChatThreadNotFoundError(DomainNotFoundError):
+	def __init__(self, thread_id: str):
+		super().__init__(f'Chat thread not found: {thread_id}')
+		self.thread_id = thread_id

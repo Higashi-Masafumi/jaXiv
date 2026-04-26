@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from logging import getLogger
 from typing import Any
 
-from domain.entities.chat import ChatMessage, ChatThread, ToolCall
+from domain.entities.chat import ChatMessage, ToolCall
 from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolCallItem, ToolDefinition
 from domain.repositories.i_chat_thread_repository import IChatThreadRepository
 
@@ -78,10 +78,9 @@ class ChatWithPaperUseCase:
 		thread_id: uuid.UUID | None,
 		user_id: uuid.UUID,
 	) -> AsyncIterator[ChatStreamEvent]:
-		thread: ChatThread | None = None
 		if thread_id:
-			thread = await self._thread_repo.find_by_id_and_user(thread_id, user_id)
-		if thread is None:
+			thread = await self._thread_repo.find_by_id(thread_id)
+		else:
 			thread = await self._thread_repo.create(paper_id, user_id)
 
 		yield ThreadIdEvent(thread_id=str(thread.id))
@@ -172,5 +171,5 @@ class ChatWithPaperUseCase:
 			return
 
 		thread.updated_at = datetime.now(UTC)
-		await self._thread_repo.save(thread)
+		await self._thread_repo.update(thread)
 		yield MessageStopEvent()
