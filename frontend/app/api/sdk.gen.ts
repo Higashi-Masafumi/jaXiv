@@ -8,6 +8,9 @@ import {
 } from './client'
 import { client } from './client.gen'
 import type {
+  ChatWithPaperApiV1ChatPaperPaperIdPostData,
+  ChatWithPaperApiV1ChatPaperPaperIdPostErrors,
+  ChatWithPaperApiV1ChatPaperPaperIdPostResponses,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostData,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostErrors,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses,
@@ -299,6 +302,28 @@ export const generateBlogFromPdfStreamApiV1BlogPdfStreamPost = <
     ...options,
     headers: {
       'Content-Type': null,
+      ...options.headers,
+    },
+  })
+
+/**
+ * Chat with a paper using Gemini (SSE stream)
+ */
+export const chatWithPaperApiV1ChatPaperPaperIdPost = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ChatWithPaperApiV1ChatPaperPaperIdPostData, ThrowOnError>,
+) =>
+  (options.client ?? client).sse.post<
+    ChatWithPaperApiV1ChatPaperPaperIdPostResponses,
+    ChatWithPaperApiV1ChatPaperPaperIdPostErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat/paper/{paper_id}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
       ...options.headers,
     },
   })

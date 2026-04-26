@@ -33,17 +33,12 @@ services:
             - __pycache__/
             - .git/
             - .pytest_cache/
-            - "*.pyc"
             - pyproject.toml
             - uv.lock
-        # .venv は名前付きボリュームで永続化されるため rebuild ではなく
-        # sync+restart でロックを差し替え、起動コマンドの uv sync に任せる
-        - action: sync+restart
+        - action: rebuild
           path: ./pdf_analysis/pyproject.toml
-          target: /app/pyproject.toml
-        - action: sync+restart
+        - action: rebuild
           path: ./pdf_analysis/uv.lock
-          target: /app/uv.lock
 
   api:
     container_name: jaxiv-api
@@ -93,17 +88,12 @@ services:
             - .git/
             - .pytest_cache/
             - output/
-            - "*.pyc"
             - pyproject.toml
             - uv.lock
-        # .venv は名前付きボリュームで永続化されるため rebuild ではなく
-        # sync+restart でロックを差し替え、起動コマンドの uv sync に任せる
-        - action: sync+restart
+        - action: rebuild
           path: ./backend/pyproject.toml
-          target: /app/pyproject.toml
-        - action: sync+restart
+        - action: rebuild
           path: ./backend/uv.lock
-          target: /app/uv.lock
   qdrant:
     container_name: jaxiv-qdrant
     image: qdrant/qdrant:latest

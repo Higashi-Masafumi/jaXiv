@@ -67,6 +67,24 @@ export type BodyGenerateBlogFromPdfStreamApiV1BlogPdfStreamPost = {
 }
 
 /**
+ * ChatRequest
+ */
+export type ChatRequest = {
+  /**
+   * Message
+   *
+   * User message text
+   */
+  message: string
+  /**
+   * Thread Id
+   *
+   * Existing thread ID to continue
+   */
+  thread_id?: string | null
+}
+
+/**
  * GenerationCountResponseSchema
  */
 export type GenerationCountResponseSchema = {
@@ -615,6 +633,35 @@ export type GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostError =
 export type GenerateBlogFromPdfStreamApiV1BlogPdfStreamPostResponses = {
   /**
    * Successful Response
+   */
+  200: unknown
+}
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostData = {
+  body: ChatRequest
+  path: {
+    /**
+     * Paper Id
+     */
+    paper_id: string
+  }
+  query?: never
+  url: '/api/v1/chat/paper/{paper_id}'
+}
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostError =
+  ChatWithPaperApiV1ChatPaperPaperIdPostErrors[keyof ChatWithPaperApiV1ChatPaperPaperIdPostErrors]
+
+export type ChatWithPaperApiV1ChatPaperPaperIdPostResponses = {
+  /**
+   * SSE stream of ChatStreamEvent objects
    */
   200: unknown
 }

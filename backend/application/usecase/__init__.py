@@ -1,4 +1,5 @@
 from .arxiv_redirector import ArxivRedirector
+from .chat_with_paper import ChatWithPaperUseCase
 from .arxiv_redirector_sse import ArxivRedirectorSSEUseCase
 from .generate_blog_post import GenerateBlogPostUseCase
 from .generate_blog_post_from_pdf import GenerateBlogPostFromPdfUseCase
@@ -16,6 +17,7 @@ from .translate_arxiv_paper import TranslateArxivPaper
 
 __all__ = [
 	'ArxivRedirector',
+	'ChatWithPaperUseCase',
 	'ArxivRedirectorSSEUseCase',
 	'GenerateBlogPostFromPdfUseCase',
 	'GenerateBlogPostFromPdfSSEUseCase',

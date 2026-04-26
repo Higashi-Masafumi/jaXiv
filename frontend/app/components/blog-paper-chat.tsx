@@ -1,27 +1,30 @@
-import type { DynamicToolUIPart, ToolUIPart, UIMessage } from 'ai'
-import {
-  DefaultChatTransport,
-  getToolName,
-  isToolUIPart,
-  isTextUIPart,
-} from 'ai'
-import { useChat } from '@ai-sdk/react'
 import {
   AlertCircleIcon,
   ArrowUpIcon,
   CheckIcon,
+  ChevronRightIcon,
   Loader2Icon,
-  WrenchIcon,
+  SearchIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '~/components/ui/collapsible'
 import { MarkdownWithMath } from '~/components/markdown-with-math'
 import { Button } from '~/components/ui/button'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { Textarea } from '~/components/ui/textarea'
 import { cn } from '~/lib/utils'
+import {
+  type MessagePart,
+  type PaperChatMessage,
+  type ToolCallPart,
+  usePaperChat,
+} from '~/hooks/use-paper-chat'
 
-/** 下部固定の丸みのある入力（textarea + 円形送信） */
 function ChatComposer(props: {
   value: string
   onChange: (v: string) => void
@@ -80,43 +83,110 @@ function ChatComposer(props: {
   )
 }
 
-function ToolPart({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
-  const toolName = getToolName(part)
-  if (part.state === 'input-streaming') {
+function ToolCallResultSummary({ part }: { part: ToolCallPart }) {
+  if (!part.result) return null
+  const chunks =
+    (part.result.chunks as { text: string; page_number: number }[]) ?? []
+  const items =
+    (part.result.items as {
+      caption: string | null
+      page_number: number
+    }[]) ?? []
+
+  if (chunks.length > 0) {
     return (
-      <pre className="text-xs text-muted-foreground">
-        {JSON.stringify(part.input, null, 2)}
-      </pre>
+      <ul className="mt-1 space-y-1">
+        {chunks.map((c, i) => (
+          <li key={i} className="rounded bg-background/60 px-2 py-1">
+            <span className="text-muted-foreground">p.{c.page_number}</span>{' '}
+            {c.text.length > 120 ? `${c.text.slice(0, 120)}…` : c.text}
+          </li>
+        ))}
+      </ul>
     )
   }
-  if (part.state === 'input-available') {
+  if (items.length > 0) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <WrenchIcon className="size-3 shrink-0" />
-        <span>{toolName}を実行中…</span>
-      </div>
-    )
-  }
-  if (part.state === 'output-available') {
-    return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <CheckIcon className="size-3 shrink-0 text-green-500" />
-        <span>{toolName}を実行完了</span>
-      </div>
-    )
-  }
-  if (part.state === 'output-error') {
-    return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <AlertCircleIcon className="size-3 shrink-0 text-red-500" />
-        <span>{toolName}を実行エラー</span>
-      </div>
+      <ul className="mt-1 space-y-1">
+        {items.map((item, i) => (
+          <li key={i} className="rounded bg-background/60 px-2 py-1">
+            <span className="text-muted-foreground">p.{item.page_number}</span>{' '}
+            {item.caption ?? '(no caption)'}
+          </li>
+        ))}
+      </ul>
     )
   }
   return null
 }
 
-function MessageContent({ m }: { m: UIMessage }) {
+function ToolCallPartView({ part }: { part: ToolCallPart }) {
+  const [open, setOpen] = useState(false)
+  const query = (part.input.query as string) ?? ''
+
+  const stateIcon =
+    part.state === 'executing' ? (
+      <Loader2Icon className="size-3 shrink-0 animate-spin" />
+    ) : part.state === 'done' ? (
+      <CheckIcon className="size-3 shrink-0 text-green-500" />
+    ) : (
+      <AlertCircleIcon className="size-3 shrink-0 text-red-500" />
+    )
+
+  const stateLabel =
+    part.state === 'executing'
+      ? '実行中…'
+      : part.state === 'done'
+        ? '完了'
+        : 'エラー'
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex w-full items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <ChevronRightIcon
+          className={cn(
+            'size-3 shrink-0 transition-transform',
+            open && 'rotate-90',
+          )}
+        />
+        <SearchIcon className="size-3 shrink-0" />
+        <span className="truncate">
+          {part.name}
+          {query && `: "${query}"`}
+        </span>
+        <span className="ml-auto flex items-center gap-1">
+          {stateIcon}
+          <span>{stateLabel}</span>
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1 text-xs text-muted-foreground">
+        <ToolCallResultSummary part={part} />
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+function MessagePartView({
+  part,
+  isUser,
+}: {
+  part: MessagePart
+  isUser: boolean
+}) {
+  if (part.type === 'text') {
+    return (
+      <MarkdownWithMath variant={isUser ? 'primary' : 'default'}>
+        {part.text}
+      </MarkdownWithMath>
+    )
+  }
+  if (part.type === 'tool-call') {
+    return <ToolCallPartView part={part} />
+  }
+  return null
+}
+
+function MessageContent({ m }: { m: PaperChatMessage }) {
   const isUser = m.role === 'user'
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
@@ -128,22 +198,9 @@ function MessageContent({ m }: { m: UIMessage }) {
             : 'bg-muted text-foreground',
         )}
       >
-        {m.parts.map((part, i) => {
-          if (isTextUIPart(part)) {
-            return (
-              <MarkdownWithMath
-                key={i}
-                variant={isUser ? 'primary' : 'default'}
-              >
-                {part.text}
-              </MarkdownWithMath>
-            )
-          }
-          if (isToolUIPart(part)) {
-            return <ToolPart key={part.toolCallId} part={part} />
-          }
-          return null
-        })}
+        {m.parts.map((part, i) => (
+          <MessagePartView key={i} part={part} isUser={isUser} />
+        ))}
       </div>
     </div>
   )
@@ -153,11 +210,7 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const { messages, sendMessage, status, error } = useChat({
-    transport: new DefaultChatTransport({
-      api: `/api/blog/${encodeURIComponent(paperId)}/chat`,
-    }),
-  })
+  const { messages, sendMessage, status, error } = usePaperChat(paperId)
 
   const isSubmitted = status === 'submitted'
   const busy = isSubmitted || status === 'streaming'
@@ -169,7 +222,7 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
   const submitChat = () => {
     const t = input.trim()
     if (!t || busy) return
-    void sendMessage({ text: t })
+    void sendMessage(t)
     setInput('')
   }
 

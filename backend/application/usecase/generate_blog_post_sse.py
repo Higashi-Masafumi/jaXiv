@@ -80,9 +80,13 @@ class GenerateBlogPostSSEUseCase:
 				return
 
 			max_count = await self._usage_repository.get_max_usage_count(auth_user)
-			month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+			month_start = datetime.now(UTC).replace(
+				day=1, hour=0, minute=0, second=0, microsecond=0
+			)
 			async with self._uow as uow:
-				count = await uow.blog_posts_repository.count_generated_by_user(auth_user.user_id, since=month_start)
+				count = await uow.blog_posts_repository.count_generated_by_user(
+					auth_user.user_id, since=month_start
+				)
 			if count >= max_count:
 				yield ErrorBlogChunk(message='limit_exceeded', error_details='limit_exceeded')
 				return

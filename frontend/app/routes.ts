@@ -15,5 +15,4 @@ export default [
   ]),
   route('login', 'routes/login.tsx'),
   route('auth/callback', 'routes/auth.callback.tsx'),
-  route('api/blog/:paperId/chat', 'routes/api.blog.$paperId.chat.ts'),
 ] satisfies RouteConfig
