@@ -18,9 +18,9 @@ from application.chat_events import (
 	ToolResultEvent,
 	ToolUseBlock,
 )
+from application.unit_of_works.chat_thread_unit_of_work import ChatThreadUnitOfWork
 from domain.entities.chat import ChatMessage, ToolCall
 from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolCallItem, ToolDefinition
-from domain.repositories.i_chat_thread_repository import IChatThreadRepository
 
 from .rag_search_image import RagSearchImageResult, RagSearchImageUseCase
 from .rag_search_text import RagSearchTextResult, RagSearchTextUseCase
@@ -60,12 +60,12 @@ class ChatWithPaperUseCase:
 	def __init__(
 		self,
 		llm: IChatLLMGateway,
-		thread_repo: IChatThreadRepository,
+		thread_uow: ChatThreadUnitOfWork,
 		rag_text: RagSearchTextUseCase,
 		rag_image: RagSearchImageUseCase,
 	) -> None:
 		self._llm = llm
-		self._thread_repo = thread_repo
+		self._thread_uow = thread_uow
 		self._rag_text = rag_text
 		self._rag_image = rag_image
 		self._logger = getLogger(__name__)
@@ -87,87 +87,89 @@ class ChatWithPaperUseCase:
 		thread_id: uuid.UUID | None,
 		user_id: uuid.UUID,
 	) -> AsyncIterator[ChatStreamEvent]:
-		if thread_id:
-			thread = await self._thread_repo.find_by_id(thread_id)
-		else:
-			thread = await self._thread_repo.create(paper_id, user_id)
+		async with self._thread_uow as uow:
+			repo = uow.chat_thread_repository
+			if thread_id:
+				thread = await repo.find_by_id(thread_id)
+			else:
+				thread = await repo.create(paper_id, user_id)
 
-		yield ThreadIdEvent(thread_id=str(thread.id))
-		thread.messages.append(ChatMessage(role='user', content=message))
+			yield ThreadIdEvent(thread_id=str(thread.id))
+			thread.messages.append(ChatMessage(role='user', content=message))
 
-		block_index = 0
+			block_index = 0
 
-		try:
-			# tool callループ（最大MAX_TOOL_ROUNDS回）
-			text_buffer: list[str] = []
-			for _ in range(MAX_TOOL_ROUNDS):
-				tool_calls: list[ToolCallItem] = []
-				text_buffer = []
-				async for chunk in self._llm.stream(thread.messages, RAG_TOOLS, SYSTEM_PROMPT):
-					if isinstance(chunk, list):
-						tool_calls = chunk
-					else:
-						text_buffer.append(chunk)
+			try:
+				# tool callループ（最大MAX_TOOL_ROUNDS回）
+				text_buffer: list[str] = []
+				for _ in range(MAX_TOOL_ROUNDS):
+					tool_calls: list[ToolCallItem] = []
+					text_buffer = []
+					async for chunk in self._llm.stream(thread.messages, RAG_TOOLS, SYSTEM_PROMPT):
+						if isinstance(chunk, list):
+							tool_calls = chunk
+						else:
+							text_buffer.append(chunk)
 
-				if not tool_calls:
-					break
-
-				thread.messages.append(
-					ChatMessage(
-						role='assistant',
-						tool_calls=[
-							ToolCall(id=tc.id, name=tc.name, args=tc.args) for tc in tool_calls
-						],
-					)
-				)
-				for tc in tool_calls:
-					yield BlockStartEvent(
-						index=block_index,
-						block=ToolUseBlock(id=tc.id, name=tc.name, input=tc.args),
-					)
-					yield BlockStopEvent(index=block_index)
-					block_index += 1
-
-					result = await self._execute_tool(paper_id, tc)
-					if result is None:
-						yield ErrorEvent(message=f'Unknown tool: {tc.name}')
+					if not tool_calls:
 						break
-					yield ToolResultEvent(
-						tool_use_id=tc.id,
-						name=tc.name,
-						content=result.model_dump(),
-					)
+
 					thread.messages.append(
 						ChatMessage(
-							role='tool',
-							content=result.model_dump_json(),
-							tool_call_id=tc.id,
-							name=tc.name,
+							role='assistant',
+							tool_calls=[
+								ToolCall(id=tc.id, name=tc.name, args=tc.args) for tc in tool_calls
+							],
 						)
 					)
+					for tc in tool_calls:
+						yield BlockStartEvent(
+							index=block_index,
+							block=ToolUseBlock(id=tc.id, name=tc.name, input=tc.args),
+						)
+						yield BlockStopEvent(index=block_index)
+						block_index += 1
 
-			# ループ内でテキストが得られていればそれを使い、なければ再度呼び出す
-			if text_buffer:
-				accumulated = ''.join(text_buffer)
-				yield BlockStartEvent(index=block_index, block=TextBlock())
-				yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=accumulated))
-			else:
-				yield BlockStartEvent(index=block_index, block=TextBlock())
-				accumulated = ''
-				async for chunk in self._llm.stream(thread.messages, [], SYSTEM_PROMPT):
-					if isinstance(chunk, list):
-						continue
-					accumulated += chunk
-					yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=chunk))
+						result = await self._execute_tool(paper_id, tc)
+						if result is None:
+							yield ErrorEvent(message=f'Unknown tool: {tc.name}')
+							break
+						yield ToolResultEvent(
+							tool_use_id=tc.id,
+							name=tc.name,
+							content=result.model_dump(),
+						)
+						thread.messages.append(
+							ChatMessage(
+								role='tool',
+								content=result.model_dump_json(),
+								tool_call_id=tc.id,
+								name=tc.name,
+							)
+						)
 
-			yield BlockStopEvent(index=block_index)
-			thread.messages.append(ChatMessage(role='assistant', content=accumulated))
+				# ループ内でテキストが得られていればそれを使い、なければ再度呼び出す
+				if text_buffer:
+					accumulated = ''.join(text_buffer)
+					yield BlockStartEvent(index=block_index, block=TextBlock())
+					yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=accumulated))
+				else:
+					yield BlockStartEvent(index=block_index, block=TextBlock())
+					accumulated = ''
+					async for chunk in self._llm.stream(thread.messages, [], SYSTEM_PROMPT):
+						if isinstance(chunk, list):
+							continue
+						accumulated += chunk
+						yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=chunk))
 
-		except Exception as e:
-			self._logger.exception('Chat error for paper %s', paper_id)
-			yield ErrorEvent(message=str(e))
-			return
+				yield BlockStopEvent(index=block_index)
+				thread.messages.append(ChatMessage(role='assistant', content=accumulated))
 
-		thread.updated_at = datetime.now(UTC)
-		await self._thread_repo.update(thread)
+			except Exception as e:
+				self._logger.exception('Chat error for paper %s', paper_id)
+				yield ErrorEvent(message=str(e))
+				return
+
+			thread.updated_at = datetime.now(UTC)
+			await repo.update(thread)
 		yield MessageStopEvent()

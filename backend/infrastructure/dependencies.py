@@ -22,7 +22,7 @@ from application.usecase import (
 	SaveTranslatedArxivSSEUseCase,
 	TranslateArxivPaper,
 )
-from application.unit_of_works import BlogPostUnitOfWork, TranslatedArxivUnitOfWork
+from application.unit_of_works import BlogPostUnitOfWork, ChatThreadUnitOfWork, TranslatedArxivUnitOfWork
 
 from domain.gateways import (
 	IArxivSourceFetcher,
@@ -40,7 +40,6 @@ from domain.gateways import (
 from domain.entities.auth_user import AuthUser
 from domain.repositories import (
 	IBlogPostRepository,
-	IChatThreadRepository,
 	IFigureChunkRepository,
 	IFigureStorageRepository,
 	IFileStorageRepository,
@@ -62,13 +61,13 @@ from infrastructure.pdf import (
 )
 from infrastructure.postgres import (
 	PostgresBlogPostUnitOfWork,
+	PostgresChatThreadUnitOfWork,
 	PostgresTranslatedArxivUnitOfWork,
 	create_async_session_factory,
 	get_async_session,
 )
 from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
-	PostgresChatThreadRepository,
 	PostgresTranslatedArxivRepository,
 )
 from infrastructure.auth import (
@@ -461,21 +460,19 @@ def get_gemini_chat_llm() -> IChatLLMGateway:
 	return GeminiChatLLM()
 
 
-async def get_chat_thread_repository(
-	session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> IChatThreadRepository:
-	return PostgresChatThreadRepository(session=session)
+def get_chat_thread_unit_of_work() -> ChatThreadUnitOfWork:
+	return PostgresChatThreadUnitOfWork(session_factory=create_async_session_factory())
 
 
-async def get_chat_with_paper_use_case(
+def get_chat_with_paper_use_case(
 	llm: Annotated[IChatLLMGateway, Depends(get_gemini_chat_llm)],
-	thread_repo: Annotated[IChatThreadRepository, Depends(get_chat_thread_repository)],
+	thread_uow: Annotated[ChatThreadUnitOfWork, Depends(get_chat_thread_unit_of_work)],
 	rag_text: Annotated[RagSearchTextUseCase, Depends(get_rag_search_text_use_case)],
 	rag_image: Annotated[RagSearchImageUseCase, Depends(get_rag_search_image_use_case)],
 ) -> ChatWithPaperUseCase:
 	return ChatWithPaperUseCase(
 		llm=llm,
-		thread_repo=thread_repo,
+		thread_uow=thread_uow,
 		rag_text=rag_text,
 		rag_image=rag_image,
 	)
