@@ -2,11 +2,11 @@ import json
 import uuid
 from collections.abc import AsyncIterator
 from logging import getLogger
-from typing import Any
 
 from google import genai
 from google.genai import types
 
+from domain.entities.chat import ChatMessage
 from domain.gateways.i_chat_llm_gateway import (
 	IChatLLMGateway,
 	ToolCallItem,
@@ -20,46 +20,66 @@ class GeminiChatLLM(IChatLLMGateway):
 		self._client = genai.Client(api_key=get_gemini_config().gemini_api_key.get_secret_value())
 		self._model = model
 		self._logger = getLogger(__name__)
+		self._fc_parts_by_id: dict[str, types.Part] = {}
+
+	def _to_contents(self, messages: list[ChatMessage]) -> list[types.Content]:
+		contents: list[types.Content] = []
+		for msg in messages:
+			if msg.role == 'user':
+				contents.append(
+					types.Content(role='user', parts=[types.Part.from_text(text=msg.content or '')])
+				)
+			elif msg.role == 'assistant':
+				parts: list[types.Part] = []
+				if msg.tool_calls:
+					for tc in msg.tool_calls:
+						cached = self._fc_parts_by_id.get(tc.id)
+						if cached:
+							parts.append(cached)
+						else:
+							parts.append(
+								types.Part.from_text(
+									text=f'[Called {tc.name}({json.dumps(tc.args, ensure_ascii=False)})]'
+								)
+							)
+				elif msg.content:
+					parts.append(types.Part.from_text(text=msg.content))
+				if parts:
+					contents.append(types.Content(role='model', parts=parts))
+			elif msg.role == 'tool':
+				if msg.tool_call_id and msg.tool_call_id in self._fc_parts_by_id:
+					contents.append(
+						types.Content(
+							role='user',
+							parts=[
+								types.Part.from_function_response(
+									name=msg.name or 'tool',
+									response={'result': json.loads(msg.content or '{}')},
+								)
+							],
+						)
+					)
+				else:
+					contents.append(
+						types.Content(
+							role='user',
+							parts=[
+								types.Part.from_text(
+									text=f'[Result of {msg.name or "tool"}]: {msg.content}'
+								)
+							],
+						)
+					)
+		return contents
 
 	async def stream(
 		self,
-		messages: list[dict[str, Any]],
+		messages: list[ChatMessage],
 		tools: list[ToolDefinition],
 		system_prompt: str,
 	) -> AsyncIterator[str | list[ToolCallItem]]:
-		# Convert messages to Gemini Content objects
-		contents: list[types.Content] = []
-		for msg in messages:
-			role = msg['role']
-			if role == 'user':
-				contents.append(
-					types.Content(role='user', parts=[types.Part.from_text(text=msg['content'])])
-				)
-			elif role == 'assistant':
-				parts: list[types.Part] = []
-				if msg.get('tool_calls'):
-					for tc in msg['tool_calls']:
-						parts.append(
-							types.Part.from_function_call(name=tc['name'], args=tc['args'])
-						)
-				elif msg.get('content'):
-					parts.append(types.Part.from_text(text=msg['content']))
-				if parts:
-					contents.append(types.Content(role='model', parts=parts))
-			elif role == 'tool':
-				contents.append(
-					types.Content(
-						role='user',
-						parts=[
-							types.Part.from_function_response(
-								name=msg.get('name', 'tool'),
-								response={'result': json.loads(msg['content'])},
-							)
-						],
-					)
-				)
+		contents = self._to_contents(messages)
 
-		# Build Gemini tool config
 		gemini_tools: list[types.Tool] | None = None
 		if tools:
 			gemini_tools = [
@@ -80,7 +100,7 @@ class GeminiChatLLM(IChatLLMGateway):
 			tools=gemini_tools,  # type: ignore[arg-type]
 		)
 
-		tool_call_parts: list[Any] = []
+		tool_call_parts: list[tuple[str, types.Part]] = []
 		async for chunk in await self._client.aio.models.generate_content_stream(
 			model=self._model,
 			contents=contents,  # type: ignore[arg-type]
@@ -93,16 +113,19 @@ class GeminiChatLLM(IChatLLMGateway):
 			) or []
 			for part in parts_in_chunk:
 				if part.function_call is not None:
-					tool_call_parts.append(part.function_call)
+					tc_id = str(uuid.uuid4())
+					tool_call_parts.append((tc_id, part))
 			if chunk.text:
 				yield chunk.text
 
 		if tool_call_parts:
+			for tc_id, part in tool_call_parts:
+				self._fc_parts_by_id[tc_id] = part
 			yield [
 				ToolCallItem(
-					id=str(uuid.uuid4()),
-					name=fc.name,  # type: ignore[union-attr,arg-type]
-					args=dict(fc.args),  # type: ignore[union-attr,arg-type]
+					id=tc_id,
+					name=part.function_call.name,  # type: ignore[union-attr,arg-type]
+					args=dict(part.function_call.args),  # type: ignore[union-attr,arg-type]
 				)
-				for fc in tool_call_parts
+				for tc_id, part in tool_call_parts
 			]

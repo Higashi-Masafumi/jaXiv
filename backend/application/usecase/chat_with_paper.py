@@ -5,7 +5,6 @@ import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from logging import getLogger
-from typing import Any
 
 from domain.entities.chat import ChatMessage, ToolCall
 from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolCallItem, ToolDefinition
@@ -56,6 +55,8 @@ RAG_TOOLS: list[ToolDefinition] = [
 	),
 ]
 
+MAX_TOOL_ROUNDS = 3
+
 
 class ChatWithPaperUseCase:
 	def __init__(
@@ -86,84 +87,72 @@ class ChatWithPaperUseCase:
 		yield ThreadIdEvent(thread_id=str(thread.id))
 		thread.messages.append(ChatMessage(role='user', content=message))
 
-		tool_rounds = 0
 		block_index = 0
 
 		try:
-			while True:
-				tools = RAG_TOOLS if tool_rounds < 3 else []
+			# tool callループ（最大MAX_TOOL_ROUNDS回）
+			for _ in range(MAX_TOOL_ROUNDS):
 				tool_calls: list[ToolCallItem] = []
-				accumulated = ''
-				text_started = False
-
-				msgs: list[dict[str, Any]] = []
-				for m in thread.messages:
-					d: dict[str, Any] = {'role': m.role, 'content': m.content}
-					if m.tool_calls:
-						d['tool_calls'] = [
-							{'id': tc.id, 'name': tc.name, 'args': tc.args} for tc in m.tool_calls
-						]
-					if m.tool_call_id:
-						d['tool_call_id'] = m.tool_call_id
-						if m.name:
-							d['name'] = m.name
-					msgs.append(d)
-
-				async for chunk in self._llm.stream(msgs, tools, SYSTEM_PROMPT):
+				async for chunk in self._llm.stream(thread.messages, RAG_TOOLS, SYSTEM_PROMPT):
 					if isinstance(chunk, list):
 						tool_calls = chunk
-					else:
-						if not text_started:
-							text_started = True
-							yield BlockStartEvent(index=block_index, block=TextBlock())
-						accumulated += chunk
-						yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=chunk))
 
-				if tool_calls and tool_rounds < 3:
+				if not tool_calls:
+					break
+
+				thread.messages.append(
+					ChatMessage(
+						role='assistant',
+						tool_calls=[
+							ToolCall(id=tc.id, name=tc.name, args=tc.args) for tc in tool_calls
+						],
+					)
+				)
+				for tc in tool_calls:
+					yield BlockStartEvent(
+						index=block_index,
+						block=ToolUseBlock(id=tc.id, name=tc.name),
+					)
+					yield BlockStopEvent(index=block_index)
+					block_index += 1
+
+					query = tc.args.get('query', '')
+					if tc.name == 'textSearch':
+						tool_result = await self._rag_text.execute(paper_id, query)
+						yield ToolResultEvent(
+							tool_use_id=tc.id, name=tc.name, content=tool_result.model_dump()
+						)
+					elif tc.name == 'imageSearch':
+						tool_result = await self._rag_image.execute(paper_id, query)
+						yield ToolResultEvent(
+							tool_use_id=tc.id, name=tc.name, content=tool_result.model_dump()
+						)
+					else:
+						yield ToolResultEvent(
+							tool_use_id=tc.id,
+							name=tc.name,
+							content={'error': f'Unknown tool: {tc.name}'},
+						)
 					thread.messages.append(
 						ChatMessage(
-							role='assistant',
-							tool_calls=[
-								ToolCall(id=tc.id, name=tc.name, args=tc.args) for tc in tool_calls
-							],
+							role='tool',
+							content=json.dumps(tool_result, ensure_ascii=False),
+							tool_call_id=tc.id,
+							name=tc.name,
 						)
 					)
-					for tc in tool_calls:
-						yield BlockStartEvent(
-							index=block_index,
-							block=ToolUseBlock(id=tc.id, name=tc.name),
-						)
-						yield BlockStopEvent(index=block_index)
-						block_index += 1
 
-						query = tc.args.get('query', '')
-						if tc.name == 'textSearch':
-							tool_result = (
-								await self._rag_text.execute(paper_id, query)
-							).model_dump()
-						elif tc.name == 'imageSearch':
-							tool_result = (
-								await self._rag_image.execute(paper_id, query)
-							).model_dump()
-						else:
-							tool_result = {'error': f'Unknown tool: {tc.name}'}
+			# 最終応答（toolなし）
+			yield BlockStartEvent(index=block_index, block=TextBlock())
+			accumulated = ''
+			async for chunk in self._llm.stream(thread.messages, [], SYSTEM_PROMPT):
+				if isinstance(chunk, list):
+					continue
+				accumulated += chunk
+				yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=chunk))
 
-						yield ToolResultEvent(tool_use_id=tc.id, name=tc.name, content=tool_result)
-						thread.messages.append(
-							ChatMessage(
-								role='tool',
-								content=json.dumps(tool_result, ensure_ascii=False),
-								tool_call_id=tc.id,
-								name=tc.name,
-							)
-						)
-					tool_rounds += 1
-
-				else:
-					if text_started:
-						yield BlockStopEvent(index=block_index)
-					thread.messages.append(ChatMessage(role='assistant', content=accumulated))
-					break
+			yield BlockStopEvent(index=block_index)
+			thread.messages.append(ChatMessage(role='assistant', content=accumulated))
 
 		except Exception as e:
 			self._logger.exception('Chat error for paper %s', paper_id)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { chatWithPaperApiV1ChatPaperPaperIdPost } from '~/api/sdk.gen'
 import { supabase } from '~/lib/supabase'
@@ -37,8 +37,6 @@ type ChatStreamEvent =
 
 export type ChatStatus = 'idle' | 'submitted' | 'streaming'
 
-const threadKey = (paperId: string) => `chat_thread_${paperId}`
-
 export function usePaperChat(paperId: string) {
   const [messages, setMessages] = useState<PaperChatMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>('idle')
@@ -46,10 +44,6 @@ export function usePaperChat(paperId: string) {
   const threadIdRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    threadIdRef.current = localStorage.getItem(threadKey(paperId))
-  }, [paperId])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -90,7 +84,6 @@ export function usePaperChat(paperId: string) {
         switch (event.type) {
           case 'thread_id':
             threadIdRef.current = event.thread_id
-            localStorage.setItem(threadKey(paperId), event.thread_id)
             break
           case 'block_start': {
             const part: MessagePart =
@@ -108,7 +101,13 @@ export function usePaperChat(paperId: string) {
           case 'block_delta':
             updateAssistant(m => {
               const parts = [...m.parts]
-              const idx = parts.findLastIndex(p => p.type === 'text')
+              let idx = -1
+              for (let i = parts.length - 1; i >= 0; i -= 1) {
+                if (parts[i]?.type === 'text') {
+                  idx = i
+                  break
+                }
+              }
               if (idx >= 0)
                 parts[idx] = {
                   type: 'text',

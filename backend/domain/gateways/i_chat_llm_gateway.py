@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from domain.entities.chat import ChatMessage
+
 
 class ToolDefinition(BaseModel):
 	model_config = ConfigDict(frozen=True)
@@ -22,16 +24,10 @@ class ToolCallItem(BaseModel):
 
 
 class IChatLLMGateway(ABC):
-	"""Abstract gateway for LLM chat with tool-calling support.
-
-	stream() yields str (text delta) or list[ToolCallItem] (tool calls).
-	Tool calls are yielded as a single batch after the stream ends.
-	"""
-
 	@abstractmethod
 	def stream(
 		self,
-		messages: list[dict[str, Any]],
+		messages: list[ChatMessage],
 		tools: list[ToolDefinition],
 		system_prompt: str,
 	) -> AsyncIterator[str | list[ToolCallItem]]: ...
