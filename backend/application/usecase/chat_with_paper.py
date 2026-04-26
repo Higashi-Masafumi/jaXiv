@@ -6,10 +6,6 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from logging import getLogger
 
-from domain.entities.chat import ChatMessage, ToolCall
-from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolCallItem, ToolDefinition
-from domain.repositories.i_chat_thread_repository import IChatThreadRepository
-
 from application.chat_events import (
 	BlockDeltaEvent,
 	BlockStartEvent,
@@ -23,6 +19,9 @@ from application.chat_events import (
 	ToolResultEvent,
 	ToolUseBlock,
 )
+from domain.entities.chat import ChatMessage, ToolCall
+from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolCallItem, ToolDefinition
+from domain.repositories.i_chat_thread_repository import IChatThreadRepository
 
 from .rag_search_image import RagSearchImageUseCase
 from .rag_search_text import RagSearchTextUseCase

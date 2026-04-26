@@ -1,6 +1,6 @@
+from ._base import DomainError
 from .domain_error import (
 	ArxivPaperNotFoundError,
-	DomainError,
 	LatexCompilationError,
 	LatexCompilationTimeoutError,
 	PdfNotGeneratedError,
