@@ -9,6 +9,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 
 from controller import router
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
+from middlewares.exception_handler import ExceptionHandler
 
 load_dotenv()
 
@@ -34,6 +35,8 @@ app.add_middleware(
 	allow_methods=['*'],
 	allow_headers=['*'],
 )
+
+app.add_middleware(ExceptionHandler)
 
 sentry_sdk.init(
 	dsn='https://382d77a1d801f0362e4c2fb9644c6bdc@o4509661921083392.ingest.us.sentry.io/4509661921935360',

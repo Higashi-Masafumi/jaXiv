@@ -22,7 +22,11 @@ from application.usecase import (
 	SaveTranslatedArxivSSEUseCase,
 	TranslateArxivPaper,
 )
-from application.unit_of_works import BlogPostUnitOfWork, ChatThreadUnitOfWork, TranslatedArxivUnitOfWork
+from application.unit_of_works import (
+	BlogPostUnitOfWork,
+	ChatThreadUnitOfWork,
+	TranslatedArxivUnitOfWork,
+)
 
 from domain.gateways import (
 	IArxivSourceFetcher,
