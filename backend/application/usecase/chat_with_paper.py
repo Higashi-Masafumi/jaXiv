@@ -87,19 +87,19 @@ class ChatWithPaperUseCase:
 		thread_id: uuid.UUID | None,
 		user_id: uuid.UUID,
 	) -> AsyncIterator[ChatStreamEvent]:
-		async with self._thread_uow as uow:
-			repo = uow.chat_thread_repository
-			if thread_id:
-				thread = await repo.find_by_id(thread_id)
-			else:
-				thread = await repo.create(paper_id, user_id)
+		try:
+			async with self._thread_uow as uow:
+				repo = uow.chat_thread_repository
+				if thread_id:
+					thread = await repo.find_by_id(thread_id)
+				else:
+					thread = await repo.create(paper_id, user_id)
 
-			yield ThreadIdEvent(thread_id=str(thread.id))
-			thread.messages.append(ChatMessage(role='user', content=message))
+				yield ThreadIdEvent(thread_id=str(thread.id))
+				thread.messages.append(ChatMessage(role='user', content=message))
 
-			block_index = 0
+				block_index = 0
 
-			try:
 				# tool callループ（最大MAX_TOOL_ROUNDS回）
 				text_buffer: list[str] = []
 				for _ in range(MAX_TOOL_ROUNDS):
@@ -165,11 +165,11 @@ class ChatWithPaperUseCase:
 				yield BlockStopEvent(index=block_index)
 				thread.messages.append(ChatMessage(role='assistant', content=accumulated))
 
-			except Exception as e:
-				self._logger.exception('Chat error for paper %s', paper_id)
-				yield ErrorEvent(message=str(e))
-				return
+				thread.updated_at = datetime.now(UTC)
+				await repo.update(thread)
+		except Exception as e:
+			self._logger.exception('Chat error for paper %s', paper_id)
+			yield ErrorEvent(message=str(e))
+			return
 
-			thread.updated_at = datetime.now(UTC)
-			await repo.update(thread)
 		yield MessageStopEvent()
