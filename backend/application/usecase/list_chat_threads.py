@@ -1,19 +1,19 @@
 """List chat threads belonging to a user for a given paper."""
 
-import uuid
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel
 
-from application.unit_of_works.chat_thread_unit_of_work import ChatThreadUnitOfWork
 from domain.entities.chat import ChatThread
+from domain.repositories import IChatThreadRepository
 
 
 SNIPPET_MAX_LENGTH = 80
 
 
 class ChatThreadSummary(BaseModel):
-	id: uuid.UUID
+	id: UUID
 	paper_id: str
 	created_at: datetime
 	updated_at: datetime
@@ -41,12 +41,15 @@ class ChatThreadSummary(BaseModel):
 
 
 class ListChatThreadsUseCase:
-	def __init__(self, thread_uow: ChatThreadUnitOfWork) -> None:
-		self._thread_uow = thread_uow
+	def __init__(self, chat_thread_repository: IChatThreadRepository) -> None:
+		self._chat_thread_repository = chat_thread_repository
 
-	async def execute(self, paper_id: str, user_id: uuid.UUID) -> list[ChatThreadSummary]:
-		async with self._thread_uow as uow:
-			threads = await uow.chat_thread_repository.find_by_paper_and_user(
-				paper_id=paper_id, user_id=user_id
-			)
-			return [ChatThreadSummary.from_thread(t) for t in threads if len(t.messages) > 0]
+	async def execute(self, paper_id: str, user_id: UUID) -> list[ChatThreadSummary]:
+		threads = await self._chat_thread_repository.find_by_paper_id(paper_id)
+		# 表示にはメッセージ未送信のスレッドを除外し、所有者一致のもののみ返す
+		# （DB 側で RLS を適用していれば user_id フィルタは冗長だが、防御的に残す）。
+		return [
+			ChatThreadSummary.from_thread(t)
+			for t in threads
+			if t.user_id == user_id and len(t.messages) > 0
+		]

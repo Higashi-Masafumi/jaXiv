@@ -46,13 +46,10 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 		self._session.add(row)
 		return ChatThread.model_validate(row.model_dump())
 
-	async def find_by_paper_and_user(self, paper_id: str, user_id: uuid.UUID) -> list[ChatThread]:
+	async def find_by_paper_id(self, paper_id: str) -> list[ChatThread]:
 		result = await self._session.execute(
 			select(ChatThreadModel)
-			.where(
-				ChatThreadModel.paper_id == paper_id,  # type: ignore[arg-type]
-				ChatThreadModel.user_id == user_id,  # type: ignore[arg-type]
-			)
+			.where(ChatThreadModel.paper_id == paper_id)  # type: ignore[arg-type]
 			.order_by(ChatThreadModel.updated_at.desc())  # type: ignore[attr-defined]
 		)
 		rows = result.scalars().all()
