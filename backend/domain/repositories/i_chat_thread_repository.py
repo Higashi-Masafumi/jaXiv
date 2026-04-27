@@ -13,3 +13,11 @@ class IChatThreadRepository(ABC):
 
 	@abstractmethod
 	async def create(self, paper_id: str, user_id: uuid.UUID) -> ChatThread: ...
+
+	@abstractmethod
+	async def find_by_paper_and_user(
+		self, paper_id: str, user_id: uuid.UUID
+	) -> list[ChatThread]: ...
+
+	@abstractmethod
+	async def delete(self, thread_id: uuid.UUID) -> None: ...

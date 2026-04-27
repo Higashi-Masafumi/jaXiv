@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.entities.chat import ChatThread
@@ -45,3 +45,22 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 		)
 		self._session.add(row)
 		return ChatThread.model_validate(row.model_dump())
+
+	async def find_by_paper_and_user(self, paper_id: str, user_id: uuid.UUID) -> list[ChatThread]:
+		result = await self._session.execute(
+			select(ChatThreadModel)
+			.where(
+				ChatThreadModel.paper_id == paper_id,  # type: ignore[arg-type]
+				ChatThreadModel.user_id == user_id,  # type: ignore[arg-type]
+			)
+			.order_by(ChatThreadModel.updated_at.desc())  # type: ignore[attr-defined]
+		)
+		rows = result.scalars().all()
+		return [ChatThread.model_validate(row.model_dump()) for row in rows]
+
+	async def delete(self, thread_id: uuid.UUID) -> None:
+		result = await self._session.execute(
+			delete(ChatThreadModel).where(ChatThreadModel.id == thread_id)  # type: ignore[arg-type]
+		)
+		if result.rowcount == 0:
+			raise ChatThreadNotFoundError(str(thread_id))
