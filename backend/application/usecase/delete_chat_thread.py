@@ -1,4 +1,8 @@
-"""Delete a chat thread owned by the requesting user."""
+"""Delete a chat thread owned by the requesting user.
+
+RLS により他人のスレッドは DELETE 対象から除外されるため、所有者の明示チェックは不要。
+存在しない／他人の／既に削除済み の全ケースを idempotent に成功扱いする。
+"""
 
 from logging import getLogger
 from uuid import UUID
@@ -12,14 +16,9 @@ class DeleteChatThreadUseCase:
 		self._thread_uow = thread_uow
 		self._logger = getLogger(__name__)
 
-	async def execute(self, thread_id: UUID, user_id: UUID) -> None:
+	async def execute(self, thread_id: UUID) -> None:
 		async with self._thread_uow as uow:
-			thread = await uow.chat_thread_repository.find_by_id(thread_id)
-			# 他ユーザーのスレッド存在を漏らさないため、所有者違いも 404 と同じエラーで返す。
-			if thread.user_id != user_id:
-				raise ChatThreadNotFoundError(str(thread_id))
 			try:
 				await uow.chat_thread_repository.delete(thread_id)
 			except ChatThreadNotFoundError:
-				# 並行リクエストで先に削除されたケースは成功扱いで吸収する。
 				return

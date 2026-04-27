@@ -66,9 +66,9 @@ async def chat_with_paper(
 async def list_chat_threads(
 	paper_id: Annotated[str, Path(description='The paper ID')],
 	use_case: Annotated[ListChatThreadsUseCase, Depends(get_list_chat_threads_use_case)],
-	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
+	_auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 ) -> ChatThreadListResponse:
-	summaries = await use_case.execute(paper_id=paper_id, user_id=auth_user.user_id.root)
+	summaries = await use_case.execute(paper_id=paper_id)
 	return ChatThreadListResponse(
 		threads=[ChatThreadSummaryResponse.from_summary(s) for s in summaries]
 	)
@@ -82,9 +82,9 @@ async def list_chat_threads(
 async def get_chat_thread(
 	thread_id: Annotated[uuid.UUID, Path(description='The thread ID')],
 	use_case: Annotated[GetChatThreadUseCase, Depends(get_get_chat_thread_use_case)],
-	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
+	_auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 ) -> ChatThreadResponse:
-	thread = await use_case.execute(thread_id=thread_id, user_id=auth_user.user_id.root)
+	thread = await use_case.execute(thread_id=thread_id)
 	return ChatThreadResponse.from_entity(thread)
 
 
@@ -96,6 +96,6 @@ async def get_chat_thread(
 async def delete_chat_thread(
 	thread_id: Annotated[uuid.UUID, Path(description='The thread ID')],
 	use_case: Annotated[DeleteChatThreadUseCase, Depends(get_delete_chat_thread_use_case)],
-	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
+	_auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 ) -> None:
-	await use_case.execute(thread_id=thread_id, user_id=auth_user.user_id.root)
+	await use_case.execute(thread_id=thread_id)
