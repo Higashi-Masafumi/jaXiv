@@ -1,4 +1,3 @@
-import os
 import uuid
 from typing import Annotated
 
@@ -472,29 +471,12 @@ def get_sse_generate_blog_post_from_pdf(
 # --------------------------------------
 # Chat use case providers
 # --------------------------------------
-DEFAULT_MAX_CHAT_CONVERSATION_TURNS = 10
-
-
 def get_gemini_chat_llm() -> IChatLLMGateway:
 	return GeminiChatLLM()
 
 
 def get_chat_thread_unit_of_work() -> ChatThreadUnitOfWork:
 	return PostgresChatThreadUnitOfWork(session_factory=create_async_session_factory())
-
-
-def _get_max_chat_conversation_turns() -> int:
-	"""トークン消費を抑えるため、LLM へ送る対話ターン数の上限を設定する。
-
-	0 以下なら無制限。環境変数が不正な場合はデフォルト値にフォールバックする。
-	"""
-	raw = os.getenv('MAX_CHAT_CONVERSATION_TURNS')
-	if raw is None:
-		return DEFAULT_MAX_CHAT_CONVERSATION_TURNS
-	try:
-		return int(raw)
-	except ValueError:
-		return DEFAULT_MAX_CHAT_CONVERSATION_TURNS
 
 
 def get_chat_with_paper_use_case(
@@ -508,7 +490,6 @@ def get_chat_with_paper_use_case(
 		thread_uow=thread_uow,
 		rag_text=rag_text,
 		rag_image=rag_image,
-		max_conversation_turns=_get_max_chat_conversation_turns(),
 	)
 
 
