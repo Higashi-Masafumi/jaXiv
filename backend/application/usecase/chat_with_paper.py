@@ -35,7 +35,7 @@ SYSTEM_PROMPT = """\
 RAG_TOOLS: list[ToolDefinition] = [
 	ToolDefinition(
 		name='textSearch',
-		description='論文本文チャンクの意味的検索。要約・定義・手法の説明などテキストに関する質問に使う。',
+		description='論文本文チャンクの意味的検索。要約・定義・手法の説明などテキストに関する質問に使う。queryは英語で指定する。',
 		parameters={
 			'type': 'object',
 			'properties': {'query': {'type': 'string', 'description': '検索クエリ（自然言語）'}},
@@ -44,7 +44,7 @@ RAG_TOOLS: list[ToolDefinition] = [
 	),
 	ToolDefinition(
 		name='imageSearch',
-		description='図・画像に関連する検索。キャプションの意味で近い図の画像URLを返す。図やスクリーンショットの話題に使う。',
+		description='図・画像に関連する検索。キャプションの意味で近い図の画像URLを返す。図やスクリーンショットの話題に使う。queryは英語で指定する。',
 		parameters={
 			'type': 'object',
 			'properties': {'query': {'type': 'string', 'description': '検索クエリ（自然言語）'}},
