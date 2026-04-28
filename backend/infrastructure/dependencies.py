@@ -8,13 +8,16 @@ from application.usecase import (
 	ArxivRedirector,
 	ArxivRedirectorSSEUseCase,
 	ChatWithPaperUseCase,
+	DeleteChatThreadUseCase,
 	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostFromPdfSSEUseCase,
 	GenerateBlogPostUseCase,
 	GenerateBlogPostSSEUseCase,
 	GetBlogPostUseCase,
+	GetChatThreadUseCase,
 	GetMyGenerationCountUseCase,
 	ListBlogPostsUseCase,
+	ListChatThreadsUseCase,
 	ListMyBlogPostsUseCase,
 	RagSearchImageUseCase,
 	RagSearchTextUseCase,
@@ -44,6 +47,7 @@ from domain.gateways import (
 from domain.entities.auth_user import AuthUser
 from domain.repositories import (
 	IBlogPostRepository,
+	IChatThreadRepository,
 	IFigureChunkRepository,
 	IFigureStorageRepository,
 	IFileStorageRepository,
@@ -72,6 +76,7 @@ from infrastructure.postgres import (
 )
 from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
+	PostgresChatThreadRepository,
 	PostgresTranslatedArxivRepository,
 )
 from infrastructure.auth import (
@@ -165,6 +170,12 @@ async def get_blog_post_repository(
 	session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> IBlogPostRepository:
 	return PostgresBlogPostRepository(session=session)
+
+
+async def get_chat_thread_repository(
+	session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> IChatThreadRepository:
+	return PostgresChatThreadRepository(session=session)
 
 
 def get_sse_blog_post_unit_of_work() -> BlogPostUnitOfWork:
@@ -480,3 +491,21 @@ def get_chat_with_paper_use_case(
 		rag_text=rag_text,
 		rag_image=rag_image,
 	)
+
+
+def get_list_chat_threads_use_case(
+	chat_thread_repository: Annotated[IChatThreadRepository, Depends(get_chat_thread_repository)],
+) -> ListChatThreadsUseCase:
+	return ListChatThreadsUseCase(chat_thread_repository=chat_thread_repository)
+
+
+def get_get_chat_thread_use_case(
+	chat_thread_repository: Annotated[IChatThreadRepository, Depends(get_chat_thread_repository)],
+) -> GetChatThreadUseCase:
+	return GetChatThreadUseCase(chat_thread_repository=chat_thread_repository)
+
+
+def get_delete_chat_thread_use_case(
+	thread_uow: Annotated[ChatThreadUnitOfWork, Depends(get_chat_thread_unit_of_work)],
+) -> DeleteChatThreadUseCase:
+	return DeleteChatThreadUseCase(thread_uow=thread_uow)
