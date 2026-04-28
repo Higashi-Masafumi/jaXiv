@@ -20,7 +20,6 @@ from application.chat_events import (
 )
 from application.unit_of_works.chat_thread_unit_of_work import ChatThreadUnitOfWork
 from domain.entities.chat import ChatMessage, ToolCall
-from domain.errors.domain_error import ChatThreadNotFoundError
 from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolCallItem, ToolDefinition
 
 from .rag_search_image import RagSearchImageResult, RagSearchImageUseCase
@@ -55,19 +54,7 @@ RAG_TOOLS: list[ToolDefinition] = [
 ]
 
 MAX_TOOL_ROUNDS = 3
-# 0 以下なら無制限。古いメッセージから順に切り捨て、tool_call と tool_result の
-# 対応関係は user メッセージ単位で切ることで保つ。
 MAX_CONVERSATION_TURNS = 10
-
-
-def _truncate_messages_by_turns(messages: list[ChatMessage]) -> list[ChatMessage]:
-	if MAX_CONVERSATION_TURNS <= 0 or not messages:
-		return messages
-	user_indices = [i for i, m in enumerate(messages) if m.role == 'user']
-	if len(user_indices) <= MAX_CONVERSATION_TURNS:
-		return messages
-	cut_at = user_indices[-MAX_CONVERSATION_TURNS]
-	return messages[cut_at:]
 
 
 class ChatWithPaperUseCase:
@@ -106,9 +93,6 @@ class ChatWithPaperUseCase:
 				repo = uow.chat_thread_repository
 				if thread_id:
 					thread = await repo.find_by_id(thread_id)
-					# 他ユーザーのスレッド存在を漏らさないため、所有者違いも 404 と同じ扱い。
-					if thread.user_id != user_id:
-						raise ChatThreadNotFoundError(str(thread_id))
 				else:
 					thread = await repo.create(paper_id, user_id)
 
@@ -122,7 +106,13 @@ class ChatWithPaperUseCase:
 				for _ in range(MAX_TOOL_ROUNDS):
 					tool_calls: list[ToolCallItem] = []
 					text_buffer = []
-					context = _truncate_messages_by_turns(thread.messages)
+					user_indices = [i for i, m in enumerate(thread.messages) if m.role == 'user']
+					cut_at = (
+						user_indices[-MAX_CONVERSATION_TURNS]
+						if len(user_indices) > MAX_CONVERSATION_TURNS
+						else 0
+					)
+					context = thread.messages[cut_at:]
 					async for chunk in self._llm.stream(context, RAG_TOOLS, SYSTEM_PROMPT):
 						if isinstance(chunk, list):
 							tool_calls = chunk
@@ -174,7 +164,13 @@ class ChatWithPaperUseCase:
 				else:
 					yield BlockStartEvent(index=block_index, block=TextBlock())
 					accumulated = ''
-					context = _truncate_messages_by_turns(thread.messages)
+					user_indices = [i for i, m in enumerate(thread.messages) if m.role == 'user']
+					cut_at = (
+						user_indices[-MAX_CONVERSATION_TURNS]
+						if len(user_indices) > MAX_CONVERSATION_TURNS
+						else 0
+					)
+					context = thread.messages[cut_at:]
 					async for chunk in self._llm.stream(context, [], SYSTEM_PROMPT):
 						if isinstance(chunk, list):
 							continue
