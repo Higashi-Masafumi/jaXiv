@@ -11,6 +11,9 @@ import type {
   ChatWithPaperApiV1ChatPaperPaperIdPostData,
   ChatWithPaperApiV1ChatPaperPaperIdPostErrors,
   ChatWithPaperApiV1ChatPaperPaperIdPostResponses,
+  DeleteChatThreadApiV1ChatThreadsThreadIdDeleteData,
+  DeleteChatThreadApiV1ChatThreadsThreadIdDeleteErrors,
+  DeleteChatThreadApiV1ChatThreadsThreadIdDeleteResponses,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostData,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostErrors,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses,
@@ -26,11 +29,17 @@ import type {
   GetBlogApiV1BlogPaperIdGetData,
   GetBlogApiV1BlogPaperIdGetErrors,
   GetBlogApiV1BlogPaperIdGetResponses,
+  GetChatThreadApiV1ChatThreadsThreadIdGetData,
+  GetChatThreadApiV1ChatThreadsThreadIdGetErrors,
+  GetChatThreadApiV1ChatThreadsThreadIdGetResponses,
   GetMyGenerationCountApiV1BlogMyGenerationCountGetData,
   GetMyGenerationCountApiV1BlogMyGenerationCountGetResponses,
   ListBlogsApiV1BlogGetData,
   ListBlogsApiV1BlogGetErrors,
   ListBlogsApiV1BlogGetResponses,
+  ListChatThreadsApiV1ChatPaperPaperIdThreadsGetData,
+  ListChatThreadsApiV1ChatPaperPaperIdThreadsGetErrors,
+  ListChatThreadsApiV1ChatPaperPaperIdThreadsGetResponses,
   ListMyBlogsApiV1BlogMyGetData,
   ListMyBlogsApiV1BlogMyGetErrors,
   ListMyBlogsApiV1BlogMyGetResponses,
@@ -326,6 +335,66 @@ export const chatWithPaperApiV1ChatPaperPaperIdPost = <
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  })
+
+/**
+ * List chat threads for the current user on a paper
+ */
+export const listChatThreadsApiV1ChatPaperPaperIdThreadsGet = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<
+    ListChatThreadsApiV1ChatPaperPaperIdThreadsGetData,
+    ThrowOnError
+  >,
+) =>
+  (options.client ?? client).get<
+    ListChatThreadsApiV1ChatPaperPaperIdThreadsGetResponses,
+    ListChatThreadsApiV1ChatPaperPaperIdThreadsGetErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat/paper/{paper_id}/threads',
+    ...options,
+  })
+
+/**
+ * Delete a chat thread owned by the current user
+ */
+export const deleteChatThreadApiV1ChatThreadsThreadIdDelete = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<
+    DeleteChatThreadApiV1ChatThreadsThreadIdDeleteData,
+    ThrowOnError
+  >,
+) =>
+  (options.client ?? client).delete<
+    DeleteChatThreadApiV1ChatThreadsThreadIdDeleteResponses,
+    DeleteChatThreadApiV1ChatThreadsThreadIdDeleteErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat/threads/{thread_id}',
+    ...options,
+  })
+
+/**
+ * Get full message history for a chat thread
+ */
+export const getChatThreadApiV1ChatThreadsThreadIdGet = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetChatThreadApiV1ChatThreadsThreadIdGetData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetChatThreadApiV1ChatThreadsThreadIdGetResponses,
+    GetChatThreadApiV1ChatThreadsThreadIdGetErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat/threads/{thread_id}',
+    ...options,
   })
 
 /**

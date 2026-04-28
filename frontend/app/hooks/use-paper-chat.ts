@@ -1,6 +1,10 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { chatWithPaperApiV1ChatPaperPaperIdPost } from '~/api/sdk.gen'
+import {
+  chatWithPaperApiV1ChatPaperPaperIdPost,
+  getChatThreadApiV1ChatThreadsThreadIdGet,
+} from '~/api/sdk.gen'
+import { historyToMessages } from '~/lib/chat-messages'
 import { supabase } from '~/lib/supabase'
 
 export type TextPart = { type: 'text'; text: string }
@@ -47,15 +51,66 @@ type ChatStreamEvent =
     }
   | { type: 'error'; message: string }
 
-export type ChatStatus = 'idle' | 'submitted' | 'streaming'
+export type ChatStatus = 'idle' | 'loading' | 'submitted' | 'streaming'
 
-export function usePaperChat(paperId: string) {
+export type UsePaperChatOptions = {
+  threadId: string | null
+  onThreadCreated?: (threadId: string) => void
+  onThreadNotFound?: () => void
+}
+
+export function usePaperChat(paperId: string, options: UsePaperChatOptions) {
+  const { threadId, onThreadCreated, onThreadNotFound } = options
   const [messages, setMessages] = useState<PaperChatMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>('idle')
   const [error, setError] = useState<Error | null>(null)
-  const threadIdRef = useRef<string | null>(null)
+  const threadIdRef = useRef<string | null>(threadId)
   const abortRef = useRef<AbortController | null>(null)
   const navigate = useNavigate()
+
+  const onThreadCreatedRef = useRef(onThreadCreated)
+  const onThreadNotFoundRef = useRef(onThreadNotFound)
+  useEffect(() => {
+    onThreadCreatedRef.current = onThreadCreated
+    onThreadNotFoundRef.current = onThreadNotFound
+  }, [onThreadCreated, onThreadNotFound])
+
+  useEffect(() => {
+    threadIdRef.current = threadId
+    if (!threadId) {
+      setMessages([])
+      setError(null)
+      return
+    }
+
+    const ac = new AbortController()
+    setStatus('loading')
+    setError(null)
+    void (async () => {
+      const { data, error: apiError } =
+        await getChatThreadApiV1ChatThreadsThreadIdGet({
+          path: { thread_id: threadId },
+          signal: ac.signal,
+          throwOnError: false,
+        })
+      if (ac.signal.aborted) return
+      if (!data) {
+        if (apiError && typeof apiError === 'object' && 'detail' in apiError) {
+          setError(new Error(String((apiError as { detail: unknown }).detail)))
+        } else {
+          setError(new Error('スレッドの読み込みに失敗しました'))
+        }
+        setMessages([])
+        setStatus('idle')
+        onThreadNotFoundRef.current?.()
+        return
+      }
+      setMessages(historyToMessages(data.messages))
+      setStatus('idle')
+    })()
+
+    return () => ac.abort()
+  }, [threadId])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -94,9 +149,12 @@ export function usePaperChat(paperId: string) {
 
       const applyEvent = (event: ChatStreamEvent) => {
         switch (event.type) {
-          case 'thread_id':
+          case 'thread_id': {
+            const isNew = threadIdRef.current !== event.thread_id
             threadIdRef.current = event.thread_id
+            if (isNew) onThreadCreatedRef.current?.(event.thread_id)
             break
+          }
           case 'block_start': {
             const part: MessagePart =
               event.block.type === 'text'

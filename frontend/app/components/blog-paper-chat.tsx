@@ -3,11 +3,15 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronRightIcon,
+  HistoryIcon,
   Loader2Icon,
+  PlusIcon,
   SearchIcon,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router'
 
+import { ChatThreadHistorySheet } from '~/components/chat-thread-history-sheet'
 import {
   Collapsible,
   CollapsibleContent,
@@ -16,6 +20,7 @@ import {
 import { MarkdownWithMath } from '~/components/markdown-with-math'
 import { Button } from '~/components/ui/button'
 import { ScrollArea } from '~/components/ui/scroll-area'
+import { Skeleton } from '~/components/ui/skeleton'
 import { Textarea } from '~/components/ui/textarea'
 import { cn } from '~/lib/utils'
 import {
@@ -206,18 +211,68 @@ function MessageContent({ m }: { m: PaperChatMessage }) {
   )
 }
 
+function HistoryLoadingSkeleton() {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <Skeleton className="h-9 w-2/3 rounded-lg" />
+      </div>
+      <div className="flex justify-start">
+        <Skeleton className="h-16 w-3/4 rounded-lg" />
+      </div>
+      <div className="flex justify-end">
+        <Skeleton className="h-9 w-1/2 rounded-lg" />
+      </div>
+    </div>
+  )
+}
+
 export function BlogPaperChat({ paperId }: { paperId: string }) {
   const [input, setInput] = useState('')
+  const [historyOpen, setHistoryOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const threadId = searchParams.get('thread')
 
-  const { messages, sendMessage, status, error } = usePaperChat(paperId)
+  const setThread = useCallback(
+    (id: string | null, replace = false) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev)
+          if (id) next.set('thread', id)
+          else next.delete('thread')
+          return next
+        },
+        { replace },
+      )
+    },
+    [setSearchParams],
+  )
 
+  const handleThreadCreated = useCallback(
+    (id: string) => setThread(id, true),
+    [setThread],
+  )
+
+  const handleThreadNotFound = useCallback(
+    () => setThread(null, true),
+    [setThread],
+  )
+
+  const { messages, sendMessage, status, error } = usePaperChat(paperId, {
+    threadId,
+    onThreadCreated: handleThreadCreated,
+    onThreadNotFound: handleThreadNotFound,
+  })
+
+  const isLoadingHistory = status === 'loading'
   const isSubmitted = status === 'submitted'
-  const busy = isSubmitted || status === 'streaming'
+  const busy = isSubmitted || status === 'streaming' || isLoadingHistory
 
   useEffect(() => {
+    if (isLoadingHistory) return
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, status])
+  }, [messages, status, isLoadingHistory])
 
   const submitChat = () => {
     const t = input.trim()
@@ -228,6 +283,27 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          disabled={!threadId || isSubmitted || status === 'streaming'}
+          onClick={() => setThread(null)}
+        >
+          <PlusIcon />
+          新しいチャット
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="チャット履歴"
+          onClick={() => setHistoryOpen(true)}
+        >
+          <HistoryIcon />
+        </Button>
+      </div>
+
       {error && (
         <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
           <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
@@ -237,7 +313,9 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="flex flex-col gap-3 px-4 py-4">
-          {messages.length === 0 && !busy ? (
+          {isLoadingHistory ? (
+            <HistoryLoadingSkeleton />
+          ) : messages.length === 0 && !busy ? (
             <p className="text-sm text-muted-foreground">
               論文の内容について質問してください。
             </p>
@@ -266,6 +344,14 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
           onSubmit={submitChat}
         />
       </div>
+
+      <ChatThreadHistorySheet
+        paperId={paperId}
+        currentThreadId={threadId}
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        onSelect={id => setThread(id)}
+      />
     </div>
   )
 }
