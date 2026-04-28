@@ -90,12 +90,13 @@ class ChatWithPaperUseCase:
 				thread.messages.append(ChatMessage(role='user', content=message))
 
 				block_index = 0
+				text_block_open = False
+				accumulated = ''
 
 				# tool callループ（最大MAX_TOOL_ROUNDS回）
-				text_buffer: list[str] = []
 				for _ in range(MAX_TOOL_ROUNDS):
 					tool_calls: list[ToolCallItem] = []
-					text_buffer = []
+					iteration_text = ''
 					user_indices = [i for i, m in enumerate(thread.messages) if m.role == 'user']
 					cut_at = (
 						user_indices[-MAX_CONVERSATION_TURNS]
@@ -107,10 +108,23 @@ class ChatWithPaperUseCase:
 						if isinstance(chunk, list):
 							tool_calls = chunk
 						else:
-							text_buffer.append(chunk)
+							if not text_block_open:
+								yield BlockStartEvent(index=block_index, block=TextBlock())
+								text_block_open = True
+							yield BlockDeltaEvent(
+								index=block_index, delta=TextDelta(text=chunk)
+							)
+							iteration_text += chunk
 
 					if not tool_calls:
+						accumulated = iteration_text
 						break
+
+					# tool call処理に入る前にテキストブロックを閉じる
+					if text_block_open:
+						yield BlockStopEvent(index=block_index)
+						text_block_open = False
+						block_index += 1
 
 					thread.messages.append(
 						ChatMessage(
@@ -163,14 +177,11 @@ class ChatWithPaperUseCase:
 							yield ErrorEvent(message=f'Unknown tool: {tc.name}')
 							break
 
-				# ループ内でテキストが得られていればそれを使い、なければ再度呼び出す
-				if text_buffer:
-					accumulated = ''.join(text_buffer)
-					yield BlockStartEvent(index=block_index, block=TextBlock())
-					yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=accumulated))
+				# ループ内でテキストが得られていればそのまま閉じる、なければ再度呼び出す
+				if text_block_open:
+					yield BlockStopEvent(index=block_index)
 				else:
 					yield BlockStartEvent(index=block_index, block=TextBlock())
-					accumulated = ''
 					user_indices = [i for i, m in enumerate(thread.messages) if m.role == 'user']
 					cut_at = (
 						user_indices[-MAX_CONVERSATION_TURNS]
@@ -183,8 +194,8 @@ class ChatWithPaperUseCase:
 							continue
 						accumulated += chunk
 						yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=chunk))
+					yield BlockStopEvent(index=block_index)
 
-				yield BlockStopEvent(index=block_index)
 				thread.messages.append(ChatMessage(role='assistant', content=accumulated))
 
 				thread.updated_at = datetime.now(UTC)
