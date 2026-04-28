@@ -120,6 +120,7 @@ class ChatWithPaperUseCase:
 					thread.messages.append(
 						ChatMessage(
 							role='assistant',
+							content=iteration_text or None,
 							tool_calls=[
 								ToolCall(id=tc.id, name=tc.name, args=tc.args) for tc in tool_calls
 							],
