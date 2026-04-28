@@ -90,7 +90,6 @@ class ChatWithPaperUseCase:
 				thread.messages.append(ChatMessage(role='user', content=message))
 
 				block_index = 0
-				text_block_open = False
 				accumulated = ''
 
 				# tool callループ（最大MAX_TOOL_ROUNDS回）
@@ -104,27 +103,19 @@ class ChatWithPaperUseCase:
 						else 0
 					)
 					context = thread.messages[cut_at:]
+					yield BlockStartEvent(index=block_index, block=TextBlock())
 					async for chunk in self._llm.stream(context, RAG_TOOLS, SYSTEM_PROMPT):
 						if isinstance(chunk, list):
 							tool_calls = chunk
 						else:
-							if not text_block_open:
-								yield BlockStartEvent(index=block_index, block=TextBlock())
-								text_block_open = True
-							yield BlockDeltaEvent(
-								index=block_index, delta=TextDelta(text=chunk)
-							)
+							yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=chunk))
 							iteration_text += chunk
+					yield BlockStopEvent(index=block_index)
+					block_index += 1
 
 					if not tool_calls:
 						accumulated = iteration_text
 						break
-
-					# tool call処理に入る前にテキストブロックを閉じる
-					if text_block_open:
-						yield BlockStopEvent(index=block_index)
-						text_block_open = False
-						block_index += 1
 
 					thread.messages.append(
 						ChatMessage(
@@ -177,10 +168,8 @@ class ChatWithPaperUseCase:
 							yield ErrorEvent(message=f'Unknown tool: {tc.name}')
 							break
 
-				# ループ内でテキストが得られていればそのまま閉じる、なければ再度呼び出す
-				if text_block_open:
-					yield BlockStopEvent(index=block_index)
-				else:
+				# ループ内で最終テキストが得られなかった場合は tools なしで再度呼び出す
+				if not accumulated:
 					yield BlockStartEvent(index=block_index, block=TextBlock())
 					user_indices = [i for i, m in enumerate(thread.messages) if m.role == 'user']
 					cut_at = (
