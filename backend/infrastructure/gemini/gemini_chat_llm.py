@@ -31,6 +31,8 @@ class GeminiChatLLM(IChatLLMGateway):
 				)
 			elif msg.role == 'assistant':
 				parts: list[types.Part] = []
+				if msg.content:
+					parts.append(types.Part.from_text(text=msg.content))
 				if msg.tool_calls:
 					for tc in msg.tool_calls:
 						cached = self._fc_parts_by_id.get(tc.id)
@@ -42,8 +44,6 @@ class GeminiChatLLM(IChatLLMGateway):
 									text=f'[Called {tc.name}({json.dumps(tc.args, ensure_ascii=False)})]'
 								)
 							)
-				elif msg.content:
-					parts.append(types.Part.from_text(text=msg.content))
 				if parts:
 					contents.append(types.Content(role='model', parts=parts))
 			elif msg.role == 'tool':
