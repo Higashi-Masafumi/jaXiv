@@ -392,15 +392,15 @@ function ThreadListView(props: {
 
 function ChatView(props: {
   paperId: string
-  threadId: string | null
+  initialThreadId: string | null
   onThreadCreated: (id: string) => void
 }) {
-  const { paperId, threadId, onThreadCreated } = props
+  const { paperId, initialThreadId, onThreadCreated } = props
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status, error } = usePaperChat(paperId, {
-    initialThreadId: threadId,
+    initialThreadId,
     onThreadCreated,
   })
 
@@ -466,6 +466,10 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
   const [view, setView] = useState<'chat' | 'history'>('chat')
   const [searchParams, setSearchParams] = useSearchParams()
   const threadId = searchParams.get('thread')
+  // Increments only on explicit user actions (new chat / pick a thread)
+  // so that ChatView remounts then. URL updates from SSE-assigned thread_id
+  // do NOT bump this and therefore don't tear down an in-flight stream.
+  const [chatKey, setChatKey] = useState(0)
 
   const setThread = useCallback(
     (id: string | null, replace = false) => {
@@ -490,11 +494,13 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
   const startNewChat = () => {
     setThread(null)
     setView('chat')
+    setChatKey(k => k + 1)
   }
 
   const selectThread = (id: string) => {
     setThread(id)
     setView('chat')
+    setChatKey(k => k + 1)
   }
 
   return (
@@ -563,9 +569,9 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
         />
       ) : (
         <ChatView
-          key={threadId ?? 'new'}
+          key={chatKey}
           paperId={paperId}
-          threadId={threadId}
+          initialThreadId={threadId}
           onThreadCreated={handleThreadCreated}
         />
       )}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { chatWithPaperApiV1ChatPaperPaperIdPost } from '~/api/sdk.gen'
 import { supabase } from '~/lib/supabase'
@@ -62,14 +62,10 @@ export function usePaperChat(
   const [messages, setMessages] = useState<PaperChatMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>('idle')
   const [error, setError] = useState<Error | null>(null)
-  const threadIdRef = useRef<string | null>(initialThreadId ?? null)
-  const abortRef = useRef<AbortController | null>(null)
+  const [threadId, setThreadId] = useState<string | null>(
+    initialThreadId ?? null,
+  )
   const navigate = useNavigate()
-
-  const onThreadCreatedRef = useRef(onThreadCreated)
-  useEffect(() => {
-    onThreadCreatedRef.current = onThreadCreated
-  }, [onThreadCreated])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -96,9 +92,6 @@ export function usePaperChat(
       setStatus('submitted')
       setError(null)
 
-      const abort = new AbortController()
-      abortRef.current = abort
-
       const updateAssistant = (
         updater: (m: PaperChatMessage) => PaperChatMessage,
       ) =>
@@ -109,9 +102,10 @@ export function usePaperChat(
       const applyEvent = (event: ChatStreamEvent) => {
         switch (event.type) {
           case 'thread_id': {
-            const isNew = threadIdRef.current !== event.thread_id
-            threadIdRef.current = event.thread_id
-            if (isNew) onThreadCreatedRef.current?.(event.thread_id)
+            if (event.thread_id !== threadId) {
+              setThreadId(event.thread_id)
+              onThreadCreated?.(event.thread_id)
+            }
             break
           }
           case 'block_start': {
@@ -166,30 +160,23 @@ export function usePaperChat(
       try {
         const { stream } = await chatWithPaperApiV1ChatPaperPaperIdPost({
           path: { paper_id: paperId },
-          body: { message: text, thread_id: threadIdRef.current },
-          signal: abort.signal,
+          body: { message: text, thread_id: threadId },
         })
         setStatus('streaming')
         for await (const raw of stream) {
           applyEvent(raw as ChatStreamEvent)
         }
       } catch (e) {
-        if (e instanceof Error && e.name === 'AbortError') return
         setError(e instanceof Error ? e : new Error(String(e)))
         setMessages(prev =>
           prev.filter(m => !(m.id === assistantId && m.parts.length === 0)),
         )
       } finally {
         setStatus('idle')
-        abortRef.current = null
       }
     },
-    [paperId, status, navigate],
+    [paperId, status, threadId, onThreadCreated, navigate],
   )
 
-  const stop = useCallback(() => {
-    abortRef.current?.abort()
-  }, [])
-
-  return { messages, status, error, sendMessage, stop }
+  return { messages, status, error, sendMessage }
 }
