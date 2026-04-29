@@ -80,6 +80,7 @@ export function usePaperChat(paperId: string, options: UsePaperChatOptions) {
     if (!threadId) {
       setMessages([])
       setError(null)
+      setStatus('idle')
       return
     }
 
@@ -87,12 +88,15 @@ export function usePaperChat(paperId: string, options: UsePaperChatOptions) {
     setStatus('loading')
     setError(null)
     void (async () => {
-      const { data, error: apiError } =
-        await getChatThreadApiV1ChatThreadsThreadIdGet({
-          path: { thread_id: threadId },
-          signal: ac.signal,
-          throwOnError: false,
-        })
+      const {
+        data,
+        error: apiError,
+        response,
+      } = await getChatThreadApiV1ChatThreadsThreadIdGet({
+        path: { thread_id: threadId },
+        signal: ac.signal,
+        throwOnError: false,
+      })
       if (ac.signal.aborted) return
       if (!data) {
         if (apiError && typeof apiError === 'object' && 'detail' in apiError) {
@@ -102,7 +106,7 @@ export function usePaperChat(paperId: string, options: UsePaperChatOptions) {
         }
         setMessages([])
         setStatus('idle')
-        onThreadNotFoundRef.current?.()
+        if (response?.status === 404) onThreadNotFoundRef.current?.()
         return
       }
       setMessages(historyToMessages(data.messages))
