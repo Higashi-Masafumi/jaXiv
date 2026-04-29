@@ -39,7 +39,6 @@ import {
   listChatThreadsApiV1ChatPaperPaperIdThreadsGet,
 } from '~/api/sdk.gen'
 import type { ChatThreadSummaryResponse } from '~/api/types.gen'
-import { formatRelativeTime } from '~/lib/format-relative-time'
 import { cn } from '~/lib/utils'
 import {
   type MessagePart,
@@ -47,6 +46,8 @@ import {
   type ToolCallPart,
   usePaperChat,
 } from '~/hooks/use-paper-chat'
+
+const dateFormatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short' })
 
 function ChatComposer(props: {
   value: string
@@ -229,22 +230,6 @@ function MessageContent({ m }: { m: PaperChatMessage }) {
   )
 }
 
-function HistoryLoadingSkeleton() {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
-        <Skeleton className="h-9 w-2/3 rounded-lg" />
-      </div>
-      <div className="flex justify-start">
-        <Skeleton className="h-16 w-3/4 rounded-lg" />
-      </div>
-      <div className="flex justify-end">
-        <Skeleton className="h-9 w-1/2 rounded-lg" />
-      </div>
-    </div>
-  )
-}
-
 function ThreadListView(props: {
   paperId: string
   currentThreadId: string | null
@@ -351,7 +336,7 @@ function ThreadListView(props: {
                       {thread.title}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {formatRelativeTime(thread.updated_at)}
+                      {dateFormatter.format(new Date(thread.updated_at))}
                     </span>
                   </button>
                   <Button
@@ -405,10 +390,80 @@ function ThreadListView(props: {
   )
 }
 
-export function BlogPaperChat({ paperId }: { paperId: string }) {
+function ChatView(props: {
+  paperId: string
+  threadId: string | null
+  onThreadCreated: (id: string) => void
+}) {
+  const { paperId, threadId, onThreadCreated } = props
   const [input, setInput] = useState('')
-  const [view, setView] = useState<'chat' | 'history'>('chat')
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  const { messages, sendMessage, status, error } = usePaperChat(paperId, {
+    initialThreadId: threadId,
+    onThreadCreated,
+  })
+
+  const isSubmitted = status === 'submitted'
+  const busy = isSubmitted || status === 'streaming'
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, status])
+
+  const submitChat = () => {
+    const t = input.trim()
+    if (!t || busy) return
+    void sendMessage(t)
+    setInput('')
+  }
+
+  return (
+    <>
+      {error && (
+        <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
+          <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
+          <span className="break-all">{error.message}</span>
+        </div>
+      )}
+
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="flex flex-col gap-3 px-4 py-4">
+          {messages.length === 0 && !busy ? (
+            <p className="text-sm text-muted-foreground">
+              論文の内容について質問してください。
+            </p>
+          ) : (
+            messages.map(m => <MessageContent key={m.id} m={m} />)
+          )}
+
+          {isSubmitted && (
+            <div className="flex justify-start">
+              <div className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                <Loader2Icon className="size-3 animate-spin" />
+                考え中…
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
+
+      <div className="shrink-0 border-t border-border/40 bg-background/95 backdrop-blur-md">
+        <ChatComposer
+          value={input}
+          onChange={setInput}
+          disabled={busy}
+          onSubmit={submitChat}
+        />
+      </div>
+    </>
+  )
+}
+
+export function BlogPaperChat({ paperId }: { paperId: string }) {
+  const [view, setView] = useState<'chat' | 'history'>('chat')
   const [searchParams, setSearchParams] = useSearchParams()
   const threadId = searchParams.get('thread')
 
@@ -431,33 +486,6 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
     (id: string) => setThread(id, true),
     [setThread],
   )
-
-  const handleThreadNotFound = useCallback(
-    () => setThread(null, true),
-    [setThread],
-  )
-
-  const { messages, sendMessage, status, error } = usePaperChat(paperId, {
-    threadId,
-    onThreadCreated: handleThreadCreated,
-    onThreadNotFound: handleThreadNotFound,
-  })
-
-  const isLoadingHistory = status === 'loading'
-  const isSubmitted = status === 'submitted'
-  const busy = isSubmitted || status === 'streaming' || isLoadingHistory
-
-  useEffect(() => {
-    if (view !== 'chat' || isLoadingHistory) return
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, status, isLoadingHistory, view])
-
-  const submitChat = () => {
-    const t = input.trim()
-    if (!t || busy) return
-    void sendMessage(t)
-    setInput('')
-  }
 
   const startNewChat = () => {
     setThread(null)
@@ -482,7 +510,7 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
                 variant="ghost"
                 size="sm"
                 className="text-muted-foreground"
-                disabled={!threadId || isSubmitted || status === 'streaming'}
+                disabled={!threadId}
                 onClick={startNewChat}
               >
                 <PlusIcon />
@@ -534,48 +562,12 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
           onSelect={selectThread}
         />
       ) : (
-        <>
-          {error && (
-            <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
-              <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
-              <span className="break-all">{error.message}</span>
-            </div>
-          )}
-
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="flex flex-col gap-3 px-4 py-4">
-              {isLoadingHistory ? (
-                <HistoryLoadingSkeleton />
-              ) : messages.length === 0 && !busy ? (
-                <p className="text-sm text-muted-foreground">
-                  論文の内容について質問してください。
-                </p>
-              ) : (
-                messages.map(m => <MessageContent key={m.id} m={m} />)
-              )}
-
-              {isSubmitted && (
-                <div className="flex justify-start">
-                  <div className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                    <Loader2Icon className="size-3 animate-spin" />
-                    考え中…
-                  </div>
-                </div>
-              )}
-
-              <div ref={bottomRef} />
-            </div>
-          </ScrollArea>
-
-          <div className="shrink-0 border-t border-border/40 bg-background/95 backdrop-blur-md">
-            <ChatComposer
-              value={input}
-              onChange={setInput}
-              disabled={busy}
-              onSubmit={submitChat}
-            />
-          </div>
-        </>
+        <ChatView
+          key={threadId ?? 'new'}
+          paperId={paperId}
+          threadId={threadId}
+          onThreadCreated={handleThreadCreated}
+        />
       )}
     </div>
   )
