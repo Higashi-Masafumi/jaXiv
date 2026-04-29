@@ -486,7 +486,10 @@ function ChatView(props: {
               {[0, 1].map(i => (
                 <div
                   key={i}
-                  className={cn('flex', i % 2 ? 'justify-start' : 'justify-end')}
+                  className={cn(
+                    'flex',
+                    i % 2 ? 'justify-start' : 'justify-end',
+                  )}
                 >
                   <Skeleton className="h-12 w-2/3 rounded-lg" />
                 </div>
