@@ -1,13 +1,16 @@
-"""Response schemas for chat thread history endpoints."""
+"""Response schemas for chat thread history endpoints.
+
+ドメイン層と同じ Anthropic 互換 content-block モデルを wire でも使う。
+"""
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from application.usecase import ChatThreadSummary
-from domain.entities.chat import ChatMessage, ChatThread
+from domain.entities.chat import ChatMessage, ChatThread, ContentBlock
 
 
 class ChatThreadSummaryResponse(BaseModel):
@@ -34,19 +37,10 @@ class ChatThreadListResponse(BaseModel):
 	threads: list[ChatThreadSummaryResponse]
 
 
-class ChatToolCallResponse(BaseModel):
-	id: str
-	name: str
-	args: dict[str, Any]
-
-
 class ChatMessageResponse(BaseModel):
 	id: str
-	role: str
-	content: str | None = None
-	tool_calls: list[ChatToolCallResponse] | None = None
-	tool_call_id: str | None = None
-	name: str | None = None
+	role: Literal['user', 'assistant']
+	content: list[ContentBlock]
 	timestamp: datetime
 
 	@classmethod
@@ -54,15 +48,7 @@ class ChatMessageResponse(BaseModel):
 		return cls(
 			id=m.id,
 			role=m.role,
-			content=m.content,
-			tool_calls=[
-				ChatToolCallResponse(id=tc.id, name=tc.name, args=tc.args)
-				for tc in (m.tool_calls or [])
-			]
-			if m.tool_calls
-			else None,
-			tool_call_id=m.tool_call_id,
-			name=m.name,
+			content=list(m.content),
 			timestamp=m.timestamp,
 		)
 

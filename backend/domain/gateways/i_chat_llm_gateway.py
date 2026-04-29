@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from domain.entities.chat import ChatMessage
 
@@ -15,12 +15,25 @@ class ToolDefinition(BaseModel):
 	parameters: dict[str, Any]
 
 
-class ToolCallItem(BaseModel):
-	model_config = ConfigDict(frozen=True)
+class LLMTextDelta(BaseModel):
+	"""LLM が生成した assistant テキストの差分。"""
 
+	model_config = ConfigDict(frozen=True)
+	type: Literal['text_delta'] = 'text_delta'
+	text: str
+
+
+class LLMToolUse(BaseModel):
+	"""LLM が呼び出したい tool（input は確定済み）。"""
+
+	model_config = ConfigDict(frozen=True)
+	type: Literal['tool_use'] = 'tool_use'
 	id: str
 	name: str
-	args: dict[str, Any]
+	input: dict[str, Any]
+
+
+LLMStreamEvent = Annotated[LLMTextDelta | LLMToolUse, Field(discriminator='type')]
 
 
 class IChatLLMGateway(ABC):
@@ -30,4 +43,4 @@ class IChatLLMGateway(ABC):
 		messages: list[ChatMessage],
 		tools: list[ToolDefinition],
 		system_prompt: str,
-	) -> AsyncIterator[str | list[ToolCallItem]]: ...
+	) -> AsyncIterator[LLMStreamEvent]: ...

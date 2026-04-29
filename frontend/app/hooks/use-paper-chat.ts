@@ -1,53 +1,38 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { chatWithPaperApiV1ChatPaperPaperIdPost } from '~/api/sdk.gen'
+import {
+  chatWithPaperApiV1ChatPaperPaperIdPost,
+  getChatThreadApiV1ChatThreadsThreadIdGet,
+} from '~/api/sdk.gen'
+import type {
+  ChatMessageResponse,
+  TextBlock,
+  ToolResultBlock,
+  ToolUseBlock,
+} from '~/api/types.gen'
 import { supabase } from '~/lib/supabase'
 
-export type TextPart = { type: 'text'; text: string }
-export type ToolCallPart = {
-  type: 'tool-call'
-  toolCallId: string
-  name: string
-  input: Record<string, unknown>
-  result: Record<string, unknown> | null
-  state: 'executing' | 'done' | 'error'
-}
-export type MessagePart = TextPart | ToolCallPart
+export type ChatStatus = 'idle' | 'loading' | 'submitted' | 'streaming'
 
-export type PaperChatMessage = {
-  id: string
-  role: 'user' | 'assistant'
-  parts: MessagePart[]
-}
+export type PaperChatMessage = ChatMessageResponse
 
-// SSE event shapes — mirrors application/chat_events.py (response is `unknown` in OpenAPI schema)
+// SSE event shapes — mirror application/chat_events.py
 type ChatStreamEvent =
   | { type: 'thread_id'; thread_id: string }
-  | { type: 'block_start'; index: number; block: { type: 'text' } }
+  | { type: 'message_start'; message_id: string; role: 'user' | 'assistant' }
   | {
       type: 'block_start'
       index: number
-      block: {
-        type: 'tool_use'
-        id: string
-        name: string
-        input: Record<string, unknown>
-      }
+      block: TextBlock | ToolUseBlock | ToolResultBlock
     }
   | {
       type: 'block_delta'
       index: number
       delta: { type: 'text_delta'; text: string }
     }
-  | {
-      type: 'tool_result'
-      tool_use_id: string
-      name: string
-      content: Record<string, unknown>
-    }
+  | { type: 'block_stop'; index: number }
+  | { type: 'message_stop' }
   | { type: 'error'; message: string }
-
-export type ChatStatus = 'idle' | 'submitted' | 'streaming'
 
 export type UsePaperChatOptions = {
   initialThreadId?: string | null
@@ -60,12 +45,41 @@ export function usePaperChat(
 ) {
   const { initialThreadId, onThreadCreated } = options
   const [messages, setMessages] = useState<PaperChatMessage[]>([])
-  const [status, setStatus] = useState<ChatStatus>('idle')
-  const [error, setError] = useState<Error | null>(null)
-  const [threadId, setThreadId] = useState<string | null>(
-    initialThreadId ?? null,
+  const [status, setStatus] = useState<ChatStatus>(
+    initialThreadId ? 'loading' : 'idle',
   )
+  const [error, setError] = useState<Error | null>(null)
+  const threadIdRef = useRef<string | null>(initialThreadId ?? null)
   const navigate = useNavigate()
+
+  // 既存スレッド再開時は履歴を fetch して messages に流し込む。
+  useEffect(() => {
+    if (!initialThreadId) return
+    const ac = new AbortController()
+    setStatus('loading')
+    setError(null)
+    void (async () => {
+      const { data, error: apiError } =
+        await getChatThreadApiV1ChatThreadsThreadIdGet({
+          path: { thread_id: initialThreadId },
+          signal: ac.signal,
+          throwOnError: false,
+        })
+      if (ac.signal.aborted) return
+      if (!data) {
+        setError(
+          apiError instanceof Error
+            ? apiError
+            : new Error('スレッドの読み込みに失敗しました'),
+        )
+        setStatus('idle')
+        return
+      }
+      setMessages(data.messages ?? [])
+      setStatus('idle')
+    })()
+    return () => ac.abort()
+  }, [initialThreadId])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -79,77 +93,83 @@ export function usePaperChat(
         return
       }
 
-      const assistantId = crypto.randomUUID()
+      const userMessageId = crypto.randomUUID()
       setMessages(prev => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: userMessageId,
           role: 'user',
-          parts: [{ type: 'text', text }],
+          content: [{ type: 'text', text }],
+          timestamp: new Date().toISOString(),
         },
-        { id: assistantId, role: 'assistant', parts: [] },
       ])
       setStatus('submitted')
       setError(null)
 
-      const updateAssistant = (
+      let currentMessageId: string | null = null
+
+      const upsertMessage = (
+        id: string,
+        role: 'user' | 'assistant',
         updater: (m: PaperChatMessage) => PaperChatMessage,
-      ) =>
-        setMessages(prev =>
-          prev.map(m => (m.id === assistantId ? updater(m) : m)),
-        )
+      ) => {
+        setMessages(prev => {
+          const idx = prev.findIndex(m => m.id === id)
+          if (idx >= 0) {
+            const next = [...prev]
+            next[idx] = updater(next[idx]!)
+            return next
+          }
+          const blank: PaperChatMessage = {
+            id,
+            role,
+            content: [],
+            timestamp: new Date().toISOString(),
+          }
+          return [...prev, updater(blank)]
+        })
+      }
 
       const applyEvent = (event: ChatStreamEvent) => {
         switch (event.type) {
           case 'thread_id': {
-            if (event.thread_id !== threadId) {
-              setThreadId(event.thread_id)
+            if (event.thread_id !== threadIdRef.current) {
+              threadIdRef.current = event.thread_id
               onThreadCreated?.(event.thread_id)
             }
             break
           }
-          case 'block_start': {
-            const part: MessagePart =
-              event.block.type === 'text'
-                ? { type: 'text', text: '' }
-                : {
-                    type: 'tool-call',
-                    toolCallId: event.block.id,
-                    name: event.block.name,
-                    input: event.block.input,
-                    result: null,
-                    state: 'executing',
-                  }
-            updateAssistant(m => ({ ...m, parts: [...m.parts, part] }))
+          case 'message_start': {
+            currentMessageId = event.message_id
+            upsertMessage(event.message_id, event.role, m => m)
             break
           }
-          case 'block_delta':
-            updateAssistant(m => {
-              const parts = [...m.parts]
-              let idx = -1
-              for (let i = parts.length - 1; i >= 0; i -= 1) {
-                if (parts[i]?.type === 'text') {
-                  idx = i
+          case 'block_start': {
+            if (!currentMessageId) break
+            const block = event.block
+            upsertMessage(currentMessageId, 'assistant', m => ({
+              ...m,
+              content: [...m.content, block],
+            }))
+            break
+          }
+          case 'block_delta': {
+            if (!currentMessageId) break
+            upsertMessage(currentMessageId, 'assistant', m => {
+              const content = [...m.content]
+              for (let i = content.length - 1; i >= 0; i -= 1) {
+                const b = content[i]
+                if (b && b.type === 'text') {
+                  content[i] = { ...b, text: b.text + event.delta.text }
                   break
                 }
               }
-              if (idx >= 0)
-                parts[idx] = {
-                  type: 'text',
-                  text: (parts[idx] as TextPart).text + event.delta.text,
-                }
-              return { ...m, parts }
+              return { ...m, content }
             })
             break
-          case 'tool_result':
-            updateAssistant(m => ({
-              ...m,
-              parts: m.parts.map(p =>
-                p.type === 'tool-call' && p.toolCallId === event.tool_use_id
-                  ? { ...p, state: 'done' as const, result: event.content }
-                  : p,
-              ),
-            }))
+          }
+          case 'block_stop':
+          case 'message_stop':
             break
           case 'error':
             setError(new Error(event.message))
@@ -160,7 +180,7 @@ export function usePaperChat(
       try {
         const { stream } = await chatWithPaperApiV1ChatPaperPaperIdPost({
           path: { paper_id: paperId },
-          body: { message: text, thread_id: threadId },
+          body: { message: text, thread_id: threadIdRef.current },
         })
         setStatus('streaming')
         for await (const raw of stream) {
@@ -168,14 +188,11 @@ export function usePaperChat(
         }
       } catch (e) {
         setError(e instanceof Error ? e : new Error(String(e)))
-        setMessages(prev =>
-          prev.filter(m => !(m.id === assistantId && m.parts.length === 0)),
-        )
       } finally {
         setStatus('idle')
       }
     },
-    [paperId, status, threadId, onThreadCreated, navigate],
+    [paperId, status, onThreadCreated, navigate],
   )
 
   return { messages, status, error, sendMessage }

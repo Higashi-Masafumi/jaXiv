@@ -868,54 +868,36 @@
           },
           "role": {
             "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
             "title": "Role"
           },
           "content": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content"
-          },
-          "tool_calls": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/ChatToolCallResponse"
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TextBlock"
                 },
-                "type": "array"
-              },
-              {
-                "type": "null"
+                {
+                  "$ref": "#/components/schemas/ToolUseBlock"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolResultBlock"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "text": "#/components/schemas/TextBlock",
+                  "tool_result": "#/components/schemas/ToolResultBlock",
+                  "tool_use": "#/components/schemas/ToolUseBlock"
+                }
               }
-            ],
-            "title": "Tool Calls"
-          },
-          "tool_call_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tool Call Id"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+            },
+            "type": "array",
+            "title": "Content"
           },
           "timestamp": {
             "type": "string",
@@ -927,6 +909,7 @@
         "required": [
           "id",
           "role",
+          "content",
           "timestamp"
         ],
         "title": "ChatMessageResponse"
@@ -1052,30 +1035,6 @@
           "title"
         ],
         "title": "ChatThreadSummaryResponse"
-      },
-      "ChatToolCallResponse": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "args": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Args"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "args"
-        ],
-        "title": "ChatToolCallResponse"
       },
       "GenerationCountResponseSchema": {
         "properties": {
@@ -1257,6 +1216,90 @@
         ],
         "title": "TargetLanguage",
         "description": "The target language for translation."
+      },
+      "TextBlock": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "TextBlock",
+        "description": "Anthropic 互換の text content block。`type` は OpenAPI で required にする\nため敢えてデフォルト値を持たせず、コンストラクタで明示的に指定する運用とする。"
+      },
+      "ToolResultBlock": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tool_result",
+            "title": "Type"
+          },
+          "tool_use_id": {
+            "type": "string",
+            "title": "Tool Use Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "content": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Content"
+          },
+          "is_error": {
+            "type": "boolean",
+            "title": "Is Error",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "tool_use_id",
+          "name",
+          "content"
+        ],
+        "title": "ToolResultBlock"
+      },
+      "ToolUseBlock": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tool_use",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "input": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name"
+        ],
+        "title": "ToolUseBlock"
       },
       "TranslateResponseSchema": {
         "properties": {

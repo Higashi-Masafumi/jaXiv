@@ -1,4 +1,3 @@
-import json
 import uuid
 from collections.abc import AsyncIterator
 from logging import getLogger
@@ -6,10 +5,12 @@ from logging import getLogger
 from google import genai
 from google.genai import types
 
-from domain.entities.chat import ChatMessage
+from domain.entities.chat import ChatMessage, TextBlock, ToolResultBlock, ToolUseBlock
 from domain.gateways.i_chat_llm_gateway import (
 	IChatLLMGateway,
-	ToolCallItem,
+	LLMStreamEvent,
+	LLMTextDelta,
+	LLMToolUse,
 	ToolDefinition,
 )
 from infrastructure.gemini.config import get_gemini_config
@@ -20,56 +21,48 @@ class GeminiChatLLM(IChatLLMGateway):
 		self._client = genai.Client(api_key=get_gemini_config().gemini_api_key.get_secret_value())
 		self._model = model
 		self._logger = getLogger(__name__)
-		self._fc_parts_by_id: dict[str, types.Part] = {}
 
 	def _to_contents(self, messages: list[ChatMessage]) -> list[types.Content]:
+		"""ContentBlock ベースのメッセージを Gemini の Content/Part に変換する。
+
+		- assistant の text/tool_use ブロックは role='model' の単一 Content にまとめる
+		- user の text ブロックは role='user' の単一 Content にまとめる
+		- user の tool_result ブロックは Gemini では function_response Part として
+		  role='user' Content に詰め込む（複数 tool_result を 1 Content に集約可）
+		"""
 		contents: list[types.Content] = []
 		for msg in messages:
-			if msg.role == 'user':
-				contents.append(
-					types.Content(role='user', parts=[types.Part.from_text(text=msg.content or '')])
-				)
-			elif msg.role == 'assistant':
-				parts: list[types.Part] = []
-				if msg.content:
-					parts.append(types.Part.from_text(text=msg.content))
-				if msg.tool_calls:
-					for tc in msg.tool_calls:
-						cached = self._fc_parts_by_id.get(tc.id)
-						if cached:
-							parts.append(cached)
-						else:
-							parts.append(
-								types.Part.from_text(
-									text=f'[Called {tc.name}({json.dumps(tc.args, ensure_ascii=False)})]'
+			parts: list[types.Part] = []
+			if msg.role == 'assistant':
+				for block in msg.content:
+					if isinstance(block, TextBlock):
+						if block.text:
+							parts.append(types.Part.from_text(text=block.text))
+					elif isinstance(block, ToolUseBlock):
+						parts.append(
+							types.Part(
+								function_call=types.FunctionCall(
+									name=block.name,
+									args=block.input,
 								)
 							)
+						)
 				if parts:
 					contents.append(types.Content(role='model', parts=parts))
-			elif msg.role == 'tool':
-				if msg.tool_call_id and msg.tool_call_id in self._fc_parts_by_id:
-					contents.append(
-						types.Content(
-							role='user',
-							parts=[
-								types.Part.from_function_response(
-									name=msg.name or 'tool',
-									response={'result': json.loads(msg.content or '{}')},
-								)
-							],
+			else:  # user
+				for block in msg.content:
+					if isinstance(block, TextBlock):
+						if block.text:
+							parts.append(types.Part.from_text(text=block.text))
+					elif isinstance(block, ToolResultBlock):
+						parts.append(
+							types.Part.from_function_response(
+								name=block.name,
+								response=block.content,
+							)
 						)
-					)
-				else:
-					contents.append(
-						types.Content(
-							role='user',
-							parts=[
-								types.Part.from_text(
-									text=f'[Result of {msg.name or "tool"}]: {msg.content}'
-								)
-							],
-						)
-					)
+				if parts:
+					contents.append(types.Content(role='user', parts=parts))
 		return contents
 
 	async def stream(
@@ -77,7 +70,7 @@ class GeminiChatLLM(IChatLLMGateway):
 		messages: list[ChatMessage],
 		tools: list[ToolDefinition],
 		system_prompt: str,
-	) -> AsyncIterator[str | list[ToolCallItem]]:
+	) -> AsyncIterator[LLMStreamEvent]:
 		contents = self._to_contents(messages)
 
 		gemini_tools: list[types.Tool] | None = None
@@ -100,7 +93,7 @@ class GeminiChatLLM(IChatLLMGateway):
 			tools=gemini_tools,  # type: ignore[arg-type]
 		)
 
-		tool_call_parts: list[tuple[str, types.Part]] = []
+		pending_tool_uses: list[LLMToolUse] = []
 		async for chunk in await self._client.aio.models.generate_content_stream(
 			model=self._model,
 			contents=contents,  # type: ignore[arg-type]
@@ -113,19 +106,15 @@ class GeminiChatLLM(IChatLLMGateway):
 			) or []
 			for part in parts_in_chunk:
 				if part.function_call is not None:
-					tc_id = str(uuid.uuid4())
-					tool_call_parts.append((tc_id, part))
+					pending_tool_uses.append(
+						LLMToolUse(
+							id=str(uuid.uuid4()),
+							name=part.function_call.name or '',
+							input=dict(part.function_call.args or {}),
+						)
+					)
 			if chunk.text:
-				yield chunk.text
+				yield LLMTextDelta(text=chunk.text)
 
-		if tool_call_parts:
-			for tc_id, part in tool_call_parts:
-				self._fc_parts_by_id[tc_id] = part
-			yield [
-				ToolCallItem(
-					id=tc_id,
-					name=part.function_call.name,  # type: ignore[union-attr,arg-type]
-					args=dict(part.function_call.args),  # type: ignore[union-attr,arg-type]
-				)
-				for tc_id, part in tool_call_parts
-			]
+		for tu in pending_tool_uses:
+			yield tu

@@ -11,7 +11,7 @@ import {
   SearchIcon,
   Trash2Icon,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import {
@@ -38,14 +38,13 @@ import {
   deleteChatThreadApiV1ChatThreadsThreadIdDelete,
   listChatThreadsApiV1ChatPaperPaperIdThreadsGet,
 } from '~/api/sdk.gen'
-import type { ChatThreadSummaryResponse } from '~/api/types.gen'
+import type {
+  ChatThreadSummaryResponse,
+  ToolResultBlock,
+  ToolUseBlock,
+} from '~/api/types.gen'
 import { cn } from '~/lib/utils'
-import {
-  type MessagePart,
-  type PaperChatMessage,
-  type ToolCallPart,
-  usePaperChat,
-} from '~/hooks/use-paper-chat'
+import { type PaperChatMessage, usePaperChat } from '~/hooks/use-paper-chat'
 
 const dateFormatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short' })
 
@@ -107,15 +106,17 @@ function ChatComposer(props: {
   )
 }
 
-function ToolCallResultSummary({ part }: { part: ToolCallPart }) {
-  if (!part.result) return null
+type ToolUseState = 'executing' | 'done' | 'error'
+
+function ToolResultSummary({ result }: { result: ToolResultBlock }) {
+  const content = (result.content ?? {}) as Record<string, unknown>
   const chunks =
-    (part.result.chunks as { text: string; page_number: number }[]) ?? []
+    (content.chunks as { text: string; page_number: number }[] | undefined) ??
+    []
   const items =
-    (part.result.items as {
-      caption: string | null
-      page_number: number
-    }[]) ?? []
+    (content.items as
+      | { caption: string | null; page_number: number }[]
+      | undefined) ?? []
 
   if (chunks.length > 0) {
     return (
@@ -144,25 +145,29 @@ function ToolCallResultSummary({ part }: { part: ToolCallPart }) {
   return null
 }
 
-function ToolCallPartView({ part }: { part: ToolCallPart }) {
+function ToolUseView({
+  block,
+  result,
+  state,
+}: {
+  block: ToolUseBlock
+  result: ToolResultBlock | null
+  state: ToolUseState
+}) {
   const [open, setOpen] = useState(false)
-  const query = (part.input.query as string) ?? ''
+  const query = (block.input?.query as string | undefined) ?? ''
 
   const stateIcon =
-    part.state === 'executing' ? (
+    state === 'executing' ? (
       <Loader2Icon className="size-3 shrink-0 animate-spin" />
-    ) : part.state === 'done' ? (
+    ) : state === 'done' ? (
       <CheckIcon className="size-3 shrink-0 text-green-500" />
     ) : (
       <AlertCircleIcon className="size-3 shrink-0 text-red-500" />
     )
 
   const stateLabel =
-    part.state === 'executing'
-      ? '実行中…'
-      : part.state === 'done'
-        ? '完了'
-        : 'エラー'
+    state === 'executing' ? '実行中…' : state === 'done' ? '完了' : 'エラー'
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -175,7 +180,7 @@ function ToolCallPartView({ part }: { part: ToolCallPart }) {
         />
         <SearchIcon className="size-3 shrink-0" />
         <span className="truncate">
-          {part.name}
+          {block.name}
           {query && `: "${query}"`}
         </span>
         <span className="ml-auto flex items-center gap-1">
@@ -184,46 +189,90 @@ function ToolCallPartView({ part }: { part: ToolCallPart }) {
         </span>
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-1 text-xs text-muted-foreground">
-        <ToolCallResultSummary part={part} />
+        {result && <ToolResultSummary result={result} />}
       </CollapsibleContent>
     </Collapsible>
   )
 }
 
-function MessagePartView({
-  part,
-  isUser,
-}: {
-  part: MessagePart
-  isUser: boolean
-}) {
-  if (part.type === 'text') {
-    return (
-      <MarkdownWithMath variant={isUser ? 'primary' : 'default'}>
-        {part.text}
-      </MarkdownWithMath>
-    )
-  }
-  if (part.type === 'tool-call') {
-    return <ToolCallPartView part={part} />
-  }
-  return null
+type ResolvedToolUse = {
+  block: ToolUseBlock
+  result: ToolResultBlock | null
+  state: ToolUseState
 }
 
-function MessageContent({ m }: { m: PaperChatMessage }) {
-  const isUser = m.role === 'user'
+function buildToolResultIndex(
+  messages: PaperChatMessage[],
+): Map<string, ToolResultBlock> {
+  const index = new Map<string, ToolResultBlock>()
+  for (const m of messages) {
+    if (m.role !== 'user') continue
+    for (const block of m.content) {
+      if (block.type === 'tool_result') {
+        index.set(block.tool_use_id, block)
+      }
+    }
+  }
+  return index
+}
+
+function AssistantMessage({
+  message,
+  toolResults,
+}: {
+  message: PaperChatMessage
+  toolResults: Map<string, ToolResultBlock>
+}) {
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'max-w-[85%] rounded-lg px-3 py-2 text-sm',
-          isUser
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-foreground',
-        )}
-      >
-        {m.parts.map((part, i) => (
-          <MessagePartView key={i} part={part} isUser={isUser} />
+    <div className="flex justify-start">
+      <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+        {message.content.map((block, i) => {
+          if (block.type === 'text') {
+            return (
+              <MarkdownWithMath key={i} variant="default">
+                {block.text}
+              </MarkdownWithMath>
+            )
+          }
+          if (block.type === 'tool_use') {
+            const result = toolResults.get(block.id) ?? null
+            const tu: ResolvedToolUse = {
+              block,
+              result,
+              state: result
+                ? result.is_error
+                  ? 'error'
+                  : 'done'
+                : 'executing',
+            }
+            return (
+              <ToolUseView
+                key={i}
+                block={tu.block}
+                result={tu.result}
+                state={tu.state}
+              />
+            )
+          }
+          return null
+        })}
+      </div>
+    </div>
+  )
+}
+
+function UserMessage({ message }: { message: PaperChatMessage }) {
+  // user メッセージのうち tool_result-only のものはアシスタント側に
+  // 折りたたまれて表示されるので、ユーザーバブルとしては描画しない。
+  const textBlocks = message.content.filter(b => b.type === 'text')
+  if (textBlocks.length === 0) return null
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[85%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
+        {textBlocks.map((block, i) => (
+          <MarkdownWithMath key={i} variant="primary">
+            {block.text}
+          </MarkdownWithMath>
         ))}
       </div>
     </div>
@@ -404,8 +453,11 @@ function ChatView(props: {
     onThreadCreated,
   })
 
+  const isLoading = status === 'loading'
   const isSubmitted = status === 'submitted'
-  const busy = isSubmitted || status === 'streaming'
+  const busy = isLoading || isSubmitted || status === 'streaming'
+
+  const toolResults = useMemo(() => buildToolResultIndex(messages), [messages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -429,12 +481,33 @@ function ChatView(props: {
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="flex flex-col gap-3 px-4 py-4">
-          {messages.length === 0 && !busy ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {[0, 1].map(i => (
+                <div
+                  key={i}
+                  className={cn('flex', i % 2 ? 'justify-start' : 'justify-end')}
+                >
+                  <Skeleton className="h-12 w-2/3 rounded-lg" />
+                </div>
+              ))}
+            </div>
+          ) : messages.length === 0 && !busy ? (
             <p className="text-sm text-muted-foreground">
               論文の内容について質問してください。
             </p>
           ) : (
-            messages.map(m => <MessageContent key={m.id} m={m} />)
+            messages.map(m =>
+              m.role === 'assistant' ? (
+                <AssistantMessage
+                  key={m.id}
+                  message={m}
+                  toolResults={toolResults}
+                />
+              ) : (
+                <UserMessage key={m.id} message={m} />
+              ),
+            )
           )}
 
           {isSubmitted && (
@@ -466,9 +539,6 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
   const [view, setView] = useState<'chat' | 'history'>('chat')
   const [searchParams, setSearchParams] = useSearchParams()
   const threadId = searchParams.get('thread')
-  // Increments only on explicit user actions (new chat / pick a thread)
-  // so that ChatView remounts then. URL updates from SSE-assigned thread_id
-  // do NOT bump this and therefore don't tear down an in-flight stream.
   const [chatKey, setChatKey] = useState(0)
 
   const setThread = useCallback(

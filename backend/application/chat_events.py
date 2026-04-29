@@ -1,40 +1,41 @@
-"""Pydantic schemas for the chat API.
+"""SSE event protocol for chat streaming.
 
-Stream event protocol is inspired by Anthropic's streaming format:
-  BlockStartEvent  -> a new content block begins (text or tool_use)
-  BlockDeltaEvent  -> incremental update to the current block
-  BlockStopEvent   -> the current block ends
-  ToolResultEvent  -> backend executed a tool and returns the result
-  ThreadIdEvent    -> emitted first, carries the thread_id for the session
-  MessageStopEvent -> final event, stream is complete
-  ErrorEvent       -> an error occurred
+Anthropic Messages API のストリーミング形式に準拠する。
+content-block の型 (TextBlock / ToolUseBlock / ToolResultBlock) は
+ドメインエンティティと共有することで、永続化・SSE・API・UI の
+4層を同じ shape で扱う。
+
+  MessageStartEvent -> 新しいメッセージの開始（role 通知）
+  BlockStartEvent   -> 新しい content block の開始
+  BlockDeltaEvent   -> 既存ブロックへの追記（text の差分）
+  BlockStopEvent    -> 現在ブロックの終了
+  ThreadIdEvent     -> 最初に送る、このストリームのスレッド ID
+  MessageStopEvent  -> ストリーム終了
+  ErrorEvent        -> エラー
 """
 
 import uuid
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from domain.entities.chat import ContentBlock, TextBlock, ToolResultBlock, ToolUseBlock
 
-# ---------------------------------------------------------------------------
-# Block types (inside BlockStartEvent)
-# ---------------------------------------------------------------------------
-
-
-class TextBlock(BaseModel):
-	model_config = ConfigDict(frozen=True)
-	type: Literal['text'] = 'text'
-
-
-class ToolUseBlock(BaseModel):
-	model_config = ConfigDict(frozen=True)
-	type: Literal['tool_use'] = 'tool_use'
-	id: str
-	name: str
-	input: dict[str, Any] = Field(default_factory=dict)
-
-
-Block = Annotated[TextBlock | ToolUseBlock, Field(discriminator='type')]
+__all__ = [
+	'BlockDeltaEvent',
+	'BlockStartEvent',
+	'BlockStopEvent',
+	'ChatRequest',
+	'ChatStreamEvent',
+	'ErrorEvent',
+	'MessageStartEvent',
+	'MessageStopEvent',
+	'TextBlock',
+	'TextDelta',
+	'ThreadIdEvent',
+	'ToolResultBlock',
+	'ToolUseBlock',
+]
 
 
 # ---------------------------------------------------------------------------
@@ -59,11 +60,18 @@ class ThreadIdEvent(BaseModel):
 	thread_id: str
 
 
+class MessageStartEvent(BaseModel):
+	model_config = ConfigDict(frozen=True)
+	type: Literal['message_start'] = 'message_start'
+	message_id: str
+	role: Literal['user', 'assistant']
+
+
 class BlockStartEvent(BaseModel):
 	model_config = ConfigDict(frozen=True)
 	type: Literal['block_start'] = 'block_start'
 	index: int
-	block: Block
+	block: ContentBlock
 
 
 class BlockDeltaEvent(BaseModel):
@@ -79,14 +87,6 @@ class BlockStopEvent(BaseModel):
 	index: int
 
 
-class ToolResultEvent(BaseModel):
-	model_config = ConfigDict(frozen=True)
-	type: Literal['tool_result'] = 'tool_result'
-	tool_use_id: str
-	name: str
-	content: dict[str, Any]
-
-
 class MessageStopEvent(BaseModel):
 	model_config = ConfigDict(frozen=True)
 	type: Literal['message_stop'] = 'message_stop'
@@ -100,10 +100,10 @@ class ErrorEvent(BaseModel):
 
 ChatStreamEvent = Annotated[
 	ThreadIdEvent
+	| MessageStartEvent
 	| BlockStartEvent
 	| BlockDeltaEvent
 	| BlockStopEvent
-	| ToolResultEvent
 	| MessageStopEvent
 	| ErrorEvent,
 	Field(discriminator='type'),
