@@ -67,6 +67,40 @@ export type BodyGenerateBlogFromPdfStreamApiV1BlogPdfStreamPost = {
 }
 
 /**
+ * ChatMessageResponse
+ */
+export type ChatMessageResponse = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Role
+   */
+  role: string
+  /**
+   * Content
+   */
+  content?: string | null
+  /**
+   * Tool Calls
+   */
+  tool_calls?: Array<ChatToolCallResponse> | null
+  /**
+   * Tool Call Id
+   */
+  tool_call_id?: string | null
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Timestamp
+   */
+  timestamp: string
+}
+
+/**
  * ChatRequest
  */
 export type ChatRequest = {
@@ -82,6 +116,92 @@ export type ChatRequest = {
    * Existing thread ID to continue
    */
   thread_id?: string | null
+}
+
+/**
+ * ChatThreadListResponse
+ */
+export type ChatThreadListResponse = {
+  /**
+   * Threads
+   */
+  threads: Array<ChatThreadSummaryResponse>
+}
+
+/**
+ * ChatThreadResponse
+ */
+export type ChatThreadResponse = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Paper Id
+   */
+  paper_id: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Updated At
+   */
+  updated_at: string
+  /**
+   * Messages
+   */
+  messages?: Array<ChatMessageResponse>
+}
+
+/**
+ * ChatThreadSummaryResponse
+ */
+export type ChatThreadSummaryResponse = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Paper Id
+   */
+  paper_id: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Updated At
+   */
+  updated_at: string
+  /**
+   * Message Count
+   */
+  message_count: number
+  /**
+   * Title
+   */
+  title: string
+}
+
+/**
+ * ChatToolCallResponse
+ */
+export type ChatToolCallResponse = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Args
+   */
+  args: {
+    [key: string]: unknown
+  }
 }
 
 /**
@@ -665,6 +785,108 @@ export type ChatWithPaperApiV1ChatPaperPaperIdPostResponses = {
    */
   200: unknown
 }
+
+export type ListChatThreadsApiV1ChatPaperPaperIdThreadsGetData = {
+  body?: never
+  path: {
+    /**
+     * Paper Id
+     *
+     * The paper ID
+     */
+    paper_id: string
+  }
+  query?: never
+  url: '/api/v1/chat/paper/{paper_id}/threads'
+}
+
+export type ListChatThreadsApiV1ChatPaperPaperIdThreadsGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListChatThreadsApiV1ChatPaperPaperIdThreadsGetError =
+  ListChatThreadsApiV1ChatPaperPaperIdThreadsGetErrors[keyof ListChatThreadsApiV1ChatPaperPaperIdThreadsGetErrors]
+
+export type ListChatThreadsApiV1ChatPaperPaperIdThreadsGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatThreadListResponse
+}
+
+export type ListChatThreadsApiV1ChatPaperPaperIdThreadsGetResponse =
+  ListChatThreadsApiV1ChatPaperPaperIdThreadsGetResponses[keyof ListChatThreadsApiV1ChatPaperPaperIdThreadsGetResponses]
+
+export type DeleteChatThreadApiV1ChatThreadsThreadIdDeleteData = {
+  body?: never
+  path: {
+    /**
+     * Thread Id
+     *
+     * The thread ID
+     */
+    thread_id: string
+  }
+  query?: never
+  url: '/api/v1/chat/threads/{thread_id}'
+}
+
+export type DeleteChatThreadApiV1ChatThreadsThreadIdDeleteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DeleteChatThreadApiV1ChatThreadsThreadIdDeleteError =
+  DeleteChatThreadApiV1ChatThreadsThreadIdDeleteErrors[keyof DeleteChatThreadApiV1ChatThreadsThreadIdDeleteErrors]
+
+export type DeleteChatThreadApiV1ChatThreadsThreadIdDeleteResponses = {
+  /**
+   * Successful Response
+   */
+  204: void
+}
+
+export type DeleteChatThreadApiV1ChatThreadsThreadIdDeleteResponse =
+  DeleteChatThreadApiV1ChatThreadsThreadIdDeleteResponses[keyof DeleteChatThreadApiV1ChatThreadsThreadIdDeleteResponses]
+
+export type GetChatThreadApiV1ChatThreadsThreadIdGetData = {
+  body?: never
+  path: {
+    /**
+     * Thread Id
+     *
+     * The thread ID
+     */
+    thread_id: string
+  }
+  query?: never
+  url: '/api/v1/chat/threads/{thread_id}'
+}
+
+export type GetChatThreadApiV1ChatThreadsThreadIdGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetChatThreadApiV1ChatThreadsThreadIdGetError =
+  GetChatThreadApiV1ChatThreadsThreadIdGetErrors[keyof GetChatThreadApiV1ChatThreadsThreadIdGetErrors]
+
+export type GetChatThreadApiV1ChatThreadsThreadIdGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatThreadResponse
+}
+
+export type GetChatThreadApiV1ChatThreadsThreadIdGetResponse =
+  GetChatThreadApiV1ChatThreadsThreadIdGetResponses[keyof GetChatThreadApiV1ChatThreadsThreadIdGetResponses]
 
 export type RootGetData = {
   body?: never
