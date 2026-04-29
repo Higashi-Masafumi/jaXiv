@@ -1,17 +1,29 @@
 import {
   AlertCircleIcon,
+  ArrowLeftIcon,
   ArrowUpIcon,
   CheckIcon,
   ChevronRightIcon,
   HistoryIcon,
   Loader2Icon,
+  MessageSquareIcon,
   PlusIcon,
   SearchIcon,
+  Trash2Icon,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
-import { ChatThreadHistorySheet } from '~/components/chat-thread-history-sheet'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '~/components/ui/alert-dialog'
 import {
   Collapsible,
   CollapsibleContent,
@@ -22,6 +34,12 @@ import { Button } from '~/components/ui/button'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { Skeleton } from '~/components/ui/skeleton'
 import { Textarea } from '~/components/ui/textarea'
+import {
+  deleteChatThreadApiV1ChatThreadsThreadIdDelete,
+  listChatThreadsApiV1ChatPaperPaperIdThreadsGet,
+} from '~/api/sdk.gen'
+import type { ChatThreadSummaryResponse } from '~/api/types.gen'
+import { formatRelativeTime } from '~/lib/format-relative-time'
 import { cn } from '~/lib/utils'
 import {
   type MessagePart,
@@ -227,9 +245,169 @@ function HistoryLoadingSkeleton() {
   )
 }
 
+function ThreadListView(props: {
+  paperId: string
+  currentThreadId: string | null
+  onSelect: (id: string) => void
+}) {
+  const { paperId, currentThreadId, onSelect } = props
+  const [threads, setThreads] = useState<ChatThreadSummaryResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const [pendingDelete, setPendingDelete] =
+    useState<ChatThreadSummaryResponse | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    const ac = new AbortController()
+    setLoading(true)
+    setError(null)
+    void (async () => {
+      const { data, error: apiError } =
+        await listChatThreadsApiV1ChatPaperPaperIdThreadsGet({
+          path: { paper_id: paperId },
+          signal: ac.signal,
+          throwOnError: false,
+        })
+      if (ac.signal.aborted) return
+      if (!data) {
+        setError(
+          apiError instanceof Error
+            ? apiError
+            : new Error('スレッドの読み込みに失敗しました'),
+        )
+        setLoading(false)
+        return
+      }
+      setThreads(data.threads)
+      setLoading(false)
+    })()
+    return () => ac.abort()
+  }, [paperId])
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    const target = pendingDelete
+    const { error: apiError } =
+      await deleteChatThreadApiV1ChatThreadsThreadIdDelete({
+        path: { thread_id: target.id },
+        throwOnError: false,
+      })
+    setDeleting(false)
+    if (apiError) {
+      setError(
+        apiError instanceof Error
+          ? apiError
+          : new Error('スレッドの削除に失敗しました'),
+      )
+      return
+    }
+    setThreads(prev => prev.filter(t => t.id !== target.id))
+    setPendingDelete(null)
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="px-2 py-2">
+          {error && (
+            <div className="mx-2 mb-2 flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
+              <span className="break-all">{error.message}</span>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="space-y-2 px-2">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="space-y-2 rounded-md px-3 py-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              ))}
+            </div>
+          ) : threads.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-sm text-muted-foreground">
+              <MessageSquareIcon className="size-8 opacity-40" />
+              <p>まだスレッドがありません</p>
+            </div>
+          ) : (
+            <ul className="space-y-1">
+              {threads.map(thread => (
+                <li
+                  key={thread.id}
+                  className={cn(
+                    'group flex items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted/50',
+                    thread.id === currentThreadId && 'bg-accent/40',
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelect(thread.id)}
+                    className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
+                  >
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {thread.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatRelativeTime(thread.updated_at)}
+                    </span>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="このスレッドを削除"
+                    className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive"
+                    onClick={() => setPendingDelete(thread)}
+                  >
+                    <Trash2Icon />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </ScrollArea>
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={isOpen => {
+          if (!isOpen) setPendingDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>このスレッドを削除しますか?</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{pendingDelete?.title}
+              」のメッセージはすべて削除され、元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={e => {
+                e.preventDefault()
+                void handleDelete()
+              }}
+              className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20"
+            >
+              {deleting ? '削除中…' : '削除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
 export function BlogPaperChat({ paperId }: { paperId: string }) {
   const [input, setInput] = useState('')
-  const [historyOpen, setHistoryOpen] = useState(false)
+  const [view, setView] = useState<'chat' | 'history'>('chat')
   const bottomRef = useRef<HTMLDivElement>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const threadId = searchParams.get('thread')
@@ -270,9 +448,9 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
   const busy = isSubmitted || status === 'streaming' || isLoadingHistory
 
   useEffect(() => {
-    if (isLoadingHistory) return
+    if (view !== 'chat' || isLoadingHistory) return
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, status, isLoadingHistory])
+  }, [messages, status, isLoadingHistory, view])
 
   const submitChat = () => {
     const t = input.trim()
@@ -281,77 +459,124 @@ export function BlogPaperChat({ paperId }: { paperId: string }) {
     setInput('')
   }
 
+  const startNewChat = () => {
+    setThread(null)
+    setView('chat')
+  }
+
+  const selectThread = (id: string) => {
+    setThread(id)
+    setView('chat')
+  }
+
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground"
-          disabled={!threadId || isSubmitted || status === 'streaming'}
-          onClick={() => setThread(null)}
-        >
-          <PlusIcon />
-          新しいチャット
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="チャット履歴"
-          onClick={() => setHistoryOpen(true)}
-        >
-          <HistoryIcon />
-        </Button>
+        {view === 'chat' ? (
+          <>
+            <span className="text-sm font-medium text-foreground">
+              アシスタント
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                disabled={!threadId || isSubmitted || status === 'streaming'}
+                onClick={startNewChat}
+              >
+                <PlusIcon />
+                新しいチャット
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => setView('history')}
+              >
+                <HistoryIcon />
+                履歴
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="チャットに戻る"
+                onClick={() => setView('chat')}
+              >
+                <ArrowLeftIcon />
+              </Button>
+              <span className="text-sm font-medium text-foreground">
+                チャット履歴
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={startNewChat}
+            >
+              <PlusIcon />
+              新しいチャット
+            </Button>
+          </>
+        )}
       </div>
 
-      {error && (
-        <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
-          <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span className="break-all">{error.message}</span>
-        </div>
-      )}
-
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-3 px-4 py-4">
-          {isLoadingHistory ? (
-            <HistoryLoadingSkeleton />
-          ) : messages.length === 0 && !busy ? (
-            <p className="text-sm text-muted-foreground">
-              論文の内容について質問してください。
-            </p>
-          ) : (
-            messages.map(m => <MessageContent key={m.id} m={m} />)
-          )}
-
-          {isSubmitted && (
-            <div className="flex justify-start">
-              <div className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                <Loader2Icon className="size-3 animate-spin" />
-                考え中…
-              </div>
+      {view === 'history' ? (
+        <ThreadListView
+          paperId={paperId}
+          currentThreadId={threadId}
+          onSelect={selectThread}
+        />
+      ) : (
+        <>
+          {error && (
+            <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
+              <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
+              <span className="break-all">{error.message}</span>
             </div>
           )}
 
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="flex flex-col gap-3 px-4 py-4">
+              {isLoadingHistory ? (
+                <HistoryLoadingSkeleton />
+              ) : messages.length === 0 && !busy ? (
+                <p className="text-sm text-muted-foreground">
+                  論文の内容について質問してください。
+                </p>
+              ) : (
+                messages.map(m => <MessageContent key={m.id} m={m} />)
+              )}
 
-      <div className="shrink-0 border-t border-border/40 bg-background/95 backdrop-blur-md">
-        <ChatComposer
-          value={input}
-          onChange={setInput}
-          disabled={busy}
-          onSubmit={submitChat}
-        />
-      </div>
+              {isSubmitted && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                    <Loader2Icon className="size-3 animate-spin" />
+                    考え中…
+                  </div>
+                </div>
+              )}
 
-      <ChatThreadHistorySheet
-        paperId={paperId}
-        currentThreadId={threadId}
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
-        onSelect={id => setThread(id)}
-      />
+              <div ref={bottomRef} />
+            </div>
+          </ScrollArea>
+
+          <div className="shrink-0 border-t border-border/40 bg-background/95 backdrop-blur-md">
+            <ChatComposer
+              value={input}
+              onChange={setInput}
+              disabled={busy}
+              onSubmit={submitChat}
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }
