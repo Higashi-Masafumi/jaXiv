@@ -72,11 +72,18 @@ MAX_CONVERSATION_TURNS = 10
 
 
 def _trim_context(messages: list[ChatMessage]) -> list[ChatMessage]:
-	"""直近 MAX_CONVERSATION_TURNS 個の user メッセージから始まるコンテキストに絞る。"""
-	user_indices = [i for i, m in enumerate(messages) if m.role == 'user']
+	"""直近 MAX_CONVERSATION_TURNS 個の **テキストを含む** user メッセージから
+	始まるコンテキストに絞る。tool_result だけが入った user メッセージは
+	「ユーザーターン」ではないので、ターン予算には数えない。
+	"""
+	user_turn_indices = [
+		i
+		for i, m in enumerate(messages)
+		if m.role == 'user' and any(isinstance(b, TextBlock) for b in m.content)
+	]
 	cut_at = (
-		user_indices[-MAX_CONVERSATION_TURNS]
-		if len(user_indices) > MAX_CONVERSATION_TURNS
+		user_turn_indices[-MAX_CONVERSATION_TURNS]
+		if len(user_turn_indices) > MAX_CONVERSATION_TURNS
 		else 0
 	)
 	return messages[cut_at:]

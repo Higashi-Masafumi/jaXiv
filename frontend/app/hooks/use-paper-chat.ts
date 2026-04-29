@@ -50,18 +50,23 @@ export function usePaperChat(
   )
   const [error, setError] = useState<Error | null>(null)
   const threadIdRef = useRef<string | null>(initialThreadId ?? null)
+  // マウント時の initialThreadId のみで一度だけ履歴 fetch する。
+  // ストリーミング中に SSE 由来で URL が更新されて initialThreadId が変わっても
+  // 再 fetch しない（in-flight の assistant/tool ブロックを古いスナップショットで
+  // 上書きしてしまう競合を防ぐ）。
+  const initialThreadIdAtMount = useRef(initialThreadId).current
   const navigate = useNavigate()
 
   // 既存スレッド再開時は履歴を fetch して messages に流し込む。
   useEffect(() => {
-    if (!initialThreadId) return
+    if (!initialThreadIdAtMount) return
     const ac = new AbortController()
     setStatus('loading')
     setError(null)
     void (async () => {
       const { data, error: apiError } =
         await getChatThreadApiV1ChatThreadsThreadIdGet({
-          path: { thread_id: initialThreadId },
+          path: { thread_id: initialThreadIdAtMount },
           signal: ac.signal,
           throwOnError: false,
         })
@@ -79,7 +84,7 @@ export function usePaperChat(
       setStatus('idle')
     })()
     return () => ac.abort()
-  }, [initialThreadId])
+  }, [initialThreadIdAtMount])
 
   const sendMessage = useCallback(
     async (text: string) => {
