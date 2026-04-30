@@ -542,11 +542,17 @@ function ChatView(props: {
 export function BlogPaperChat({ paperId }: { paperId: string }) {
   const [view, setView] = useState<'chat' | 'history'>('chat')
   const [searchParams, setSearchParams] = useSearchParams()
-  const threadId = searchParams.get('thread')
+  // URL はブックマーク・共有用に同期するが、ChatView への受け渡しには
+  // ローカル state を使う。setSearchParams は非同期で反映されるため、
+  // 同一レンダー内で setChatKey と組み合わせると古い値が渡される問題を防ぐ。
+  const [threadId, setThreadId] = useState<string | null>(
+    searchParams.get('thread'),
+  )
   const [chatKey, setChatKey] = useState(0)
 
   const setThread = useCallback(
     (id: string | null, replace = false) => {
+      setThreadId(id)
       setSearchParams(
         prev => {
           const next = new URLSearchParams(prev)
