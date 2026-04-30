@@ -373,19 +373,19 @@ function ThreadListView(props: {
               <p>まだスレッドがありません</p>
             </div>
           ) : (
-            <ul className="space-y-1">
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-1">
               {threads.map(thread => (
                 <li
                   key={thread.id}
                   className={cn(
-                    'group flex items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted/50',
+                    'group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted/50',
                     thread.id === currentThreadId && 'bg-accent/40',
                   )}
                 >
                   <button
                     type="button"
                     onClick={() => onSelect(thread.id)}
-                    className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
+                    className="flex min-w-0 flex-col gap-0.5 text-left"
                   >
                     <span className="truncate text-sm font-medium text-foreground">
                       {thread.title}

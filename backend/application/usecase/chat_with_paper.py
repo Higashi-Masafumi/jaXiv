@@ -96,7 +96,7 @@ class ChatWithPaperUseCase:
 			async with self._thread_uow as uow:
 				repo = uow.chat_thread_repository
 				if thread_id:
-					thread = await repo.find_by_id(thread_id)
+					thread = await repo.find_by_id(thread_id, user_id)
 				else:
 					thread = await repo.create(paper_id, user_id)
 
