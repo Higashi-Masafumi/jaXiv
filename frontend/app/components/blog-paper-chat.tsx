@@ -48,14 +48,6 @@ import { type PaperChatMessage, usePaperChat } from '~/hooks/use-paper-chat'
 
 const dateFormatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short' })
 
-const THREAD_TITLE_MAX_LENGTH = 24
-
-function truncateThreadTitle(title: string): string {
-  return title.length > THREAD_TITLE_MAX_LENGTH
-    ? `${title.slice(0, THREAD_TITLE_MAX_LENGTH)}…`
-    : title
-}
-
 function ChatComposer(props: {
   value: string
   onChange: (v: string) => void
@@ -396,7 +388,7 @@ function ThreadListView(props: {
                     className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
                   >
                     <span className="truncate text-sm font-medium text-foreground">
-                      {truncateThreadTitle(thread.title)}
+                      {thread.title}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {dateFormatter.format(new Date(thread.updated_at))}
