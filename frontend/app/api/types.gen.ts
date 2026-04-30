@@ -77,23 +77,21 @@ export type ChatMessageResponse = {
   /**
    * Role
    */
-  role: string
+  role: 'user' | 'assistant'
   /**
    * Content
    */
-  content?: string | null
-  /**
-   * Tool Calls
-   */
-  tool_calls?: Array<ChatToolCallResponse> | null
-  /**
-   * Tool Call Id
-   */
-  tool_call_id?: string | null
-  /**
-   * Name
-   */
-  name?: string | null
+  content: Array<
+    | ({
+        type: 'text'
+      } & TextBlock)
+    | ({
+        type: 'tool_use'
+      } & ToolUseBlock)
+    | ({
+        type: 'tool_result'
+      } & ToolResultBlock)
+  >
   /**
    * Timestamp
    */
@@ -182,26 +180,6 @@ export type ChatThreadSummaryResponse = {
    * Title
    */
   title: string
-}
-
-/**
- * ChatToolCallResponse
- */
-export type ChatToolCallResponse = {
-  /**
-   * Id
-   */
-  id: string
-  /**
-   * Name
-   */
-  name: string
-  /**
-   * Args
-   */
-  args: {
-    [key: string]: unknown
-  }
 }
 
 /**
@@ -330,6 +308,75 @@ export type RagTextChunkSchema = {
  * The target language for translation.
  */
 export type TargetLanguage = 'japanese'
+
+/**
+ * TextBlock
+ *
+ * Anthropic 互換の text content block。`type` は OpenAPI で required にする
+ * ため敢えてデフォルト値を持たせず、コンストラクタで明示的に指定する運用とする。
+ */
+export type TextBlock = {
+  /**
+   * Type
+   */
+  type: 'text'
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * ToolResultBlock
+ */
+export type ToolResultBlock = {
+  /**
+   * Type
+   */
+  type: 'tool_result'
+  /**
+   * Tool Use Id
+   */
+  tool_use_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Content
+   */
+  content: {
+    [key: string]: unknown
+  }
+  /**
+   * Is Error
+   */
+  is_error?: boolean
+}
+
+/**
+ * ToolUseBlock
+ */
+export type ToolUseBlock = {
+  /**
+   * Type
+   */
+  type: 'tool_use'
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Input
+   */
+  input?: {
+    [key: string]: unknown
+  }
+}
 
 /**
  * TranslateResponseSchema

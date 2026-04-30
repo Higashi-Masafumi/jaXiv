@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from domain.entities.chat import ChatThread
+from domain.entities.chat import ChatThread, TextBlock
 from domain.repositories import IChatThreadRepository
 
 
@@ -25,11 +25,16 @@ class ChatThreadSummary(BaseModel):
 
 	@classmethod
 	def from_thread(cls, thread: ChatThread) -> 'ChatThreadSummary':
-		first_user_message = next(
-			(m for m in thread.messages if m.role == 'user' and m.content),
-			None,
-		)
-		raw = (first_user_message.content if first_user_message else '') or ''
+		raw = ''
+		for m in thread.messages:
+			if m.role != 'user':
+				continue
+			text_block = next(
+				(b for b in m.content if isinstance(b, TextBlock) and b.text), None
+			)
+			if text_block is not None:
+				raw = text_block.text
+				break
 		title = raw.strip().splitlines()[0] if raw.strip() else '新しいチャット'
 		if len(title) > SNIPPET_MAX_LENGTH:
 			title = title[:SNIPPET_MAX_LENGTH] + '…'

@@ -1,4 +1,9 @@
-"""Agentic chat use case: routes user messages to Gemini with RAG tool support."""
+"""Agentic chat use case: routes user messages to Gemini with RAG tool support.
+
+Anthropic Messages API 互換の content-block モデルで messages を扱う。
+- assistant ターンは text と tool_use ブロックを **順序付きで** 1 メッセージにまとめる
+- tool_result は **role='user'** メッセージの content に置く（Anthropic 形式）
+"""
 
 import uuid
 from collections.abc import AsyncIterator
@@ -11,16 +16,25 @@ from application.chat_events import (
 	BlockStopEvent,
 	ChatStreamEvent,
 	ErrorEvent,
+	MessageStartEvent,
 	MessageStopEvent,
-	TextBlock,
 	TextDelta,
 	ThreadIdEvent,
-	ToolResultEvent,
-	ToolUseBlock,
 )
 from application.unit_of_works.chat_thread_unit_of_work import ChatThreadUnitOfWork
-from domain.entities.chat import ChatMessage, ToolCall
-from domain.gateways.i_chat_llm_gateway import IChatLLMGateway, ToolCallItem, ToolDefinition
+from domain.entities.chat import (
+	ChatMessage,
+	ContentBlock,
+	TextBlock,
+	ToolResultBlock,
+	ToolUseBlock,
+)
+from domain.gateways.i_chat_llm_gateway import (
+	IChatLLMGateway,
+	LLMTextDelta,
+	LLMToolUse,
+	ToolDefinition,
+)
 
 from .rag_search_image import RagSearchImageUseCase
 from .rag_search_text import RagSearchTextUseCase
@@ -87,106 +101,136 @@ class ChatWithPaperUseCase:
 					thread = await repo.create(paper_id, user_id)
 
 				yield ThreadIdEvent(thread_id=str(thread.id))
-				thread.messages.append(ChatMessage(role='user', content=message))
+
+				user_message = ChatMessage(
+					role='user', content=[TextBlock(text=message)]
+				)
+				thread.messages.append(user_message)
 
 				block_index = 0
-				accumulated = ''
+				final_text = ''
 
-				# tool callループ（最大MAX_TOOL_ROUNDS回）
 				for _ in range(MAX_TOOL_ROUNDS):
-					tool_calls: list[ToolCallItem] = []
+					assistant_id = str(uuid.uuid4())
+					yield MessageStartEvent(message_id=assistant_id, role='assistant')
+
 					iteration_text = ''
-					user_indices = [i for i, m in enumerate(thread.messages) if m.role == 'user']
+					tool_uses: list[LLMToolUse] = []
+					assistant_blocks: list[ContentBlock] = []
+
+					yield BlockStartEvent(index=block_index, block=TextBlock(text=''))
+					# tool_result だけが入った user メッセージはユーザーターンとして数えない。
+					user_turn_idx = [
+						i
+						for i, m in enumerate(thread.messages)
+						if m.role == 'user'
+						and any(isinstance(b, TextBlock) for b in m.content)
+					]
 					cut_at = (
-						user_indices[-MAX_CONVERSATION_TURNS]
-						if len(user_indices) > MAX_CONVERSATION_TURNS
+						user_turn_idx[-MAX_CONVERSATION_TURNS]
+						if len(user_turn_idx) > MAX_CONVERSATION_TURNS
 						else 0
 					)
 					context = thread.messages[cut_at:]
-					yield BlockStartEvent(index=block_index, block=TextBlock())
-					async for chunk in self._llm.stream(context, RAG_TOOLS, SYSTEM_PROMPT):
-						if isinstance(chunk, list):
-							tool_calls = chunk
-						else:
-							yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=chunk))
-							iteration_text += chunk
+					async for event in self._llm.stream(context, RAG_TOOLS, SYSTEM_PROMPT):
+						if isinstance(event, LLMTextDelta):
+							iteration_text += event.text
+							yield BlockDeltaEvent(
+								index=block_index, delta=TextDelta(text=event.text)
+							)
+						elif isinstance(event, LLMToolUse):
+							tool_uses.append(event)
 					yield BlockStopEvent(index=block_index)
 					block_index += 1
 
-					if not tool_calls:
-						accumulated = iteration_text
-						break
+					if iteration_text:
+						assistant_blocks.append(TextBlock(text=iteration_text))
 
-					thread.messages.append(
-						ChatMessage(
-							role='assistant',
-							content=iteration_text or None,
-							tool_calls=[
-								ToolCall(id=tc.id, name=tc.name, args=tc.args) for tc in tool_calls
-							],
-						)
-					)
-					for tc in tool_calls:
-						yield BlockStartEvent(
-							index=block_index,
-							block=ToolUseBlock(id=tc.id, name=tc.name, input=tc.args),
-						)
+					for tu in tool_uses:
+						use_block = ToolUseBlock(id=tu.id, name=tu.name, input=tu.input)
+						assistant_blocks.append(use_block)
+						yield BlockStartEvent(index=block_index, block=use_block)
 						yield BlockStopEvent(index=block_index)
 						block_index += 1
 
-						query = tc.args.get('query', '')
-						if tc.name == 'textSearch':
-							text_search_result = await self._rag_text.execute(paper_id, query)
-							yield ToolResultEvent(
-								tool_use_id=tc.id,
-								name=tc.name,
-								content=text_search_result.model_dump(),
+					if assistant_blocks:
+						thread.messages.append(
+							ChatMessage(
+								id=assistant_id, role='assistant', content=assistant_blocks
 							)
-							thread.messages.append(
-								ChatMessage(
-									role='tool',
-									content=text_search_result.model_dump_json(),
-									tool_call_id=tc.id,
-									name=tc.name,
-								)
-							)
-						elif tc.name == 'imageSearch':
-							image_search_result = await self._rag_image.execute(paper_id, query)
-							yield ToolResultEvent(
-								tool_use_id=tc.id,
-								name=tc.name,
-								content=image_search_result.model_dump(),
-							)
-							thread.messages.append(
-								ChatMessage(
-									role='tool',
-									content=image_search_result.model_dump_json(),
-									tool_call_id=tc.id,
-									name=tc.name,
-								)
-							)
-						else:
-							yield ErrorEvent(message=f'Unknown tool: {tc.name}')
-							break
+						)
 
-				# ループ内で最終テキストが得られなかった場合は tools なしで再度呼び出す
-				if not accumulated:
-					yield BlockStartEvent(index=block_index, block=TextBlock())
-					user_indices = [i for i, m in enumerate(thread.messages) if m.role == 'user']
+					if not tool_uses:
+						final_text = iteration_text
+						break
+
+					tool_result_blocks: list[ContentBlock] = []
+					tool_user_id = str(uuid.uuid4())
+					yield MessageStartEvent(message_id=tool_user_id, role='user')
+					unknown_tool = False
+					for tu in tool_uses:
+						query = tu.input.get('query', '')
+						if tu.name == 'textSearch':
+							text_result = await self._rag_text.execute(paper_id, query)
+							result_content = text_result.model_dump()
+						elif tu.name == 'imageSearch':
+							image_result = await self._rag_image.execute(paper_id, query)
+							result_content = image_result.model_dump()
+						else:
+							yield ErrorEvent(message=f'Unknown tool: {tu.name}')
+							unknown_tool = True
+							break
+						result_block = ToolResultBlock(
+							tool_use_id=tu.id, name=tu.name, content=result_content
+						)
+						tool_result_blocks.append(result_block)
+						yield BlockStartEvent(index=block_index, block=result_block)
+						yield BlockStopEvent(index=block_index)
+						block_index += 1
+					if tool_result_blocks:
+						thread.messages.append(
+							ChatMessage(
+								id=tool_user_id, role='user', content=tool_result_blocks
+							)
+						)
+					if unknown_tool:
+						break
+
+				# tool ループ内で最終 assistant テキストが得られなかった場合は
+				# tools なしで最後にもう一度生成してまとめのテキストを返す
+				if not final_text:
+					assistant_id = str(uuid.uuid4())
+					yield MessageStartEvent(message_id=assistant_id, role='assistant')
+					yield BlockStartEvent(index=block_index, block=TextBlock(text=''))
+					closing_text = ''
+					user_turn_idx = [
+						i
+						for i, m in enumerate(thread.messages)
+						if m.role == 'user'
+						and any(isinstance(b, TextBlock) for b in m.content)
+					]
 					cut_at = (
-						user_indices[-MAX_CONVERSATION_TURNS]
-						if len(user_indices) > MAX_CONVERSATION_TURNS
+						user_turn_idx[-MAX_CONVERSATION_TURNS]
+						if len(user_turn_idx) > MAX_CONVERSATION_TURNS
 						else 0
 					)
 					context = thread.messages[cut_at:]
-					async for chunk in self._llm.stream(context, [], SYSTEM_PROMPT):
-						if isinstance(chunk, list):
-							continue
-						accumulated += chunk
-						yield BlockDeltaEvent(index=block_index, delta=TextDelta(text=chunk))
+					async for event in self._llm.stream(context, [], SYSTEM_PROMPT):
+						if isinstance(event, LLMTextDelta):
+							closing_text += event.text
+							yield BlockDeltaEvent(
+								index=block_index, delta=TextDelta(text=event.text)
+							)
 					yield BlockStopEvent(index=block_index)
-
-				thread.messages.append(ChatMessage(role='assistant', content=accumulated))
+					block_index += 1
+					if closing_text:
+						thread.messages.append(
+							ChatMessage(
+								id=assistant_id,
+								role='assistant',
+								content=[TextBlock(text=closing_text)],
+							)
+						)
 
 				thread.updated_at = datetime.now(UTC)
 				await repo.update(thread)
