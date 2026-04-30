@@ -15,9 +15,12 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 	def __init__(self, session: AsyncSession) -> None:
 		self._session = session
 
-	async def find_by_id(self, thread_id: uuid.UUID) -> ChatThread:
+	async def find_by_id(self, thread_id: uuid.UUID, user_id: uuid.UUID) -> ChatThread:
 		result = await self._session.execute(
-			select(ChatThreadModel).where(ChatThreadModel.id == thread_id)  # type: ignore[arg-type]
+			select(ChatThreadModel).where(
+				ChatThreadModel.id == thread_id,  # type: ignore[arg-type]
+				ChatThreadModel.user_id == user_id,  # type: ignore[arg-type]
+			)
 		)
 		row = result.scalar_one_or_none()
 		if row is None:
@@ -46,18 +49,26 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 		self._session.add(row)
 		return ChatThread.model_validate(row.model_dump())
 
-	async def find_by_paper_id(self, paper_id: str) -> list[ChatThread]:
+	async def find_by_paper_id(
+		self, paper_id: str, user_id: uuid.UUID
+	) -> list[ChatThread]:
 		result = await self._session.execute(
 			select(ChatThreadModel)
-			.where(ChatThreadModel.paper_id == paper_id)  # type: ignore[arg-type]
+			.where(
+				ChatThreadModel.paper_id == paper_id,  # type: ignore[arg-type]
+				ChatThreadModel.user_id == user_id,  # type: ignore[arg-type]
+			)
 			.order_by(ChatThreadModel.updated_at.desc())  # type: ignore[attr-defined]
 		)
 		rows = result.scalars().all()
 		return [ChatThread.model_validate(row.model_dump()) for row in rows]
 
-	async def delete(self, thread_id: uuid.UUID) -> None:
+	async def delete(self, thread_id: uuid.UUID, user_id: uuid.UUID) -> None:
 		result = await self._session.execute(
-			delete(ChatThreadModel).where(ChatThreadModel.id == thread_id)  # type: ignore[arg-type]
+			delete(ChatThreadModel).where(
+				ChatThreadModel.id == thread_id,  # type: ignore[arg-type]
+				ChatThreadModel.user_id == user_id,  # type: ignore[arg-type]
+			)
 		)
 		if result.rowcount == 0:
 			raise ChatThreadNotFoundError(str(thread_id))

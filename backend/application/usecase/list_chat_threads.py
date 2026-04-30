@@ -1,7 +1,4 @@
-"""List chat threads belonging to the requesting user for a given paper.
-
-RLS により他人のスレッドは SELECT で見えないため、user_id フィルタは不要。
-"""
+"""List chat threads belonging to the requesting user for a given paper."""
 
 from datetime import datetime
 from uuid import UUID
@@ -52,7 +49,7 @@ class ListChatThreadsUseCase:
 	def __init__(self, chat_thread_repository: IChatThreadRepository) -> None:
 		self._chat_thread_repository = chat_thread_repository
 
-	async def execute(self, paper_id: str) -> list[ChatThreadSummary]:
-		threads = await self._chat_thread_repository.find_by_paper_id(paper_id)
+	async def execute(self, paper_id: str, user_id: UUID) -> list[ChatThreadSummary]:
+		threads = await self._chat_thread_repository.find_by_paper_id(paper_id, user_id)
 		# 表示にはメッセージ未送信のスレッド（タイトル未確定）を除外する。
 		return [ChatThreadSummary.from_thread(t) for t in threads if len(t.messages) > 0]
