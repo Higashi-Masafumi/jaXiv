@@ -71,24 +71,6 @@ MAX_TOOL_ROUNDS = 3
 MAX_CONVERSATION_TURNS = 10
 
 
-def _trim_context(messages: list[ChatMessage]) -> list[ChatMessage]:
-	"""直近 MAX_CONVERSATION_TURNS 個の **テキストを含む** user メッセージから
-	始まるコンテキストに絞る。tool_result だけが入った user メッセージは
-	「ユーザーターン」ではないので、ターン予算には数えない。
-	"""
-	user_turn_indices = [
-		i
-		for i, m in enumerate(messages)
-		if m.role == 'user' and any(isinstance(b, TextBlock) for b in m.content)
-	]
-	cut_at = (
-		user_turn_indices[-MAX_CONVERSATION_TURNS]
-		if len(user_turn_indices) > MAX_CONVERSATION_TURNS
-		else 0
-	)
-	return messages[cut_at:]
-
-
 class ChatWithPaperUseCase:
 	def __init__(
 		self,
@@ -102,26 +84,6 @@ class ChatWithPaperUseCase:
 		self._rag_text = rag_text
 		self._rag_image = rag_image
 		self._logger = getLogger(__name__)
-
-	async def _run_tool(
-		self, paper_id: str, tool_use: LLMToolUse
-	) -> ToolResultBlock | None:
-		query = tool_use.input.get('query', '')
-		if tool_use.name == 'textSearch':
-			text_result = await self._rag_text.execute(paper_id, query)
-			return ToolResultBlock(
-				tool_use_id=tool_use.id,
-				name=tool_use.name,
-				content=text_result.model_dump(),
-			)
-		if tool_use.name == 'imageSearch':
-			image_result = await self._rag_image.execute(paper_id, query)
-			return ToolResultBlock(
-				tool_use_id=tool_use.id,
-				name=tool_use.name,
-				content=image_result.model_dump(),
-			)
-		return None
 
 	async def execute(
 		self,
@@ -157,7 +119,19 @@ class ChatWithPaperUseCase:
 					assistant_blocks: list[ContentBlock] = []
 
 					yield BlockStartEvent(index=block_index, block=TextBlock(text=''))
-					context = _trim_context(thread.messages)
+					# tool_result だけが入った user メッセージはユーザーターンとして数えない。
+					user_turn_idx = [
+						i
+						for i, m in enumerate(thread.messages)
+						if m.role == 'user'
+						and any(isinstance(b, TextBlock) for b in m.content)
+					]
+					cut_at = (
+						user_turn_idx[-MAX_CONVERSATION_TURNS]
+						if len(user_turn_idx) > MAX_CONVERSATION_TURNS
+						else 0
+					)
+					context = thread.messages[cut_at:]
 					async for event in self._llm.stream(context, RAG_TOOLS, SYSTEM_PROMPT):
 						if isinstance(event, LLMTextDelta):
 							iteration_text += event.text
@@ -195,11 +169,20 @@ class ChatWithPaperUseCase:
 					yield MessageStartEvent(message_id=tool_user_id, role='user')
 					unknown_tool = False
 					for tu in tool_uses:
-						result_block = await self._run_tool(paper_id, tu)
-						if result_block is None:
+						query = tu.input.get('query', '')
+						if tu.name == 'textSearch':
+							text_result = await self._rag_text.execute(paper_id, query)
+							result_content = text_result.model_dump()
+						elif tu.name == 'imageSearch':
+							image_result = await self._rag_image.execute(paper_id, query)
+							result_content = image_result.model_dump()
+						else:
 							yield ErrorEvent(message=f'Unknown tool: {tu.name}')
 							unknown_tool = True
 							break
+						result_block = ToolResultBlock(
+							tool_use_id=tu.id, name=tu.name, content=result_content
+						)
 						tool_result_blocks.append(result_block)
 						yield BlockStartEvent(index=block_index, block=result_block)
 						yield BlockStopEvent(index=block_index)
@@ -220,7 +203,18 @@ class ChatWithPaperUseCase:
 					yield MessageStartEvent(message_id=assistant_id, role='assistant')
 					yield BlockStartEvent(index=block_index, block=TextBlock(text=''))
 					closing_text = ''
-					context = _trim_context(thread.messages)
+					user_turn_idx = [
+						i
+						for i, m in enumerate(thread.messages)
+						if m.role == 'user'
+						and any(isinstance(b, TextBlock) for b in m.content)
+					]
+					cut_at = (
+						user_turn_idx[-MAX_CONVERSATION_TURNS]
+						if len(user_turn_idx) > MAX_CONVERSATION_TURNS
+						else 0
+					)
+					context = thread.messages[cut_at:]
 					async for event in self._llm.stream(context, [], SYSTEM_PROMPT):
 						if isinstance(event, LLMTextDelta):
 							closing_text += event.text

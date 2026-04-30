@@ -354,12 +354,18 @@ function ThreadListView(props: {
 
           {loading ? (
             <div className="space-y-2 px-2">
-              {[0, 1, 2].map(i => (
-                <div key={i} className="space-y-2 rounded-md px-3 py-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/3" />
-                </div>
-              ))}
+              <div className="space-y-2 rounded-md px-3 py-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+              <div className="space-y-2 rounded-md px-3 py-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+              <div className="space-y-2 rounded-md px-3 py-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
             </div>
           ) : threads.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-sm text-muted-foreground">
@@ -483,17 +489,12 @@ function ChatView(props: {
         <div className="flex flex-col gap-3 px-4 py-4">
           {isLoading ? (
             <div className="space-y-3">
-              {[0, 1].map(i => (
-                <div
-                  key={i}
-                  className={cn(
-                    'flex',
-                    i % 2 ? 'justify-start' : 'justify-end',
-                  )}
-                >
-                  <Skeleton className="h-12 w-2/3 rounded-lg" />
-                </div>
-              ))}
+              <div className="flex justify-end">
+                <Skeleton className="h-12 w-2/3 rounded-lg" />
+              </div>
+              <div className="flex justify-start">
+                <Skeleton className="h-12 w-2/3 rounded-lg" />
+              </div>
             </div>
           ) : messages.length === 0 && !busy ? (
             <p className="text-sm text-muted-foreground">
