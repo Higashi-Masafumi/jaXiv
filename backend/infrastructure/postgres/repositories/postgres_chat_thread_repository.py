@@ -1,12 +1,13 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.entities.chat import ChatThread
 from domain.errors.domain_error import ChatThreadNotFoundError
 from domain.repositories.i_chat_thread_repository import IChatThreadRepository
+from domain.value_objects.user_id import UserId
 
 from ..models import ChatThreadModel
 
@@ -72,3 +73,29 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 		)
 		if result.rowcount == 0:
 			raise ChatThreadNotFoundError(str(thread_id))
+
+	async def count_user_messages(self, user_id: UserId, since: datetime) -> int:
+		"""Count user-authored text messages from JSONB ``messages`` arrays.
+
+		A "user-authored" message has ``role='user'`` and at least one
+		``text`` content block (i.e. is not a synthetic tool_result message).
+		"""
+		stmt = text(
+			"""
+			SELECT count(*)
+			FROM chat_thread t,
+			     jsonb_array_elements(t.messages) m
+			WHERE t.user_id = :user_id
+			  AND m->>'role' = 'user'
+			  AND (m->>'timestamp')::timestamptz >= :since
+			  AND EXISTS (
+			    SELECT 1
+			    FROM jsonb_array_elements(m->'content') c
+			    WHERE c->>'type' = 'text'
+			  )
+			"""
+		)
+		result = await self._session.execute(
+			stmt, {'user_id': user_id.root, 'since': since}
+		)
+		return int(result.scalar_one())

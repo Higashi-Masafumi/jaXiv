@@ -1,4 +1,10 @@
 from .i_arxiv_source_fetcher import IArxivSourceFetcher
+from .i_billing_gateway import (
+	CheckoutSession,
+	IBillingGateway,
+	PortalSession,
+	SubscriptionState,
+)
 from .i_blog_post_generator import IBlogPostGenerator
 from .i_image_embedder import IImageEmbedder, ImageEmbedItem, ImageWithEmbedding
 from .i_query_embedding_gateway import IQueryEmbeddingGateway
@@ -34,4 +40,8 @@ __all__ = [
 	'IPdfChunkAnalyzer',
 	'IPdfFigureAnalyzer',
 	'IPdfFigureExtractor',
+	'IBillingGateway',
+	'CheckoutSession',
+	'PortalSession',
+	'SubscriptionState',
 ]

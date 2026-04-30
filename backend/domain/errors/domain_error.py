@@ -73,6 +73,16 @@ class GenerationLimitExceededError(DomainExhaustedError):
 	def __init__(self, monthly_count: int, limit: int):
 		super().__init__(f'Monthly generation limit exceeded: {monthly_count}/{limit}')
 		self.monthly_count = monthly_count
+		self.limit = limit
+
+
+class ChatLimitExceededError(DomainExhaustedError):
+	"""Raised when a user exceeds their daily chat message limit."""
+
+	def __init__(self, daily_count: int, limit: int):
+		super().__init__(f'Daily chat limit exceeded: {daily_count}/{limit}')
+		self.daily_count = daily_count
+		self.limit = limit
 
 
 class ChatThreadNotFoundError(DomainNotFoundError):

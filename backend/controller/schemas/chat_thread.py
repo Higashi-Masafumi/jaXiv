@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from application.usecase import ChatThreadSummary
+from application.usecase import ChatDailyCount, ChatThreadSummary
 from domain.entities.chat import ChatMessage, ChatThread, ContentBlock
 
 
@@ -69,3 +69,12 @@ class ChatThreadResponse(BaseModel):
 			updated_at=thread.updated_at,
 			messages=[ChatMessageResponse.from_entity(m) for m in thread.messages],
 		)
+
+
+class ChatDailyCountResponse(BaseModel):
+	daily: int
+	limit: int | None  # None means unlimited
+
+	@classmethod
+	def from_entity(cls, count: ChatDailyCount) -> 'ChatDailyCountResponse':
+		return cls(daily=count.daily, limit=count.limit)

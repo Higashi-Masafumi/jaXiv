@@ -96,6 +96,7 @@ class ErrorEvent(BaseModel):
 	model_config = ConfigDict(frozen=True)
 	type: Literal['error'] = 'error'
 	message: str
+	error_details: str | None = None
 
 
 ChatStreamEvent = Annotated[

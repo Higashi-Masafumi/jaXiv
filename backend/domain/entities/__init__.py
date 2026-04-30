@@ -22,6 +22,7 @@ from .stream import (
 	TypedTranslateChunk,
 )
 from .text_chunk import TextChunkWithEmbedding
+from .user_subscription import SubscriptionPlan, UserSubscription
 
 __all__ = [
 	'ArxivPaperAuthor',
@@ -47,4 +48,6 @@ __all__ = [
 	'CompleteTranslateChunk',
 	'ErrorTranslateChunk',
 	'UploadedFigure',
+	'SubscriptionPlan',
+	'UserSubscription',
 ]

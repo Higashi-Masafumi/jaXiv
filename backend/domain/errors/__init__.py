@@ -8,6 +8,7 @@ from domain.errors._base import (
 )
 from domain.errors.domain_error import (
 	ArxivPaperNotFoundError,
+	ChatLimitExceededError,
 	ChatThreadNotFoundError,
 	GenerationLimitExceededError,
 	LatexCompilationError,
@@ -35,5 +36,6 @@ __all__ = [
 	'PdfNotGeneratedError',
 	'PdfProcessingError',
 	'GenerationLimitExceededError',
+	'ChatLimitExceededError',
 	'ChatThreadNotFoundError',
 ]

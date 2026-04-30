@@ -11,6 +11,10 @@ import type {
   ChatWithPaperApiV1ChatPaperPaperIdPostData,
   ChatWithPaperApiV1ChatPaperPaperIdPostErrors,
   ChatWithPaperApiV1ChatPaperPaperIdPostResponses,
+  CreateCheckoutSessionApiV1BillingCheckoutSessionPostData,
+  CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses,
+  CreatePortalSessionApiV1BillingPortalSessionPostData,
+  CreatePortalSessionApiV1BillingPortalSessionPostResponses,
   DeleteChatThreadApiV1ChatThreadsThreadIdDeleteData,
   DeleteChatThreadApiV1ChatThreadsThreadIdDeleteErrors,
   DeleteChatThreadApiV1ChatThreadsThreadIdDeleteResponses,
@@ -32,8 +36,12 @@ import type {
   GetChatThreadApiV1ChatThreadsThreadIdGetData,
   GetChatThreadApiV1ChatThreadsThreadIdGetErrors,
   GetChatThreadApiV1ChatThreadsThreadIdGetResponses,
+  GetMyChatDailyCountApiV1ChatMyDailyCountGetData,
+  GetMyChatDailyCountApiV1ChatMyDailyCountGetResponses,
   GetMyGenerationCountApiV1BlogMyGenerationCountGetData,
   GetMyGenerationCountApiV1BlogMyGenerationCountGetResponses,
+  GetMySubscriptionApiV1BillingMeGetData,
+  GetMySubscriptionApiV1BillingMeGetResponses,
   ListBlogsApiV1BlogGetData,
   ListBlogsApiV1BlogGetErrors,
   ListBlogsApiV1BlogGetResponses,
@@ -51,6 +59,9 @@ import type {
   RagSearchTextApiV1BlogPaperIdRagTextPostResponses,
   RootGetData,
   RootGetResponses,
+  StripeWebhookApiV1BillingWebhookPostData,
+  StripeWebhookApiV1BillingWebhookPostErrors,
+  StripeWebhookApiV1BillingWebhookPostResponses,
   TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetData,
   TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetErrors,
   TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetResponses,
@@ -396,6 +407,101 @@ export const getChatThreadApiV1ChatThreadsThreadIdGet = <
     url: '/api/v1/chat/threads/{thread_id}',
     ...options,
   })
+
+/**
+ * Get the current user's chat usage for today
+ */
+export const getMyChatDailyCountApiV1ChatMyDailyCountGet = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<
+    GetMyChatDailyCountApiV1ChatMyDailyCountGetData,
+    ThrowOnError
+  >,
+) =>
+  (options?.client ?? client).get<
+    GetMyChatDailyCountApiV1ChatMyDailyCountGetResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/chat/my/daily-count',
+    ...options,
+  })
+
+/**
+ * Get My Subscription
+ */
+export const getMySubscriptionApiV1BillingMeGet = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<GetMySubscriptionApiV1BillingMeGetData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    GetMySubscriptionApiV1BillingMeGetResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/billing/me',
+    ...options,
+  })
+
+/**
+ * Create Checkout Session
+ */
+export const createCheckoutSessionApiV1BillingCheckoutSessionPost = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<
+    CreateCheckoutSessionApiV1BillingCheckoutSessionPostData,
+    ThrowOnError
+  >,
+) =>
+  (options?.client ?? client).post<
+    CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/billing/checkout-session',
+    ...options,
+  })
+
+/**
+ * Create Portal Session
+ */
+export const createPortalSessionApiV1BillingPortalSessionPost = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<
+    CreatePortalSessionApiV1BillingPortalSessionPostData,
+    ThrowOnError
+  >,
+) =>
+  (options?.client ?? client).post<
+    CreatePortalSessionApiV1BillingPortalSessionPostResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/billing/portal-session',
+    ...options,
+  })
+
+/**
+ * Stripe Webhook
+ */
+export const stripeWebhookApiV1BillingWebhookPost = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<StripeWebhookApiV1BillingWebhookPostData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<
+    StripeWebhookApiV1BillingWebhookPostResponses,
+    StripeWebhookApiV1BillingWebhookPostErrors,
+    ThrowOnError
+  >({ url: '/api/v1/billing/webhook', ...options })
 
 /**
  * Root

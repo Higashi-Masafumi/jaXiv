@@ -54,7 +54,7 @@ class PaginatedBlogPostResponseSchema(BaseModel):
 class GenerationCountResponseSchema(BaseModel):
 	monthly: int
 	total: int
-	limit: int
+	limit: int | None  # None means unlimited
 
 	@classmethod
 	def from_entity(cls, count: GenerationCount) -> GenerationCountResponseSchema:

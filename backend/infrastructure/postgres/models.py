@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Text
+from sqlalchemy import Boolean, DateTime, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import ARRAY, Column, Field, SQLModel, String
@@ -78,6 +78,42 @@ class ChatThreadModel(SQLModel, table=True):
 	messages: list = Field(
 		sa_column=Column(JSONB, nullable=False, server_default='[]'),
 		description='JSON array of chat messages',
+	)
+	created_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+	updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+
+
+class UserSubscriptionModel(SQLModel, table=True):
+	__tablename__ = 'user_subscription'  # type: ignore[assignment]
+
+	user_id: uuid.UUID = Field(
+		sa_column=Column(PG_UUID(as_uuid=True), primary_key=True),
+		description='Supabase auth.users.id',
+	)
+	plan: str = Field(
+		sa_column=Column(String(16), nullable=False, server_default='free'),
+		default='free',
+		description="Subscription plan: 'free' or 'paid'",
+	)
+	stripe_customer_id: str | None = Field(
+		sa_column=Column(Text, nullable=True),
+		default=None,
+		description='Stripe customer ID',
+	)
+	stripe_subscription_id: str | None = Field(
+		sa_column=Column(Text, nullable=True),
+		default=None,
+		description='Stripe subscription ID',
+	)
+	current_period_end: datetime | None = Field(
+		sa_column=Column(DateTime(timezone=True), nullable=True),
+		default=None,
+		description='End of current Stripe billing period (UTC)',
+	)
+	cancel_at_period_end: bool = Field(
+		sa_column=Column(Boolean, nullable=False, server_default='false'),
+		default=False,
+		description='Whether subscription is set to cancel at period end',
 	)
 	created_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
 	updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))

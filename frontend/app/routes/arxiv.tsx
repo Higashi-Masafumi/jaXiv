@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
 import { useAuth } from '~/contexts/auth-context'
 import { useBlogStream } from '../hooks/use-blog-stream'
@@ -18,7 +18,7 @@ export function meta() {
 
 export default function Arxiv() {
   const navigate = useNavigate()
-  const { isAnonymous, signInWithGoogle } = useAuth()
+  const { isAnonymous, isPaid, signInWithGoogle } = useAuth()
   const { status, steps, error, paperId, startArxivStream } = useBlogStream()
 
   useEffect(() => {
@@ -114,9 +114,20 @@ export default function Arxiv() {
                   </button>
                   すると月10回まで生成できます。
                 </span>
+              ) : isPaid ? (
+                <span>
+                  今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
+                </span>
               ) : (
                 <span>
-                  今月の生成回数（10回）を使い切りました。有料プランは近日公開予定です。
+                  今月の生成回数（10回）を使い切りました。
+                  <Link
+                    to="/pricing"
+                    className="ml-1 font-semibold underline underline-offset-2"
+                  >
+                    有料プランにアップグレード
+                  </Link>
+                  すると月100回まで生成できます。
                 </span>
               )}
             </div>
