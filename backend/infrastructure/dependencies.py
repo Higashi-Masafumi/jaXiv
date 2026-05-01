@@ -62,6 +62,7 @@ from domain.repositories import (
 	IUsageRepository,
 	IUserSubscriptionRepository,
 )
+from domain.value_objects.frontend_urls import FrontendUrls
 from domain.value_objects.user_id import UserId
 from domain.value_objects.user_role import UserRole
 from infrastructure.arxiv_api import ArxivSourceFetcher
@@ -574,6 +575,12 @@ def get_billing_gateway(
 	return StripeBillingGateway(config=config)
 
 
+def get_frontend_urls(
+	config: Annotated[StripeConfig, Depends(get_stripe_config)],
+) -> FrontendUrls:
+	return FrontendUrls.from_base(config.frontend_base_url)
+
+
 def get_get_my_subscription_use_case(
 	repo: Annotated[
 		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
@@ -587,8 +594,9 @@ def get_start_checkout_use_case(
 	repo: Annotated[
 		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
 	],
+	urls: Annotated[FrontendUrls, Depends(get_frontend_urls)],
 ) -> StartCheckoutUseCase:
-	return StartCheckoutUseCase(billing=billing, repo=repo)
+	return StartCheckoutUseCase(billing=billing, repo=repo, urls=urls)
 
 
 def get_start_customer_portal_use_case(
@@ -596,8 +604,9 @@ def get_start_customer_portal_use_case(
 	repo: Annotated[
 		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
 	],
+	urls: Annotated[FrontendUrls, Depends(get_frontend_urls)],
 ) -> StartCustomerPortalUseCase:
-	return StartCustomerPortalUseCase(billing=billing, repo=repo)
+	return StartCustomerPortalUseCase(billing=billing, repo=repo, urls=urls)
 
 
 def get_handle_stripe_webhook_use_case(

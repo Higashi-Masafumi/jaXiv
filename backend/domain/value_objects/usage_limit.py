@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict, Field
 
 
-@dataclass(frozen=True)
-class UsageLimit:
+class UsageLimit(BaseModel):
 	"""Represents a usage limit. ``value`` is None for unlimited tiers."""
 
-	value: int | None
+	model_config = ConfigDict(frozen=True)
+
+	value: int | None = Field(
+		default=None,
+		ge=0,
+		description='Maximum allowed count. None means unlimited.',
+	)
 
 	@classmethod
 	def unlimited(cls) -> 'UsageLimit':
@@ -15,8 +20,6 @@ class UsageLimit:
 
 	@classmethod
 	def of(cls, value: int) -> 'UsageLimit':
-		if value < 0:
-			raise ValueError('UsageLimit value must be non-negative')
 		return cls(value=value)
 
 	def is_unlimited(self) -> bool:

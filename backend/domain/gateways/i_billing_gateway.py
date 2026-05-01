@@ -1,42 +1,55 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, HttpUrl
+
+from domain.value_objects.user_id import UserId
 
 
-@dataclass(frozen=True)
-class CheckoutSession:
-	url: str
+class CheckoutSession(BaseModel):
+	model_config = ConfigDict(frozen=True)
+
+	url: HttpUrl
 	session_id: str
 
 
-@dataclass(frozen=True)
-class PortalSession:
-	url: str
+class PortalSession(BaseModel):
+	model_config = ConfigDict(frozen=True)
+
+	url: HttpUrl
 
 
-@dataclass(frozen=True)
-class SubscriptionState:
-	"""Subscription state extracted from a Stripe webhook event."""
+class SubscriptionState(BaseModel):
+	"""Subscription state extracted from a billing provider event."""
 
-	user_id: str  # Supabase auth.users.id (uuid string)
+	model_config = ConfigDict(frozen=True)
+
+	user_id: UserId
 	stripe_customer_id: str
 	stripe_subscription_id: str
-	plan: str  # 'free' | 'paid'
+	plan: Literal['free', 'paid']
 	current_period_end: datetime | None
 	cancel_at_period_end: bool
 
 
 class IBillingGateway(ABC):
+	"""Abstraction over the billing provider (Stripe).
+
+	The gateway is the only layer that knows how to talk to Stripe. Use cases
+	pass plain page URLs (where the user should land after Checkout) and the
+	gateway internally adapts them to provider-specific formats (e.g. the
+	``{CHECKOUT_SESSION_ID}`` placeholder Stripe expects).
+	"""
+
 	@abstractmethod
 	async def create_checkout_session(
 		self,
 		*,
-		user_id: str,
-		customer_email: str | None,
+		user_id: UserId,
 		stripe_customer_id: str | None,
-		success_url: str,
-		cancel_url: str,
+		success_url: HttpUrl,
+		cancel_url: HttpUrl,
 	) -> CheckoutSession: ...
 
 	@abstractmethod
@@ -44,7 +57,7 @@ class IBillingGateway(ABC):
 		self,
 		*,
 		stripe_customer_id: str,
-		return_url: str,
+		return_url: HttpUrl,
 	) -> PortalSession: ...
 
 	@abstractmethod
@@ -54,12 +67,12 @@ class IBillingGateway(ABC):
 		payload: bytes,
 		signature: str,
 	) -> dict[str, Any]:
-		"""Verify the Stripe signature and return the parsed event payload."""
+		"""Verify the provider signature and return the parsed event payload."""
 		...
 
 	@abstractmethod
 	async def fetch_subscription_state(
 		self, stripe_subscription_id: str
 	) -> SubscriptionState | None:
-		"""Fetch the latest state of a Stripe subscription by ID."""
+		"""Fetch the latest state of a subscription by ID."""
 		...

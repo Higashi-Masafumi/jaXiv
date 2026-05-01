@@ -1,10 +1,12 @@
 """Stripe-backed implementation of ``IBillingGateway``."""
 
+import uuid
 from datetime import UTC, datetime
 from logging import getLogger
-from typing import Any
+from typing import Any, Literal
 
 import stripe
+from pydantic import HttpUrl
 
 from domain.gateways.i_billing_gateway import (
 	CheckoutSession,
@@ -12,8 +14,12 @@ from domain.gateways.i_billing_gateway import (
 	PortalSession,
 	SubscriptionState,
 )
+from domain.value_objects.user_id import UserId
 
 from .config import StripeConfig
+
+# Stripe-only token: tells Checkout to interpolate the session ID into the URL.
+_STRIPE_SESSION_ID_TOKEN = '{CHECKOUT_SESSION_ID}'
 
 
 def _to_datetime(epoch: int | None) -> datetime | None:
@@ -22,11 +28,17 @@ def _to_datetime(epoch: int | None) -> datetime | None:
 	return datetime.fromtimestamp(epoch, tz=UTC)
 
 
-def _plan_from_status(status: str | None) -> str:
+def _plan_from_status(status: str | None) -> Literal['free', 'paid']:
 	# Stripe statuses: 'active', 'trialing', 'past_due', 'canceled', etc.
 	if status in ('active', 'trialing'):
 		return 'paid'
 	return 'free'
+
+
+def _with_session_id_token(success_url: HttpUrl) -> str:
+	url = str(success_url)
+	separator = '&' if '?' in url else '?'
+	return f'{url}{separator}session_id={_STRIPE_SESSION_ID_TOKEN}'
 
 
 class StripeBillingGateway(IBillingGateway):
@@ -38,42 +50,43 @@ class StripeBillingGateway(IBillingGateway):
 	async def create_checkout_session(
 		self,
 		*,
-		user_id: str,
-		customer_email: str | None,
+		user_id: UserId,
 		stripe_customer_id: str | None,
-		success_url: str,
-		cancel_url: str,
+		success_url: HttpUrl,
+		cancel_url: HttpUrl,
 	) -> CheckoutSession:
+		user_id_str = str(user_id.root)
 		params: dict[str, Any] = {
 			'mode': 'subscription',
 			'line_items': [
 				{'price': self._config.stripe_price_id_paid, 'quantity': 1},
 			],
-			'success_url': success_url,
-			'cancel_url': cancel_url,
-			'metadata': {'user_id': user_id},
-			'subscription_data': {'metadata': {'user_id': user_id}},
-			'client_reference_id': user_id,
+			'success_url': _with_session_id_token(success_url),
+			'cancel_url': str(cancel_url),
+			'metadata': {'user_id': user_id_str},
+			'subscription_data': {'metadata': {'user_id': user_id_str}},
+			'client_reference_id': user_id_str,
 		}
 		if stripe_customer_id is not None:
 			params['customer'] = stripe_customer_id
-		elif customer_email is not None:
-			params['customer_email'] = customer_email
 
 		session = stripe.checkout.Session.create(**params)
-		return CheckoutSession(url=session.url or '', session_id=session.id)
+		return CheckoutSession(
+			url=HttpUrl(session.url or ''),
+			session_id=session.id,
+		)
 
 	async def create_portal_session(
 		self,
 		*,
 		stripe_customer_id: str,
-		return_url: str,
+		return_url: HttpUrl,
 	) -> PortalSession:
 		session = stripe.billing_portal.Session.create(
 			customer=stripe_customer_id,
-			return_url=return_url,
+			return_url=str(return_url),
 		)
-		return PortalSession(url=session.url)
+		return PortalSession(url=HttpUrl(session.url))
 
 	def parse_webhook_event(
 		self,
@@ -94,17 +107,29 @@ class StripeBillingGateway(IBillingGateway):
 		try:
 			sub_obj = stripe.Subscription.retrieve(stripe_subscription_id)
 		except stripe.StripeError:
-			self._logger.exception('Failed to fetch Stripe subscription %s', stripe_subscription_id)
+			self._logger.exception(
+				'Failed to fetch Stripe subscription %s', stripe_subscription_id
+			)
 			return None
 
 		# stripe.Subscription is dict-like via __getitem__/keys; convert to a
 		# plain dict so mypy doesn't complain about typed attribute access.
 		sub: dict[str, Any] = {k: sub_obj[k] for k in sub_obj.keys()}  # type: ignore[attr-defined]
 		metadata = dict(sub.get('metadata') or {})
-		user_id = metadata.get('user_id', '')
-		if not user_id:
+		raw_user_id = metadata.get('user_id', '')
+		if not raw_user_id:
 			self._logger.warning(
-				'Stripe subscription %s has no user_id metadata; ignoring', sub.get('id')
+				'Stripe subscription %s has no user_id metadata; ignoring',
+				sub.get('id'),
+			)
+			return None
+		try:
+			user_id = UserId(uuid.UUID(raw_user_id))
+		except ValueError:
+			self._logger.warning(
+				'Stripe subscription %s has invalid user_id metadata: %s',
+				sub.get('id'),
+				raw_user_id,
 			)
 			return None
 		return SubscriptionState(

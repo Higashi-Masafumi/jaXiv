@@ -197,16 +197,6 @@ export type ChatThreadSummaryResponse = {
 }
 
 /**
- * CheckoutSessionResponse
- */
-export type CheckoutSessionResponse = {
-  /**
-   * Url
-   */
-  url: string
-}
-
-/**
  * GenerationCountResponseSchema
  */
 export type GenerationCountResponseSchema = {
@@ -251,9 +241,9 @@ export type MySubscriptionResponse = {
    */
   cancel_at_period_end: boolean
   /**
-   * Has Stripe Customer
+   * Has Billing Account
    */
-  has_stripe_customer: boolean
+  has_billing_account: boolean
 }
 
 /**
@@ -346,6 +336,16 @@ export type RagTextChunkSchema = {
    * Page Number
    */
   page_number: number
+}
+
+/**
+ * RedirectUrlResponse
+ */
+export type RedirectUrlResponse = {
+  /**
+   * Url
+   */
+  url: string
 }
 
 /**
@@ -1026,7 +1026,7 @@ export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses = {
   /**
    * Successful Response
    */
-  200: CheckoutSessionResponse
+  200: RedirectUrlResponse
 }
 
 export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponse =
@@ -1043,7 +1043,7 @@ export type CreatePortalSessionApiV1BillingPortalSessionPostResponses = {
   /**
    * Successful Response
    */
-  200: CheckoutSessionResponse
+  200: RedirectUrlResponse
 }
 
 export type CreatePortalSessionApiV1BillingPortalSessionPostResponse =
