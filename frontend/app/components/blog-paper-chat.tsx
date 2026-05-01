@@ -454,7 +454,9 @@ function ChatLimitAlert() {
       <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0 text-hero-accent" />
       <span className="break-all">
         {isPaid ? (
-          <>本日のチャット利用が上限に達しました。日付が変わるとリセットされます。</>
+          <>
+            本日のチャット利用が上限に達しました。日付が変わるとリセットされます。
+          </>
         ) : (
           <>
             本日のチャット上限（30 メッセージ）に達しました。

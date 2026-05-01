@@ -94,11 +94,7 @@ export default function Pricing() {
           name="Paid"
           price="¥980 / 月"
           highlight
-          features={[
-            'ブログ生成: 月100回',
-            'チャット: 無制限',
-            '優先サポート',
-          ]}
+          features={['ブログ生成: 月100回', 'チャット: 無制限', '優先サポート']}
           cta={
             isPaid ? (
               <Button
@@ -133,7 +129,10 @@ export default function Pricing() {
         >
           もどる
         </button>
-        ・<Link to="/" className="underline underline-offset-2">ホームへ</Link>
+        ・
+        <Link to="/" className="underline underline-offset-2">
+          ホームへ
+        </Link>
       </div>
     </main>
   )

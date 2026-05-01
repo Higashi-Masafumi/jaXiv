@@ -94,11 +94,20 @@ class StripeBillingGateway(IBillingGateway):
 		payload: bytes,
 		signature: str,
 	) -> dict[str, Any]:
-		event = stripe.Webhook.construct_event(
-			payload=payload,
-			sig_header=signature,
-			secret=self._config.stripe_webhook_secret,
-		)
+		try:
+			event = stripe.Webhook.construct_event(
+				payload=payload,
+				sig_header=signature,
+				secret=self._config.stripe_webhook_secret,
+			)
+		except stripe.SignatureVerificationError as e:
+			# Re-raise as ValueError so the controller maps it to 400 without
+			# leaking the Stripe SDK error type into the application layer.
+			raise ValueError(f'Invalid Stripe signature: {e}') from e
+		except ValueError:
+			# stripe.Webhook.construct_event already raises ValueError for
+			# malformed payloads; let it propagate unchanged.
+			raise
 		return dict(event)
 
 	async def fetch_subscription_state(
