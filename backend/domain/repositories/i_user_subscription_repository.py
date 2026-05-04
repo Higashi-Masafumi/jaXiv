@@ -9,9 +9,4 @@ class IUserSubscriptionRepository(ABC):
 	async def find_by_user_id(self, user_id: UserId) -> UserSubscription | None: ...
 
 	@abstractmethod
-	async def find_by_stripe_customer_id(
-		self, stripe_customer_id: str
-	) -> UserSubscription | None: ...
-
-	@abstractmethod
 	async def upsert(self, subscription: UserSubscription) -> UserSubscription: ...

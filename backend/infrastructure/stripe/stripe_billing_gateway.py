@@ -36,6 +36,14 @@ def _plan_from_status(status: str | None) -> Literal['free', 'paid']:
 
 
 def _with_session_id_token(success_url: HttpUrl) -> str:
+	"""Append Stripe's ``{CHECKOUT_SESSION_ID}`` interpolation token.
+
+	Stripe Checkout requires the ``success_url`` to embed the literal token
+	``{CHECKOUT_SESSION_ID}``; Stripe substitutes the actual session ID at
+	redirect time so the frontend can identify which checkout completed.
+	The token is Stripe-specific, so building it lives here rather than in
+	the application layer.
+	"""
 	url = str(success_url)
 	separator = '&' if '?' in url else '?'
 	return f'{url}{separator}session_id={_STRIPE_SESSION_ID_TOKEN}'

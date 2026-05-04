@@ -4,10 +4,18 @@ from pydantic import BaseModel, ConfigDict, HttpUrl
 
 
 class FrontendUrls(BaseModel):
-	"""Resolved frontend URLs the application redirects users to.
+	"""Resolved URLs of frontend pages the backend redirects users to.
 
-	Construction lives in the infrastructure layer; domain/application code
-	receives this value object and never builds URLs itself.
+	Used by the billing flow:
+
+	- ``billing_success`` / ``billing_cancel``: pages Stripe Checkout
+	  redirects to after the user completes / cancels the payment flow.
+	- ``pricing``: page Stripe Customer Portal returns to.
+
+	Construction (from ``FRONTEND_BASE_URL``) lives in the infrastructure
+	layer's DI provider; domain/application code receives this value
+	object so URL strings never have to be assembled in use cases or
+	controllers.
 	"""
 
 	model_config = ConfigDict(frozen=True)

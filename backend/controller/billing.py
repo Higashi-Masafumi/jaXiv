@@ -10,7 +10,7 @@ from application.usecase import (
 	StartCheckoutUseCase,
 	StartCustomerPortalUseCase,
 )
-from application.usecase.manage_subscription import NoBillingAccountError
+from application.usecase.start_customer_portal import NoBillingAccountError
 from domain.entities.auth_user import AuthUser
 from infrastructure.dependencies import (
 	get_get_my_subscription_use_case,
