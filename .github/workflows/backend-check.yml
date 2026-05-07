@@ -38,3 +38,33 @@ jobs:
             exit 1
           fi
           echo "OpenAPI schema is up to date"
+
+      - name: Notify Slack on success
+        if: success()
+        uses: slackapi/slack-github-action@v2
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: "Backend Check passed"
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: ":white_check_mark: *Backend Check 通過*\nBranch: `${{ github.head_ref || github.ref_name }}` by ${{ github.actor }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|実行ログ>"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: "Backend Check failed"
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: ":x: *Backend Check 失敗*\nBranch: `${{ github.head_ref || github.ref_name }}` by ${{ github.actor }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|失敗ログを確認>"
