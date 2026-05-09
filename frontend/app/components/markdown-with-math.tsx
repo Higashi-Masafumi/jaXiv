@@ -16,11 +16,7 @@ import { cn } from '~/lib/utils'
 
 import 'katex/dist/katex.min.css'
 
-function ZoomableImage({
-  alt,
-  className,
-  ...props
-}: ComponentProps<'img'>) {
+function ZoomableImage({ alt, className, ...props }: ComponentProps<'img'>) {
   const altText = alt ?? ''
 
   return (
