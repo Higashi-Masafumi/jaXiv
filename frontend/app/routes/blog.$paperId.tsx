@@ -1,8 +1,14 @@
 import markdownToHtml from 'zenn-markdown-html'
 import { BookOpenIcon } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router'
 import { BlogPaperChat } from '~/components/blog-paper-chat'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '~/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import {
   ResizableHandle,
@@ -52,10 +58,68 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 export default function BlogPage({ loaderData }: Route.ComponentProps) {
   const { paperId } = useParams()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [zoomedImage, setZoomedImage] = useState<{
+    src: string
+    alt: string
+  } | null>(null)
 
   useEffect(() => {
     import('zenn-embed-elements')
   }, [])
+
+  useEffect(() => {
+    const root = contentRef.current
+    if (!root) return
+
+    const images = Array.from(root.querySelectorAll('img'))
+    const cleanups: Array<() => void> = []
+
+    images.forEach(img => {
+      img.style.cursor = 'zoom-in'
+      img.setAttribute('role', 'button')
+      img.setAttribute('tabindex', '0')
+      if (!img.getAttribute('aria-label')) {
+        img.setAttribute(
+          'aria-label',
+          img.alt ? `${img.alt}を拡大表示` : '画像を拡大表示',
+        )
+      }
+
+      const open = () => {
+        setZoomedImage({
+          src: img.currentSrc || img.src,
+          alt: img.alt ?? '',
+        })
+      }
+
+      const onClick = (event: MouseEvent) => {
+        const anchor = (event.target as HTMLElement).closest('a')
+        if (anchor && root.contains(anchor)) {
+          event.preventDefault()
+        }
+        open()
+      }
+
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          open()
+        }
+      }
+
+      img.addEventListener('click', onClick)
+      img.addEventListener('keydown', onKeyDown)
+      cleanups.push(() => {
+        img.removeEventListener('click', onClick)
+        img.removeEventListener('keydown', onKeyDown)
+      })
+    })
+
+    return () => {
+      cleanups.forEach(fn => fn())
+    }
+  }, [loaderData.contentHtml])
 
   return (
     <div className="h-screen overflow-hidden">
@@ -100,6 +164,7 @@ export default function BlogPage({ loaderData }: Route.ComponentProps) {
                   )}
 
                   <div
+                    ref={contentRef}
                     className="znc"
                     dangerouslySetInnerHTML={{ __html: loaderData.contentHtml }}
                   />
@@ -132,6 +197,36 @@ export default function BlogPage({ loaderData }: Route.ComponentProps) {
           {paperId ? <BlogPaperChat paperId={paperId} /> : null}
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      <Dialog
+        open={!!zoomedImage}
+        onOpenChange={open => {
+          if (!open) setZoomedImage(null)
+        }}
+      >
+        <DialogContent className="max-h-[95vh] w-auto max-w-[95vw] border-none bg-transparent p-0 shadow-none sm:max-w-[95vw]">
+          <DialogTitle className="sr-only">
+            {zoomedImage?.alt || '画像のプレビュー'}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {zoomedImage?.alt || '画像の拡大表示'}
+          </DialogDescription>
+          {zoomedImage && (
+            <>
+              <img
+                src={zoomedImage.src}
+                alt={zoomedImage.alt}
+                className="mx-auto max-h-[90vh] max-w-full rounded-md object-contain"
+              />
+              {zoomedImage.alt && (
+                <p className="mt-2 text-center text-sm text-white/90 drop-shadow">
+                  {zoomedImage.alt}
+                </p>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
