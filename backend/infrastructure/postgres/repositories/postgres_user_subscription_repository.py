@@ -8,7 +8,7 @@ from sqlmodel import col
 
 from domain.entities.user_subscription import UserSubscription
 from domain.repositories import IUserSubscriptionRepository
-from domain.value_objects.billing_account import BillingAccountRef
+from domain.value_objects.billing_account import BillingAccount
 from domain.value_objects.user_id import UserId
 
 from ..models import UserSubscriptionModel
@@ -19,7 +19,7 @@ class PostgresUserSubscriptionRepository(IUserSubscriptionRepository):
 
 	The table still stores Stripe-specific column names (``stripe_*``) since
 	Stripe is the only provider we currently use. The mapping here translates
-	those columns into the provider-agnostic ``BillingAccountRef`` value
+	those columns into the provider-agnostic ``BillingAccount`` value
 	object on the domain side.
 	"""
 
@@ -29,9 +29,9 @@ class PostgresUserSubscriptionRepository(IUserSubscriptionRepository):
 
 	def _to_entity(self, row: UserSubscriptionModel) -> UserSubscription:
 		plan = row.plan if row.plan in ('free', 'paid') else 'free'
-		billing: BillingAccountRef | None = None
+		billing: BillingAccount | None = None
 		if row.stripe_customer_id is not None:
-			billing = BillingAccountRef(
+			billing = BillingAccount(
 				customer_id=row.stripe_customer_id,
 				subscription_id=row.stripe_subscription_id,
 				current_period_end=row.current_period_end,

@@ -9,7 +9,7 @@ from domain.gateways.i_billing_gateway import IBillingGateway, SubscriptionState
 from domain.repositories.i_user_subscription_repository import (
 	IUserSubscriptionRepository,
 )
-from domain.value_objects.billing_account import BillingAccountRef
+from domain.value_objects.billing_account import BillingAccount
 from domain.value_objects.user_id import UserId
 
 
@@ -75,7 +75,7 @@ class HandleStripeWebhookUseCase:
 			UserSubscription(
 				user_id=state.user_id,
 				plan=state.plan,
-				billing=BillingAccountRef(
+				billing=BillingAccount(
 					customer_id=state.stripe_customer_id,
 					subscription_id=state.stripe_subscription_id,
 					current_period_end=state.current_period_end,
@@ -94,9 +94,9 @@ class HandleStripeWebhookUseCase:
 		existing = await self._repo.find_by_user_id(parsed)
 		# Keep the customer_id reference so the user can re-subscribe through
 		# the same Stripe customer; clear subscription-level fields.
-		billing: BillingAccountRef | None = None
+		billing: BillingAccount | None = None
 		if existing and existing.billing is not None:
-			billing = BillingAccountRef(
+			billing = BillingAccount(
 				customer_id=existing.billing.customer_id,
 				subscription_id=None,
 				current_period_end=None,

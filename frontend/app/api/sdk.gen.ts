@@ -12,8 +12,10 @@ import type {
   ChatWithPaperApiV1ChatPaperPaperIdPostErrors,
   ChatWithPaperApiV1ChatPaperPaperIdPostResponses,
   CreateCheckoutSessionApiV1BillingCheckoutSessionPostData,
+  CreateCheckoutSessionApiV1BillingCheckoutSessionPostErrors,
   CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses,
   CreatePortalSessionApiV1BillingPortalSessionPostData,
+  CreatePortalSessionApiV1BillingPortalSessionPostErrors,
   CreatePortalSessionApiV1BillingPortalSessionPostResponses,
   DeleteChatThreadApiV1ChatThreadsThreadIdDeleteData,
   DeleteChatThreadApiV1ChatThreadsThreadIdDeleteErrors,
@@ -460,7 +462,7 @@ export const createCheckoutSessionApiV1BillingCheckoutSessionPost = <
 ) =>
   (options?.client ?? client).post<
     CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses,
-    unknown,
+    CreateCheckoutSessionApiV1BillingCheckoutSessionPostErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -481,7 +483,7 @@ export const createPortalSessionApiV1BillingPortalSessionPost = <
 ) =>
   (options?.client ?? client).post<
     CreatePortalSessionApiV1BillingPortalSessionPostResponses,
-    unknown,
+    CreatePortalSessionApiV1BillingPortalSessionPostErrors,
     ThrowOnError
   >({
     security: [{ scheme: 'bearer', type: 'http' }],

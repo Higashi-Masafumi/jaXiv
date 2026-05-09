@@ -1,5 +1,5 @@
 from .arxiv_paper_id import ArxivPaperId
-from .billing_account import BillingAccountRef
+from .billing_account import BillingAccount
 from .blog_paper_id import BlogPaperId, InvalidBlogPaperIdError
 from .blog_source_type import BlogSourceType, InvalidBlogSourceTypeError
 from .compile_setting import CompileSetting
@@ -11,7 +11,7 @@ from .user_role import UserRole
 
 __all__ = [
 	'ArxivPaperId',
-	'BillingAccountRef',
+	'BillingAccount',
 	'BlogPaperId',
 	'BlogSourceType',
 	'CompileSetting',

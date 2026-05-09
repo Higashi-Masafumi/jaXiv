@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, ValidationError
 
 from application.usecase import (
 	GetMySubscriptionUseCase,
@@ -19,6 +19,27 @@ from infrastructure.dependencies import (
 	get_start_checkout_use_case,
 	get_start_customer_portal_use_case,
 )
+
+
+def _frontend_origin(origin: str | None) -> HttpUrl:
+	"""Validate the browser-supplied ``Origin`` header.
+
+	The post-Checkout redirect URL is derived from this. CORS already
+	restricts which origins can hit this endpoint, so any value reaching
+	us here belongs to an allowlisted frontend.
+	"""
+	if not origin:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail='Missing Origin header.',
+		)
+	try:
+		return HttpUrl(origin)
+	except ValidationError as e:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail='Invalid Origin header.',
+		) from e
 
 router = APIRouter(prefix='/api/v1/billing')
 
@@ -58,8 +79,11 @@ async def get_my_subscription(
 async def create_checkout_session(
 	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 	use_case: Annotated[StartCheckoutUseCase, Depends(get_start_checkout_use_case)],
+	origin: Annotated[str | None, Header(alias='origin')] = None,
 ) -> RedirectUrlResponse:
-	session = await use_case.execute(auth_user=auth_user)
+	session = await use_case.execute(
+		auth_user=auth_user, frontend_origin=_frontend_origin(origin)
+	)
 	return RedirectUrlResponse(url=session.url)
 
 
@@ -69,9 +93,12 @@ async def create_portal_session(
 	use_case: Annotated[
 		StartCustomerPortalUseCase, Depends(get_start_customer_portal_use_case)
 	],
+	origin: Annotated[str | None, Header(alias='origin')] = None,
 ) -> RedirectUrlResponse:
 	try:
-		session = await use_case.execute(auth_user=auth_user)
+		session = await use_case.execute(
+			auth_user=auth_user, frontend_origin=_frontend_origin(origin)
+		)
 	except NoBillingAccountError as e:
 		raise HTTPException(
 			status_code=status.HTTP_404_NOT_FOUND, detail=str(e)

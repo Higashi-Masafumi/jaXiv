@@ -3,7 +3,6 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import HttpUrl
 from sqlalchemy.ext.asyncio import AsyncSession
 from application.usecase import (
 	ArxivRedirector,
@@ -575,12 +574,6 @@ def get_billing_gateway(
 	return StripeBillingGateway(config=config)
 
 
-def _frontend_url(config: StripeConfig, path: str) -> HttpUrl:
-	"""Resolve a frontend page URL from the configured base URL."""
-	base = config.frontend_base_url.rstrip('/')
-	return HttpUrl(f'{base}{path}')
-
-
 def get_get_my_subscription_use_case(
 	repo: Annotated[
 		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
@@ -594,14 +587,8 @@ def get_start_checkout_use_case(
 	repo: Annotated[
 		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
 	],
-	config: Annotated[StripeConfig, Depends(get_stripe_config)],
 ) -> StartCheckoutUseCase:
-	return StartCheckoutUseCase(
-		billing=billing,
-		repo=repo,
-		success_url=_frontend_url(config, '/billing/success'),
-		cancel_url=_frontend_url(config, '/billing/cancel'),
-	)
+	return StartCheckoutUseCase(billing=billing, repo=repo)
 
 
 def get_start_customer_portal_use_case(
@@ -609,13 +596,8 @@ def get_start_customer_portal_use_case(
 	repo: Annotated[
 		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
 	],
-	config: Annotated[StripeConfig, Depends(get_stripe_config)],
 ) -> StartCustomerPortalUseCase:
-	return StartCustomerPortalUseCase(
-		billing=billing,
-		repo=repo,
-		return_url=_frontend_url(config, '/pricing'),
-	)
+	return StartCustomerPortalUseCase(billing=billing, repo=repo)
 
 
 def get_handle_stripe_webhook_use_case(

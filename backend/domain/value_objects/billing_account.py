@@ -3,13 +3,12 @@ from datetime import UTC, datetime
 from pydantic import BaseModel, ConfigDict
 
 
-class BillingAccountRef(BaseModel):
-	"""Reference to an external billing-provider account (Stripe).
+class BillingAccount(BaseModel):
+	"""A user's account at the external billing provider (Stripe).
 
-	Domain code only knows that there is *some* external billing account
-	identified by an opaque ``customer_id`` (and optionally an active
-	subscription). Provider-specific naming (``stripe_*``) lives in the
-	infrastructure layer.
+	``customer_id`` and ``subscription_id`` are opaque identifiers issued by
+	the provider; the period fields capture when the current paid period
+	expires and whether the user has already requested cancellation.
 	"""
 
 	model_config = ConfigDict(frozen=True)

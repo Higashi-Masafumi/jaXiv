@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from domain.value_objects.billing_account import BillingAccountRef
+from domain.value_objects.billing_account import BillingAccount
 from domain.value_objects.user_id import UserId
 
 SubscriptionPlan = Literal['free', 'paid']
@@ -21,7 +21,7 @@ class UserSubscription(BaseModel):
 
 	user_id: UserId
 	plan: SubscriptionPlan = 'free'
-	billing: BillingAccountRef | None = None
+	billing: BillingAccount | None = None
 	created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 	updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
