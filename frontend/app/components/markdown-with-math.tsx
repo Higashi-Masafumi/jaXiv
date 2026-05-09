@@ -22,16 +22,22 @@ function ZoomableImage({ alt, className, ...props }: ComponentProps<'img'>) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <img
-          {...props}
-          alt={altText}
-          loading="eager"
-          decoding="async"
-          className={cn(
-            'my-2 max-h-[min(28rem,70vh)] w-auto max-w-full cursor-zoom-in rounded-md object-contain transition-opacity hover:opacity-90',
-            className,
-          )}
-        />
+        <button
+          type="button"
+          aria-label={altText ? `${altText}を拡大表示` : '画像を拡大表示'}
+          className="my-2 inline-block cursor-zoom-in rounded-md bg-transparent p-0 transition-opacity hover:opacity-90 focus-visible:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          <img
+            {...props}
+            alt={altText}
+            loading="eager"
+            decoding="async"
+            className={cn(
+              'max-h-[min(28rem,70vh)] w-auto max-w-full rounded-md object-contain',
+              className,
+            )}
+          />
+        </button>
       </DialogTrigger>
       <DialogContent
         className="max-h-[95vh] w-auto max-w-[95vw] border-none bg-transparent p-0 shadow-none sm:max-w-[95vw]"
