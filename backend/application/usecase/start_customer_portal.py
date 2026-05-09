@@ -1,10 +1,11 @@
+from pydantic import HttpUrl
+
 from domain.entities.auth_user import AuthUser
 from domain.errors._base import DomainNotFoundError
 from domain.gateways.i_billing_gateway import IBillingGateway, PortalSession
 from domain.repositories.i_user_subscription_repository import (
 	IUserSubscriptionRepository,
 )
-from domain.value_objects.frontend_urls import FrontendUrls
 from domain.value_objects.user_id import UserId
 
 
@@ -23,11 +24,11 @@ class StartCustomerPortalUseCase:
 		self,
 		billing: IBillingGateway,
 		repo: IUserSubscriptionRepository,
-		urls: FrontendUrls,
+		return_url: HttpUrl,
 	) -> None:
 		self._billing = billing
 		self._repo = repo
-		self._urls = urls
+		self._return_url = return_url
 
 	async def execute(self, *, auth_user: AuthUser) -> PortalSession:
 		sub = await self._repo.find_by_user_id(auth_user.user_id)
@@ -35,5 +36,5 @@ class StartCustomerPortalUseCase:
 			raise NoBillingAccountError(auth_user.user_id)
 		return await self._billing.create_portal_session(
 			stripe_customer_id=sub.billing.customer_id,
-			return_url=self._urls.pricing,
+			return_url=self._return_url,
 		)

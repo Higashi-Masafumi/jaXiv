@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import HttpUrl
 from sqlalchemy.ext.asyncio import AsyncSession
 from application.usecase import (
 	ArxivRedirector,
@@ -62,7 +63,6 @@ from domain.repositories import (
 	IUsageRepository,
 	IUserSubscriptionRepository,
 )
-from domain.value_objects.frontend_urls import FrontendUrls
 from domain.value_objects.user_id import UserId
 from domain.value_objects.user_role import UserRole
 from infrastructure.arxiv_api import ArxivSourceFetcher
@@ -575,10 +575,10 @@ def get_billing_gateway(
 	return StripeBillingGateway(config=config)
 
 
-def get_frontend_urls(
-	config: Annotated[StripeConfig, Depends(get_stripe_config)],
-) -> FrontendUrls:
-	return FrontendUrls.from_base(config.frontend_base_url)
+def _frontend_url(config: StripeConfig, path: str) -> HttpUrl:
+	"""Resolve a frontend page URL from the configured base URL."""
+	base = config.frontend_base_url.rstrip('/')
+	return HttpUrl(f'{base}{path}')
 
 
 def get_get_my_subscription_use_case(
@@ -594,9 +594,14 @@ def get_start_checkout_use_case(
 	repo: Annotated[
 		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
 	],
-	urls: Annotated[FrontendUrls, Depends(get_frontend_urls)],
+	config: Annotated[StripeConfig, Depends(get_stripe_config)],
 ) -> StartCheckoutUseCase:
-	return StartCheckoutUseCase(billing=billing, repo=repo, urls=urls)
+	return StartCheckoutUseCase(
+		billing=billing,
+		repo=repo,
+		success_url=_frontend_url(config, '/billing/success'),
+		cancel_url=_frontend_url(config, '/billing/cancel'),
+	)
 
 
 def get_start_customer_portal_use_case(
@@ -604,9 +609,13 @@ def get_start_customer_portal_use_case(
 	repo: Annotated[
 		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
 	],
-	urls: Annotated[FrontendUrls, Depends(get_frontend_urls)],
+	config: Annotated[StripeConfig, Depends(get_stripe_config)],
 ) -> StartCustomerPortalUseCase:
-	return StartCustomerPortalUseCase(billing=billing, repo=repo, urls=urls)
+	return StartCustomerPortalUseCase(
+		billing=billing,
+		repo=repo,
+		return_url=_frontend_url(config, '/pricing'),
+	)
 
 
 def get_handle_stripe_webhook_use_case(

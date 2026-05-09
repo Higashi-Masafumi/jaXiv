@@ -18,35 +18,14 @@ from domain.value_objects.user_id import UserId
 
 from .config import StripeConfig
 
-# Stripe-only token: tells Checkout to interpolate the session ID into the URL.
+# Stripe interpolates this literal token in the success_url at redirect time
+# so the frontend can read the resulting Checkout session ID. Documented at
+# https://stripe.com/docs/payments/checkout/custom-success-page
 _STRIPE_SESSION_ID_TOKEN = '{CHECKOUT_SESSION_ID}'
 
-
-def _to_datetime(epoch: int | None) -> datetime | None:
-	if epoch is None:
-		return None
-	return datetime.fromtimestamp(epoch, tz=UTC)
-
-
-def _plan_from_status(status: str | None) -> Literal['free', 'paid']:
-	# Stripe statuses: 'active', 'trialing', 'past_due', 'canceled', etc.
-	if status in ('active', 'trialing'):
-		return 'paid'
-	return 'free'
-
-
-def _with_session_id_token(success_url: HttpUrl) -> str:
-	"""Append Stripe's ``{CHECKOUT_SESSION_ID}`` interpolation token.
-
-	Stripe Checkout requires the ``success_url`` to embed the literal token
-	``{CHECKOUT_SESSION_ID}``; Stripe substitutes the actual session ID at
-	redirect time so the frontend can identify which checkout completed.
-	The token is Stripe-specific, so building it lives here rather than in
-	the application layer.
-	"""
-	url = str(success_url)
-	separator = '&' if '?' in url else '?'
-	return f'{url}{separator}session_id={_STRIPE_SESSION_ID_TOKEN}'
+# Subscription statuses Stripe considers "in good standing".
+# https://stripe.com/docs/api/subscriptions/object#subscription_object-status
+_ACTIVE_STRIPE_STATUSES = frozenset({'active', 'trialing'})
 
 
 class StripeBillingGateway(IBillingGateway):
@@ -64,12 +43,14 @@ class StripeBillingGateway(IBillingGateway):
 		cancel_url: HttpUrl,
 	) -> CheckoutSession:
 		user_id_str = str(user_id.root)
+		base_success_url = str(success_url)
+		separator = '&' if '?' in base_success_url else '?'
 		params: dict[str, Any] = {
 			'mode': 'subscription',
 			'line_items': [
 				{'price': self._config.stripe_price_id_paid, 'quantity': 1},
 			],
-			'success_url': _with_session_id_token(success_url),
+			'success_url': f'{base_success_url}{separator}session_id={_STRIPE_SESSION_ID_TOKEN}',
 			'cancel_url': str(cancel_url),
 			'metadata': {'user_id': user_id_str},
 			'subscription_data': {'metadata': {'user_id': user_id_str}},
@@ -112,10 +93,8 @@ class StripeBillingGateway(IBillingGateway):
 			# Re-raise as ValueError so the controller maps it to 400 without
 			# leaking the Stripe SDK error type into the application layer.
 			raise ValueError(f'Invalid Stripe signature: {e}') from e
-		except ValueError:
-			# stripe.Webhook.construct_event already raises ValueError for
-			# malformed payloads; let it propagate unchanged.
-			raise
+		# stripe.Webhook.construct_event already raises ValueError for malformed
+		# payloads; let those propagate unchanged.
 		return dict(event)
 
 	async def fetch_subscription_state(
@@ -132,8 +111,8 @@ class StripeBillingGateway(IBillingGateway):
 		# stripe.Subscription is dict-like via __getitem__/keys; convert to a
 		# plain dict so mypy doesn't complain about typed attribute access.
 		sub: dict[str, Any] = {k: sub_obj[k] for k in sub_obj.keys()}  # type: ignore[attr-defined]
-		metadata = dict(sub.get('metadata') or {})
-		raw_user_id = metadata.get('user_id', '')
+
+		raw_user_id = (sub.get('metadata') or {}).get('user_id', '')
 		if not raw_user_id:
 			self._logger.warning(
 				'Stripe subscription %s has no user_id metadata; ignoring',
@@ -149,11 +128,21 @@ class StripeBillingGateway(IBillingGateway):
 				raw_user_id,
 			)
 			return None
+
+		plan: Literal['free', 'paid'] = (
+			'paid' if sub.get('status') in _ACTIVE_STRIPE_STATUSES else 'free'
+		)
+		current_period_end_epoch = sub.get('current_period_end')
+		current_period_end = (
+			datetime.fromtimestamp(current_period_end_epoch, tz=UTC)
+			if current_period_end_epoch is not None
+			else None
+		)
 		return SubscriptionState(
 			user_id=user_id,
 			stripe_customer_id=str(sub.get('customer')),
 			stripe_subscription_id=str(sub.get('id')),
-			plan=_plan_from_status(sub.get('status')),
-			current_period_end=_to_datetime(sub.get('current_period_end')),
+			plan=plan,
+			current_period_end=current_period_end,
 			cancel_at_period_end=bool(sub.get('cancel_at_period_end')),
 		)
