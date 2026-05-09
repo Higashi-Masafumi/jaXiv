@@ -23,16 +23,9 @@ class GetMySubscriptionUseCase:
 
 	async def execute(self, auth_user: AuthUser) -> MySubscriptionView:
 		sub = await self._repo.find_by_user_id(auth_user.user_id)
-		if sub is None:
-			return MySubscriptionView(
-				plan='free',
-				current_period_end=None,
-				cancel_at_period_end=False,
-				has_billing_account=False,
-			)
-		billing = sub.billing
+		billing = sub.billing if sub else None
 		return MySubscriptionView(
-			plan=sub.plan,
+			plan=sub.plan if sub else 'free',
 			current_period_end=billing.current_period_end if billing else None,
 			cancel_at_period_end=billing.cancel_at_period_end if billing else False,
 			has_billing_account=billing is not None,
