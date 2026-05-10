@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
@@ -18,6 +18,11 @@ class StripeConfig(BaseSettings):
 	frontend_base_url: str = Field(
 		default='http://localhost:5173', description='Frontend base URL for Stripe redirect URLs'
 	)
+
+	@field_validator('frontend_base_url')
+	@classmethod
+	def strip_trailing_slash(cls, v: str) -> str:
+		return v.rstrip('/')
 
 
 def get_stripe_config() -> StripeConfig:

@@ -12,26 +12,19 @@ from domain.gateways.i_billing_gateway import (
 	CheckoutSession,
 	IBillingGateway,
 	PortalSession,
+	SubscriptionDeleted,
 	SubscriptionState,
+	SubscriptionUpdated,
+	WebhookEffect,
 )
 from domain.value_objects.user_id import UserId
 
 from .config import StripeConfig
 
-# Stripe interpolates this literal token in the success_url at redirect time
-# so the frontend can read the resulting Checkout session ID. Documented at
-# https://stripe.com/docs/payments/checkout/custom-success-page
-_STRIPE_SESSION_ID_TOKEN = '{CHECKOUT_SESSION_ID}'
-
-# Subscription statuses Stripe considers "in good standing".
-# https://stripe.com/docs/api/subscriptions/object#subscription_object-status
-_ACTIVE_STRIPE_STATUSES = frozenset({'active', 'trialing'})
-
 
 class StripeBillingGateway(IBillingGateway):
 	def __init__(self, config: StripeConfig) -> None:
 		self._config = config
-		self._frontend_base_url = config.frontend_base_url.rstrip('/')
 		self._logger = getLogger(__name__)
 		stripe.api_key = config.stripe_api_key
 
@@ -42,16 +35,14 @@ class StripeBillingGateway(IBillingGateway):
 		stripe_customer_id: str | None,
 	) -> CheckoutSession:
 		user_id_str = str(user_id.root)
-		success_url = (
-			f'{self._frontend_base_url}/billing/success?session_id={_STRIPE_SESSION_ID_TOKEN}'
-		)
+		frontend = self._config.frontend_base_url
 		params: dict[str, Any] = {
 			'mode': 'subscription',
 			'line_items': [
 				{'price': self._config.stripe_price_id_paid, 'quantity': 1},
 			],
-			'success_url': success_url,
-			'cancel_url': f'{self._frontend_base_url}/billing/cancel',
+			'success_url': f'{frontend}/billing/success?session_id={{CHECKOUT_SESSION_ID}}',
+			'cancel_url': f'{frontend}/billing/cancel',
 			'metadata': {'user_id': user_id_str},
 			'subscription_data': {'metadata': {'user_id': user_id_str}},
 			'client_reference_id': user_id_str,
@@ -70,18 +61,19 @@ class StripeBillingGateway(IBillingGateway):
 		*,
 		stripe_customer_id: str,
 	) -> PortalSession:
+		frontend = self._config.frontend_base_url
 		session = stripe.billing_portal.Session.create(
 			customer=stripe_customer_id,
-			return_url=f'{self._frontend_base_url}/pricing',
+			return_url=f'{frontend}/pricing',
 		)
 		return PortalSession(url=HttpUrl(session.url))
 
-	def parse_webhook_event(
+	async def resolve_webhook_event(
 		self,
 		*,
 		payload: bytes,
 		signature: str,
-	) -> dict[str, Any]:
+	) -> WebhookEffect | None:
 		try:
 			event = stripe.Webhook.construct_event(
 				payload=payload,
@@ -89,55 +81,80 @@ class StripeBillingGateway(IBillingGateway):
 				secret=self._config.stripe_webhook_secret,
 			)
 		except stripe.SignatureVerificationError as e:
-			# Re-raise as ValueError so the controller maps it to 400 without
-			# leaking the Stripe SDK error type into the application layer.
 			raise ValueError(f'Invalid Stripe signature: {e}') from e
-		# stripe.Webhook.construct_event already raises ValueError for malformed
-		# payloads; let those propagate unchanged.
-		return event.to_dict()
 
-	async def fetch_subscription_state(
-		self, stripe_subscription_id: str
-	) -> SubscriptionState | None:
-		try:
-			sub_obj = stripe.Subscription.retrieve(stripe_subscription_id)
-		except stripe.StripeError:
-			self._logger.exception('Failed to fetch Stripe subscription %s', stripe_subscription_id)
-			return None
-		metadata = sub_obj.metadata.to_dict()
+		event_type: str = event.type
+		data_object = event.data.object
 
-		raw_user_id = metadata.get('user_id', '')
-		if not raw_user_id:
-			self._logger.warning(
-				'Stripe subscription %s has no user_id metadata; ignoring',
-				sub_obj.id,
+		if event_type in {
+			'checkout.session.completed',
+			'customer.subscription.created',
+			'customer.subscription.updated',
+		}:
+			subscription_id = (
+				data_object.subscription
+				if event_type == 'checkout.session.completed'
+				else data_object.id
 			)
+			if not subscription_id:
+				self._logger.warning(
+					'%s has no subscription id (event %s)',
+					event_type,
+					event.id,
+				)
+				return None
+			return self._resolve_subscription_updated(str(subscription_id))
+
+		if event_type == 'customer.subscription.deleted':
+			raw_user_id = (data_object.metadata or {}).get('user_id', '')
+			if not raw_user_id:
+				self._logger.warning(
+					'customer.subscription.deleted missing user_id metadata (event %s)',
+					event.id,
+				)
+				return None
+			try:
+				return SubscriptionDeleted(user_id=UserId(uuid.UUID(raw_user_id)))
+			except ValueError:
+				self._logger.warning('Invalid user_id metadata: %s', raw_user_id)
+				return None
+
+		self._logger.debug('Stripe event type %s not handled', event_type)
+		return None
+
+	def _resolve_subscription_updated(
+		self,
+		subscription_id: str,
+	) -> SubscriptionUpdated | None:
+		try:
+			sub = stripe.Subscription.retrieve(subscription_id)
+		except stripe.StripeError:
+			self._logger.exception('Failed to fetch Stripe subscription %s', subscription_id)
+			return None
+
+		raw_user_id = (sub.metadata or {}).get('user_id', '')
+		if not raw_user_id:
+			self._logger.warning('Subscription %s has no user_id metadata', sub.id)
 			return None
 		try:
 			user_id = UserId(uuid.UUID(raw_user_id))
 		except ValueError:
-			self._logger.warning(
-				'Stripe subscription %s has invalid user_id metadata: %s',
-				sub_obj.id,
-				raw_user_id,
-			)
+			self._logger.warning('Subscription %s has invalid user_id: %s', sub.id, raw_user_id)
 			return None
 
-		plan: Literal['free', 'paid'] = (
-			'paid' if sub_obj.status in _ACTIVE_STRIPE_STATUSES else 'free'
-		)
-		sub = sub_obj.to_dict()
-		current_period_end_epoch = sub.get('current_period_end')
+		plan: Literal['free', 'paid'] = 'paid' if sub.status in {'active', 'trialing'} else 'free'
 		current_period_end = (
-			datetime.fromtimestamp(current_period_end_epoch, tz=UTC)
-			if current_period_end_epoch is not None
+			datetime.fromtimestamp(sub.current_period_end, tz=UTC)
+			if sub.current_period_end is not None
 			else None
 		)
-		return SubscriptionState(
-			user_id=user_id,
-			stripe_customer_id=str(sub_obj.customer),
-			stripe_subscription_id=str(sub_obj.id),
-			plan=plan,
-			current_period_end=current_period_end,
-			cancel_at_period_end=bool(sub.get('cancel_at_period_end')),
+		return SubscriptionUpdated(
+			state=SubscriptionState(
+				user_id=user_id,
+				stripe_customer_id=str(sub.customer),
+				stripe_subscription_id=str(sub.id),
+				plan=plan,
+				current_period_end=current_period_end,
+				cancel_at_period_end=bool(sub.cancel_at_period_end),
+			),
 		)

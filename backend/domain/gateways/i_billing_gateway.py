@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, HttpUrl
 
@@ -33,6 +33,21 @@ class SubscriptionState(BaseModel):
 	cancel_at_period_end: bool
 
 
+class SubscriptionUpdated(BaseModel):
+	model_config = ConfigDict(frozen=True)
+
+	state: SubscriptionState
+
+
+class SubscriptionDeleted(BaseModel):
+	model_config = ConfigDict(frozen=True)
+
+	user_id: UserId
+
+
+WebhookEffect = SubscriptionUpdated | SubscriptionDeleted
+
+
 class IBillingGateway(ABC):
 	"""Abstraction over the billing provider (Stripe)."""
 
@@ -56,18 +71,11 @@ class IBillingGateway(ABC):
 		raise NotImplementedError
 
 	@abstractmethod
-	def parse_webhook_event(
+	async def resolve_webhook_event(
 		self,
 		*,
 		payload: bytes,
 		signature: str,
-	) -> dict[str, Any]:
-		"""Verify the provider signature and return the parsed event payload."""
-		raise NotImplementedError
-
-	@abstractmethod
-	async def fetch_subscription_state(
-		self, stripe_subscription_id: str
-	) -> SubscriptionState | None:
-		"""Fetch the latest state of a subscription by ID."""
+	) -> WebhookEffect | None:
+		"""Parse a webhook event and return its domain-level effect, or None if unhandled."""
 		raise NotImplementedError
