@@ -2,14 +2,21 @@ import { NavLink, Outlet } from 'react-router'
 import {
   ArchiveIcon,
   BookmarkIcon,
+  ChevronRightIcon,
   CrownIcon,
   FileTextIcon,
   LogInIcon,
   LogOutIcon,
+  ScaleIcon,
   SparklesIcon,
 } from 'lucide-react'
 
 import { useAuth } from '~/contexts/auth-context'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '~/components/ui/collapsible'
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +27,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
@@ -116,6 +126,39 @@ function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="px-3 py-3">
+        <Collapsible className="group/legal">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <CollapsibleTrigger asChild>
+                <SidebarMenuButton tooltip="法的情報">
+                  <ScaleIcon />
+                  <span>法的情報</span>
+                  <ChevronRightIcon className="ml-auto transition-transform group-data-[state=open]/legal:rotate-90" />
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarMenuSub>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild>
+                      <NavLink to="/terms">利用規約</NavLink>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild>
+                      <NavLink to="/privacy">プライバシーポリシー</NavLink>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton asChild>
+                      <NavLink to="/commercial">特商法表記</NavLink>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
+              </CollapsibleContent>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </Collapsible>
+
         {isAnonymous ? (
           <Button
             variant="outline"
