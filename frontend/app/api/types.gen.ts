@@ -1017,26 +1017,10 @@ export type GetMySubscriptionApiV1BillingMeGetResponse =
 
 export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostData = {
   body?: never
-  headers?: {
-    /**
-     * Origin
-     */
-    origin?: string | null
-  }
   path?: never
   query?: never
   url: '/api/v1/billing/checkout-session'
 }
-
-export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
-
-export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostError =
-  CreateCheckoutSessionApiV1BillingCheckoutSessionPostErrors[keyof CreateCheckoutSessionApiV1BillingCheckoutSessionPostErrors]
 
 export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses = {
   /**
@@ -1050,26 +1034,10 @@ export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponse =
 
 export type CreatePortalSessionApiV1BillingPortalSessionPostData = {
   body?: never
-  headers?: {
-    /**
-     * Origin
-     */
-    origin?: string | null
-  }
   path?: never
   query?: never
   url: '/api/v1/billing/portal-session'
 }
-
-export type CreatePortalSessionApiV1BillingPortalSessionPostErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
-
-export type CreatePortalSessionApiV1BillingPortalSessionPostError =
-  CreatePortalSessionApiV1BillingPortalSessionPostErrors[keyof CreatePortalSessionApiV1BillingPortalSessionPostErrors]
 
 export type CreatePortalSessionApiV1BillingPortalSessionPostResponses = {
   /**
