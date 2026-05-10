@@ -7,8 +7,10 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '~/lib/supabase'
+import { getMySubscriptionApiV1BillingMeGet } from '~/api/sdk.gen'
+import type { MySubscriptionResponse } from '~/api/types.gen'
 
-export type Plan = 'anonymous' | 'free' | 'paid'
+export type Plan = MySubscriptionResponse['plan'] | 'anonymous'
 
 interface AuthContextValue {
   user: User | null
@@ -36,19 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
     try {
-      const apiBase =
-        (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
-      const res = await fetch(`${apiBase}/api/v1/billing/me`, {
-        headers: {
-          Authorization: `Bearer ${currentSession.access_token}`,
-        },
-      })
-      if (!res.ok) {
+      const { data } = await getMySubscriptionApiV1BillingMeGet()
+      if (!data) {
         setPlan('free')
         return
       }
-      const body = (await res.json()) as { plan?: string }
-      setPlan(body.plan === 'paid' ? 'paid' : 'free')
+      setPlan(data.plan === 'paid' ? 'paid' : 'free')
     } catch {
       setPlan('free')
     }

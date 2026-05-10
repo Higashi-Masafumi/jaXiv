@@ -34,13 +34,7 @@ class SubscriptionState(BaseModel):
 
 
 class IBillingGateway(ABC):
-	"""Abstraction over the billing provider (Stripe).
-
-	The gateway is the only layer that knows how to talk to Stripe. Use cases
-	pass plain page URLs (where the user should land after Checkout) and the
-	gateway internally adapts them to provider-specific formats (e.g. the
-	``{CHECKOUT_SESSION_ID}`` placeholder Stripe expects).
-	"""
+	"""Abstraction over the billing provider (Stripe)."""
 
 	@abstractmethod
 	async def create_checkout_session(
@@ -48,17 +42,18 @@ class IBillingGateway(ABC):
 		*,
 		user_id: UserId,
 		stripe_customer_id: str | None,
-		success_url: HttpUrl,
-		cancel_url: HttpUrl,
-	) -> CheckoutSession: ...
+	) -> CheckoutSession:
+		"""Create a checkout session for a user."""
+		raise NotImplementedError
 
 	@abstractmethod
 	async def create_portal_session(
 		self,
 		*,
 		stripe_customer_id: str,
-		return_url: HttpUrl,
-	) -> PortalSession: ...
+	) -> PortalSession:
+		"""Create a portal session for a user."""
+		raise NotImplementedError
 
 	@abstractmethod
 	def parse_webhook_event(
@@ -68,11 +63,11 @@ class IBillingGateway(ABC):
 		signature: str,
 	) -> dict[str, Any]:
 		"""Verify the provider signature and return the parsed event payload."""
-		...
+		raise NotImplementedError
 
 	@abstractmethod
 	async def fetch_subscription_state(
 		self, stripe_subscription_id: str
 	) -> SubscriptionState | None:
 		"""Fetch the latest state of a subscription by ID."""
-		...
+		raise NotImplementedError

@@ -31,6 +31,7 @@ _ACTIVE_STRIPE_STATUSES = frozenset({'active', 'trialing'})
 class StripeBillingGateway(IBillingGateway):
 	def __init__(self, config: StripeConfig) -> None:
 		self._config = config
+		self._frontend_base_url = config.frontend_base_url.rstrip('/')
 		self._logger = getLogger(__name__)
 		stripe.api_key = config.stripe_api_key
 
@@ -39,19 +40,16 @@ class StripeBillingGateway(IBillingGateway):
 		*,
 		user_id: UserId,
 		stripe_customer_id: str | None,
-		success_url: HttpUrl,
-		cancel_url: HttpUrl,
 	) -> CheckoutSession:
 		user_id_str = str(user_id.root)
-		base_success_url = str(success_url)
-		separator = '&' if '?' in base_success_url else '?'
+		success_url = f'{self._frontend_base_url}/billing/success?session_id={_STRIPE_SESSION_ID_TOKEN}'
 		params: dict[str, Any] = {
 			'mode': 'subscription',
 			'line_items': [
 				{'price': self._config.stripe_price_id_paid, 'quantity': 1},
 			],
-			'success_url': f'{base_success_url}{separator}session_id={_STRIPE_SESSION_ID_TOKEN}',
-			'cancel_url': str(cancel_url),
+			'success_url': success_url,
+			'cancel_url': f'{self._frontend_base_url}/billing/cancel',
 			'metadata': {'user_id': user_id_str},
 			'subscription_data': {'metadata': {'user_id': user_id_str}},
 			'client_reference_id': user_id_str,
@@ -69,11 +67,10 @@ class StripeBillingGateway(IBillingGateway):
 		self,
 		*,
 		stripe_customer_id: str,
-		return_url: HttpUrl,
 	) -> PortalSession:
 		session = stripe.billing_portal.Session.create(
 			customer=stripe_customer_id,
-			return_url=str(return_url),
+			return_url=f'{self._frontend_base_url}/pricing',
 		)
 		return PortalSession(url=HttpUrl(session.url))
 

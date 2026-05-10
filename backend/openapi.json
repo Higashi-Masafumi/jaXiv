@@ -1295,6 +1295,10 @@
         "properties": {
           "plan": {
             "type": "string",
+            "enum": [
+              "free",
+              "paid"
+            ],
             "title": "Plan"
           },
           "current_period_end": {

@@ -231,7 +231,7 @@ export type MySubscriptionResponse = {
   /**
    * Plan
    */
-  plan: string
+  plan: 'free' | 'paid'
   /**
    * Current Period End
    */

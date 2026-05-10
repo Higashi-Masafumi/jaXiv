@@ -1,5 +1,3 @@
-from pydantic import HttpUrl
-
 from domain.entities.auth_user import AuthUser
 from domain.errors._base import DomainNotFoundError
 from domain.gateways.i_billing_gateway import IBillingGateway, PortalSession
@@ -18,11 +16,7 @@ class NoBillingAccountError(DomainNotFoundError):
 
 
 class StartCustomerPortalUseCase:
-	"""Issue a Customer Portal URL for the current user.
-
-	The return URL is derived from the request's frontend origin, so the
-	backend doesn't need a frontend-base-URL setting.
-	"""
+	"""Issue a Customer Portal URL for the current user."""
 
 	def __init__(
 		self,
@@ -36,13 +30,10 @@ class StartCustomerPortalUseCase:
 		self,
 		*,
 		auth_user: AuthUser,
-		frontend_origin: HttpUrl,
 	) -> PortalSession:
 		sub = await self._repo.find_by_user_id(auth_user.user_id)
 		if sub is None or sub.billing is None:
 			raise NoBillingAccountError(auth_user.user_id)
-		base = str(frontend_origin).rstrip('/')
 		return await self._billing.create_portal_session(
 			stripe_customer_id=sub.billing.customer_id,
-			return_url=HttpUrl(f'{base}/pricing'),
 		)
