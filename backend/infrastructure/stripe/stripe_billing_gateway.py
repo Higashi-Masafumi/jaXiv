@@ -108,9 +108,7 @@ class StripeBillingGateway(IBillingGateway):
 			)
 			return None
 
-		# stripe.Subscription is dict-like via __getitem__/keys; convert to a
-		# plain dict so mypy doesn't complain about typed attribute access.
-		sub: dict[str, Any] = {k: sub_obj[k] for k in sub_obj.keys()}  # type: ignore[attr-defined]
+		sub: dict[str, Any] = sub_obj.to_dict()
 
 		raw_user_id = (sub.get('metadata') or {}).get('user_id', '')
 		if not raw_user_id:
