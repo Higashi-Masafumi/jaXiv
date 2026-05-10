@@ -18,7 +18,6 @@ export function meta() {
   ]
 }
 
-
 export default function Pricing() {
   const { isAnonymous, isPaid, signInWithGoogle } = useAuth()
   const [pending, setPending] = useState<'checkout' | 'portal' | null>(null)
@@ -40,8 +39,7 @@ export default function Pricing() {
 
   const handleManage = async () => {
     setPending('portal')
-    const { data } =
-      await createPortalSessionApiV1BillingPortalSessionPost()
+    const { data } = await createPortalSessionApiV1BillingPortalSessionPost()
     setPending(null)
     if (data?.url) {
       window.location.href = data.url
