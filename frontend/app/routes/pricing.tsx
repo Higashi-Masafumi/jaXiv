@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
+import {
+  createCheckoutSessionApiV1BillingCheckoutSessionPost,
+  createPortalSessionApiV1BillingPortalSessionPost,
+} from '~/api/sdk.gen'
 import { Button } from '~/components/ui/button'
 import { useAuth } from '~/contexts/auth-context'
-import { supabase } from '~/lib/supabase'
 
 export function meta() {
   return [
@@ -15,23 +18,6 @@ export function meta() {
   ]
 }
 
-const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
-
-async function callBilling(
-  path: '/api/v1/billing/checkout-session' | '/api/v1/billing/portal-session',
-): Promise<string | null> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) return null
-  const res = await fetch(`${apiBase}${path}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  })
-  if (!res.ok) return null
-  const body = (await res.json()) as { url?: string }
-  return body.url ?? null
-}
 
 export default function Pricing() {
   const { isAnonymous, isPaid, signInWithGoogle } = useAuth()
@@ -44,19 +30,21 @@ export default function Pricing() {
       return
     }
     setPending('checkout')
-    const url = await callBilling('/api/v1/billing/checkout-session')
+    const { data } =
+      await createCheckoutSessionApiV1BillingCheckoutSessionPost()
     setPending(null)
-    if (url) {
-      window.location.href = url
+    if (data?.url) {
+      window.location.href = data.url
     }
   }
 
   const handleManage = async () => {
     setPending('portal')
-    const url = await callBilling('/api/v1/billing/portal-session')
+    const { data } =
+      await createPortalSessionApiV1BillingPortalSessionPost()
     setPending(null)
-    if (url) {
-      window.location.href = url
+    if (data?.url) {
+      window.location.href = data.url
     }
   }
 
