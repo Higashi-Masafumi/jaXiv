@@ -126,7 +126,8 @@ class StripeBillingGateway(IBillingGateway):
 		plan: Literal['free', 'paid'] = (
 			'paid' if sub_obj.status in _ACTIVE_STRIPE_STATUSES else 'free'
 		)
-		current_period_end_epoch = sub_obj.current_period_end
+		sub = sub_obj.to_dict()
+		current_period_end_epoch = sub.get('current_period_end')
 		current_period_end = (
 			datetime.fromtimestamp(current_period_end_epoch, tz=UTC)
 			if current_period_end_epoch is not None
@@ -138,5 +139,5 @@ class StripeBillingGateway(IBillingGateway):
 			stripe_subscription_id=str(sub_obj.id),
 			plan=plan,
 			current_period_end=current_period_end,
-			cancel_at_period_end=bool(sub_obj.cancel_at_period_end),
+			cancel_at_period_end=bool(sub.get('cancel_at_period_end')),
 		)

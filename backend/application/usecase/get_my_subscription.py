@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -11,7 +12,7 @@ from domain.repositories.i_user_subscription_repository import (
 class MySubscriptionView(BaseModel):
 	model_config = ConfigDict(frozen=True)
 
-	plan: str  # 'free' | 'paid'
+	plan: Literal['free', 'paid']
 	current_period_end: datetime | None
 	cancel_at_period_end: bool
 	has_billing_account: bool
