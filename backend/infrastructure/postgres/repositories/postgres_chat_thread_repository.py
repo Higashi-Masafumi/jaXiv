@@ -50,9 +50,7 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 		self._session.add(row)
 		return ChatThread.model_validate(row.model_dump())
 
-	async def find_by_paper_id(
-		self, paper_id: str, user_id: uuid.UUID
-	) -> list[ChatThread]:
+	async def find_by_paper_id(self, paper_id: str, user_id: uuid.UUID) -> list[ChatThread]:
 		result = await self._session.execute(
 			select(ChatThreadModel)
 			.where(
@@ -95,7 +93,5 @@ class PostgresChatThreadRepository(IChatThreadRepository):
 			  )
 			"""
 		)
-		result = await self._session.execute(
-			stmt, {'user_id': user_id.root, 'since': since}
-		)
+		result = await self._session.execute(stmt, {'user_id': user_id.root, 'since': since})
 		return int(result.scalar_one())

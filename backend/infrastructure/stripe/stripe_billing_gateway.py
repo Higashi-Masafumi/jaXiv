@@ -42,7 +42,9 @@ class StripeBillingGateway(IBillingGateway):
 		stripe_customer_id: str | None,
 	) -> CheckoutSession:
 		user_id_str = str(user_id.root)
-		success_url = f'{self._frontend_base_url}/billing/success?session_id={_STRIPE_SESSION_ID_TOKEN}'
+		success_url = (
+			f'{self._frontend_base_url}/billing/success?session_id={_STRIPE_SESSION_ID_TOKEN}'
+		)
 		params: dict[str, Any] = {
 			'mode': 'subscription',
 			'line_items': [
@@ -100,9 +102,7 @@ class StripeBillingGateway(IBillingGateway):
 		try:
 			sub_obj = stripe.Subscription.retrieve(stripe_subscription_id)
 		except stripe.StripeError:
-			self._logger.exception(
-				'Failed to fetch Stripe subscription %s', stripe_subscription_id
-			)
+			self._logger.exception('Failed to fetch Stripe subscription %s', stripe_subscription_id)
 			return None
 		metadata = sub_obj.metadata.to_dict()
 

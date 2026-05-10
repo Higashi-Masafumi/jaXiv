@@ -77,9 +77,7 @@ class GenerateBlogPostUseCase:
 				auth_user.user_id, since=month_start
 			)
 			if limit.is_exceeded(count):
-				raise GenerationLimitExceededError(
-					monthly_count=count, limit=limit.value or 0
-				)
+				raise GenerationLimitExceededError(monthly_count=count, limit=limit.value or 0)
 
 			paper_metadata = self._arxiv_source_fetcher.fetch_paper_metadata(
 				paper_id=arxiv_paper_id

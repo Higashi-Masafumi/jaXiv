@@ -101,17 +101,13 @@ class ChatWithPaperUseCase:
 		try:
 			limit = await self._usage_repository.get_chat_daily_limit(auth_user)
 			if not limit.is_unlimited():
-				today_start = datetime.now(UTC).replace(
-					hour=0, minute=0, second=0, microsecond=0
-				)
+				today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 				async with self._thread_uow as uow:
 					count = await uow.chat_thread_repository.count_user_messages(
 						auth_user.user_id, since=today_start
 					)
 				if limit.is_exceeded(count):
-					raise ChatLimitExceededError(
-						daily_count=count, limit=limit.value or 0
-					)
+					raise ChatLimitExceededError(daily_count=count, limit=limit.value or 0)
 
 			async with self._thread_uow as uow:
 				repo = uow.chat_thread_repository
@@ -122,9 +118,7 @@ class ChatWithPaperUseCase:
 
 				yield ThreadIdEvent(thread_id=str(thread.id))
 
-				user_message = ChatMessage(
-					role='user', content=[TextBlock(text=message)]
-				)
+				user_message = ChatMessage(role='user', content=[TextBlock(text=message)])
 				thread.messages.append(user_message)
 
 				block_index = 0
@@ -143,8 +137,7 @@ class ChatWithPaperUseCase:
 					user_turn_idx = [
 						i
 						for i, m in enumerate(thread.messages)
-						if m.role == 'user'
-						and any(isinstance(b, TextBlock) for b in m.content)
+						if m.role == 'user' and any(isinstance(b, TextBlock) for b in m.content)
 					]
 					cut_at = (
 						user_turn_idx[-MAX_CONVERSATION_TURNS]
@@ -175,9 +168,7 @@ class ChatWithPaperUseCase:
 
 					if assistant_blocks:
 						thread.messages.append(
-							ChatMessage(
-								id=assistant_id, role='assistant', content=assistant_blocks
-							)
+							ChatMessage(id=assistant_id, role='assistant', content=assistant_blocks)
 						)
 
 					if not tool_uses:
@@ -209,9 +200,7 @@ class ChatWithPaperUseCase:
 						block_index += 1
 					if tool_result_blocks:
 						thread.messages.append(
-							ChatMessage(
-								id=tool_user_id, role='user', content=tool_result_blocks
-							)
+							ChatMessage(id=tool_user_id, role='user', content=tool_result_blocks)
 						)
 					if unknown_tool:
 						break
@@ -226,8 +215,7 @@ class ChatWithPaperUseCase:
 					user_turn_idx = [
 						i
 						for i, m in enumerate(thread.messages)
-						if m.role == 'user'
-						and any(isinstance(b, TextBlock) for b in m.content)
+						if m.role == 'user' and any(isinstance(b, TextBlock) for b in m.content)
 					]
 					cut_at = (
 						user_turn_idx[-MAX_CONVERSATION_TURNS]

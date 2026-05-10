@@ -64,9 +64,7 @@ class GenerateBlogPostFromPdfUseCase:
 				auth_user.user_id, since=month_start
 			)
 			if limit.is_exceeded(count):
-				raise GenerationLimitExceededError(
-					monthly_count=count, limit=limit.value or 0
-				)
+				raise GenerationLimitExceededError(monthly_count=count, limit=limit.value or 0)
 			source_url: str | None
 			try:
 				source_url = await self._figure_storage_repository.upload_pdf(

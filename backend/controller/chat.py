@@ -107,13 +107,11 @@ async def delete_chat_thread(
 @router.get(
 	'/my/daily-count',
 	response_model=ChatDailyCountResponse,
-	summary='Get the current user\'s chat usage for today',
+	summary="Get the current user's chat usage for today",
 )
 async def get_my_chat_daily_count(
 	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
-	use_case: Annotated[
-		GetMyChatDailyCountUseCase, Depends(get_get_my_chat_daily_count_use_case)
-	],
+	use_case: Annotated[GetMyChatDailyCountUseCase, Depends(get_get_my_chat_daily_count_use_case)],
 ) -> ChatDailyCountResponse:
 	count = await use_case.execute(auth_user=auth_user)
 	return ChatDailyCountResponse.from_entity(count)

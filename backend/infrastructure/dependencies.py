@@ -134,9 +134,7 @@ async def get_auth_user(
 	credentials: Annotated[
 		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
 	],
-	sub_repo: Annotated[
-		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
-	],
+	sub_repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> AuthUser:
 	"""Build AuthUser from Bearer JWT; raise 401 if no token provided.
 
@@ -158,9 +156,7 @@ async def get_required_auth_user(
 	credentials: Annotated[
 		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
 	],
-	sub_repo: Annotated[
-		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
-	],
+	sub_repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> AuthUser:
 	"""Build AuthUser from Bearer JWT; raise 401 if missing, 403 if anonymous."""
 	if credentials is None:
@@ -554,9 +550,7 @@ def get_delete_chat_thread_use_case(
 
 
 def get_get_my_chat_daily_count_use_case(
-	chat_thread_repository: Annotated[
-		IChatThreadRepository, Depends(get_chat_thread_repository)
-	],
+	chat_thread_repository: Annotated[IChatThreadRepository, Depends(get_chat_thread_repository)],
 	usage_repository: Annotated[IUsageRepository, Depends(get_usage_repository)],
 ) -> GetMyChatDailyCountUseCase:
 	return GetMyChatDailyCountUseCase(
@@ -575,35 +569,27 @@ def get_billing_gateway(
 
 
 def get_get_my_subscription_use_case(
-	repo: Annotated[
-		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
-	],
+	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> GetMySubscriptionUseCase:
 	return GetMySubscriptionUseCase(repo=repo)
 
 
 def get_start_checkout_use_case(
 	billing: Annotated[IBillingGateway, Depends(get_billing_gateway)],
-	repo: Annotated[
-		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
-	],
+	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> StartCheckoutUseCase:
 	return StartCheckoutUseCase(billing=billing, repo=repo)
 
 
 def get_start_customer_portal_use_case(
 	billing: Annotated[IBillingGateway, Depends(get_billing_gateway)],
-	repo: Annotated[
-		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
-	],
+	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> StartCustomerPortalUseCase:
 	return StartCustomerPortalUseCase(billing=billing, repo=repo)
 
 
 def get_handle_stripe_webhook_use_case(
 	billing: Annotated[IBillingGateway, Depends(get_billing_gateway)],
-	repo: Annotated[
-		IUserSubscriptionRepository, Depends(get_user_subscription_repository)
-	],
+	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> HandleStripeWebhookUseCase:
 	return HandleStripeWebhookUseCase(billing=billing, repo=repo)

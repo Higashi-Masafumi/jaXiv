@@ -26,9 +26,7 @@ class ChatThreadSummary(BaseModel):
 		for m in thread.messages:
 			if m.role != 'user':
 				continue
-			text_block = next(
-				(b for b in m.content if isinstance(b, TextBlock) and b.text), None
-			)
+			text_block = next((b for b in m.content if isinstance(b, TextBlock) and b.text), None)
 			if text_block is not None:
 				raw = text_block.text
 				break

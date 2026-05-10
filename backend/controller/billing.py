@@ -66,25 +66,19 @@ async def create_checkout_session(
 @router.post('/portal-session', response_model=RedirectUrlResponse)
 async def create_portal_session(
 	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
-	use_case: Annotated[
-		StartCustomerPortalUseCase, Depends(get_start_customer_portal_use_case)
-	],
+	use_case: Annotated[StartCustomerPortalUseCase, Depends(get_start_customer_portal_use_case)],
 ) -> RedirectUrlResponse:
 	try:
 		session = await use_case.execute(auth_user=auth_user)
 	except NoBillingAccountError as e:
-		raise HTTPException(
-			status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-		) from e
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 	return RedirectUrlResponse(url=session.url)
 
 
 @router.post('/webhook', status_code=status.HTTP_204_NO_CONTENT)
 async def stripe_webhook(
 	request: Request,
-	use_case: Annotated[
-		HandleStripeWebhookUseCase, Depends(get_handle_stripe_webhook_use_case)
-	],
+	use_case: Annotated[HandleStripeWebhookUseCase, Depends(get_handle_stripe_webhook_use_case)],
 	stripe_signature: Annotated[str | None, Header(alias='stripe-signature')] = None,
 ) -> None:
 	if stripe_signature is None:
