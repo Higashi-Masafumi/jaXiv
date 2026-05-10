@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, HttpUrl
+from pydantic import BaseModel, ConfigDict, Discriminator, HttpUrl, Tag
 
 from domain.value_objects.user_id import UserId
 
@@ -36,16 +36,21 @@ class SubscriptionState(BaseModel):
 class SubscriptionUpdated(BaseModel):
 	model_config = ConfigDict(frozen=True)
 
+	event_type: Literal['updated'] = 'updated'
 	state: SubscriptionState
 
 
 class SubscriptionDeleted(BaseModel):
 	model_config = ConfigDict(frozen=True)
 
+	event_type: Literal['deleted'] = 'deleted'
 	user_id: UserId
 
 
-WebhookEffect = SubscriptionUpdated | SubscriptionDeleted
+WebhookEffect = Annotated[
+	Annotated[SubscriptionUpdated, Tag('updated')] | Annotated[SubscriptionDeleted, Tag('deleted')],
+	Discriminator('event_type'),
+]
 
 
 class IBillingGateway(ABC):

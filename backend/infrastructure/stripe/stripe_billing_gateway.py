@@ -106,7 +106,8 @@ class StripeBillingGateway(IBillingGateway):
 			return self._resolve_subscription_updated(str(subscription_id))
 
 		if event_type == 'customer.subscription.deleted':
-			raw_user_id = (data_object.metadata or {}).get('user_id', '')
+			metadata = data_object.metadata.to_dict() if data_object.metadata else {}
+			raw_user_id: str = metadata.get('user_id', '')
 			if not raw_user_id:
 				self._logger.warning(
 					'customer.subscription.deleted missing user_id metadata (event %s)',
@@ -132,7 +133,8 @@ class StripeBillingGateway(IBillingGateway):
 			self._logger.exception('Failed to fetch Stripe subscription %s', subscription_id)
 			return None
 
-		raw_user_id = (sub.metadata or {}).get('user_id', '')
+		metadata = sub.metadata.to_dict() if sub.metadata else {}
+		raw_user_id: str = metadata.get('user_id', '')
 		if not raw_user_id:
 			self._logger.warning('Subscription %s has no user_id metadata', sub.id)
 			return None
@@ -143,10 +145,9 @@ class StripeBillingGateway(IBillingGateway):
 			return None
 
 		plan: Literal['free', 'paid'] = 'paid' if sub.status in {'active', 'trialing'} else 'free'
+		raw_period_end: int | None = sub['current_period_end']
 		current_period_end = (
-			datetime.fromtimestamp(sub.current_period_end, tz=UTC)
-			if sub.current_period_end is not None
-			else None
+			datetime.fromtimestamp(raw_period_end, tz=UTC) if raw_period_end is not None else None
 		)
 		return SubscriptionUpdated(
 			state=SubscriptionState(
