@@ -145,7 +145,7 @@ class StripeBillingGateway(IBillingGateway):
 			return None
 
 		plan: Literal['free', 'paid'] = 'paid' if sub.status in {'active', 'trialing'} else 'free'
-		raw_period_end: int | None = sub['current_period_end']
+		raw_period_end = sub.to_dict().get('current_period_end')
 		current_period_end = (
 			datetime.fromtimestamp(raw_period_end, tz=UTC) if raw_period_end is not None else None
 		)
