@@ -95,7 +95,7 @@ class StripeBillingGateway(IBillingGateway):
 			raise ValueError(f'Invalid Stripe signature: {e}') from e
 		# stripe.Webhook.construct_event already raises ValueError for malformed
 		# payloads; let those propagate unchanged.
-		return dict(event)
+		return event.to_dict()
 
 	async def fetch_subscription_state(
 		self, stripe_subscription_id: str
