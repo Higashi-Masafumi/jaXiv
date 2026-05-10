@@ -107,14 +107,13 @@ class StripeBillingGateway(IBillingGateway):
 				'Failed to fetch Stripe subscription %s', stripe_subscription_id
 			)
 			return None
+		metadata = sub_obj.metadata.to_dict()
 
-		sub: dict[str, Any] = sub_obj.to_dict()
-
-		raw_user_id = (sub.get('metadata') or {}).get('user_id', '')
+		raw_user_id = metadata.get('user_id', '')
 		if not raw_user_id:
 			self._logger.warning(
 				'Stripe subscription %s has no user_id metadata; ignoring',
-				sub.get('id'),
+				sub_obj.id,
 			)
 			return None
 		try:
@@ -122,15 +121,15 @@ class StripeBillingGateway(IBillingGateway):
 		except ValueError:
 			self._logger.warning(
 				'Stripe subscription %s has invalid user_id metadata: %s',
-				sub.get('id'),
+				sub_obj.id,
 				raw_user_id,
 			)
 			return None
 
 		plan: Literal['free', 'paid'] = (
-			'paid' if sub.get('status') in _ACTIVE_STRIPE_STATUSES else 'free'
+			'paid' if sub_obj.status in _ACTIVE_STRIPE_STATUSES else 'free'
 		)
-		current_period_end_epoch = sub.get('current_period_end')
+		current_period_end_epoch = sub_obj.current_period_end
 		current_period_end = (
 			datetime.fromtimestamp(current_period_end_epoch, tz=UTC)
 			if current_period_end_epoch is not None
@@ -138,9 +137,9 @@ class StripeBillingGateway(IBillingGateway):
 		)
 		return SubscriptionState(
 			user_id=user_id,
-			stripe_customer_id=str(sub.get('customer')),
-			stripe_subscription_id=str(sub.get('id')),
+			stripe_customer_id=str(sub_obj.customer),
+			stripe_subscription_id=str(sub_obj.id),
 			plan=plan,
 			current_period_end=current_period_end,
-			cancel_at_period_end=bool(sub.get('cancel_at_period_end')),
+			cancel_at_period_end=bool(sub_obj.cancel_at_period_end),
 		)
