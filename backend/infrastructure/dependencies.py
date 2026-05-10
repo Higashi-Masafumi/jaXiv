@@ -4,15 +4,21 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from application.unit_of_works import (
+	BlogPostUnitOfWork,
+	ChatThreadUnitOfWork,
+	TranslatedArxivUnitOfWork,
+)
 from application.usecase import (
 	ArxivRedirector,
 	ArxivRedirectorSSEUseCase,
 	ChatWithPaperUseCase,
 	DeleteChatThreadUseCase,
-	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostFromPdfSSEUseCase,
-	GenerateBlogPostUseCase,
+	GenerateBlogPostFromPdfUseCase,
 	GenerateBlogPostSSEUseCase,
+	GenerateBlogPostUseCase,
 	GetBlogPostUseCase,
 	GetChatThreadUseCase,
 	GetMyChatDailyCountUseCase,
@@ -24,18 +30,13 @@ from application.usecase import (
 	ListMyBlogPostsUseCase,
 	RagSearchImageUseCase,
 	RagSearchTextUseCase,
-	SaveTranslatedArxivUseCase,
 	SaveTranslatedArxivSSEUseCase,
+	SaveTranslatedArxivUseCase,
 	StartCheckoutUseCase,
 	StartCustomerPortalUseCase,
 	TranslateArxivPaper,
 )
-from application.unit_of_works import (
-	BlogPostUnitOfWork,
-	ChatThreadUnitOfWork,
-	TranslatedArxivUnitOfWork,
-)
-
+from domain.entities.auth_user import AuthUser
 from domain.gateways import (
 	IArxivSourceFetcher,
 	IBillingGateway,
@@ -50,7 +51,6 @@ from domain.gateways import (
 	IPdfFigureExtractor,
 	IQueryEmbeddingGateway,
 )
-from domain.entities.auth_user import AuthUser
 from domain.repositories import (
 	IBlogPostRepository,
 	IChatThreadRepository,
@@ -65,8 +65,13 @@ from domain.repositories import (
 from domain.value_objects.user_id import UserId
 from domain.value_objects.user_role import UserRole
 from infrastructure.arxiv_api import ArxivSourceFetcher
+from infrastructure.auth import (
+	get_user_id_from_payload,
+	verify_supabase_jwt,
+)
 from infrastructure.gemini import GeminiBlogPostGenerator, GeminiChatLLM
 from infrastructure.latex_subprocess import LatexCompiler
+from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.mistral import MistralLatexTranslator
 from infrastructure.pdf import (
 	HttpImageEmbedder,
@@ -87,11 +92,6 @@ from infrastructure.postgres.repositories import (
 	PostgresTranslatedArxivRepository,
 	PostgresUserSubscriptionRepository,
 )
-from infrastructure.auth import (
-	get_user_id_from_payload,
-	verify_supabase_jwt,
-)
-from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 from infrastructure.stripe import StripeBillingGateway, StripeConfig, get_stripe_config
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
