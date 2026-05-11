@@ -1,0 +1,115 @@
+import json
+import os
+import tarfile
+from io import BytesIO
+from logging import getLogger
+from pathlib import Path
+from typing import Final
+
+import requests
+import yaml
+
+from domain.errors import ArxivPaperNotFoundError, TexFileNotFoundError
+from domain.gateways import IArxivSourceFetcher
+from domain.value_objects import ArxivPaperId, CompileSetting
+
+
+class ArxivSourceFetcher(IArxivSourceFetcher):
+    """Gateway implementation for fetching LaTeX source from arXiv."""
+
+    def __init__(self, arxiv_src_url: str = "https://arxiv.org/src") -> None:
+        self._arxiv_src_url: Final[str] = arxiv_src_url
+        self._logger = getLogger(__name__)
+
+    def fetch_tex_source(
+        self, paper_id: ArxivPaperId, output_dir: str
+    ) -> CompileSetting:
+        self._logger.info("Fetching tex source for paper %s", paper_id.root)
+        tar_src_url = f"{self._arxiv_src_url}/{paper_id.root}"
+        source_dir = Path(os.path.join(output_dir, paper_id.root))
+        if not os.path.exists(source_dir):
+            os.makedirs(source_dir)
+
+        self._logger.info("Downloading tar source from %s", tar_src_url)
+        response = requests.get(tar_src_url)
+        if response.status_code == 404:
+            raise ArxivPaperNotFoundError(paper_id.root)
+        response.raise_for_status()
+        with tarfile.open(fileobj=BytesIO(response.content), mode="r|gz") as tar:
+            tar.extractall(path=source_dir)
+
+        bibtex_file_candidates = list(source_dir.rglob("*.bib"))
+        readme_file_candidates = list(source_dir.glob("00README.*"))
+
+        if len(readme_file_candidates) == 0:
+            self._logger.warning("No 00README.* found in source directory")
+            return self._resolve_compile_setting_without_readme(
+                source_dir, bibtex_file_candidates
+            )
+
+        return self._resolve_compile_setting_from_readme(
+            readme_file_candidates[0], source_dir, bibtex_file_candidates
+        )
+
+    def _resolve_compile_setting_without_readme(
+        self, source_dir: Path, bibtex_candidates: list[Path]
+    ) -> CompileSetting:
+        tex_file_candidates = list(source_dir.rglob("*.tex"))
+        if len(tex_file_candidates) == 0:
+            raise TexFileNotFoundError(str(source_dir))
+
+        target_file_name: str | None = None
+        for tex_file in tex_file_candidates:
+            with open(tex_file) as f:
+                if "\\begin{document}" in f.read():
+                    target_file_name = tex_file.name
+                    break
+
+        if target_file_name is None:
+            raise TexFileNotFoundError(
+                str(source_dir),
+                detail="No tex file with \\begin{document} found",
+            )
+
+        self._logger.info("Using %s as the target file name", target_file_name)
+        return CompileSetting(
+            engine="pdflatex",
+            use_bibtex=len(bibtex_candidates) > 0,
+            target_file_name=target_file_name,
+            source_directory=str(source_dir),
+        )
+
+    def _resolve_compile_setting_from_readme(
+        self,
+        readme_file: Path,
+        source_dir: Path,
+        bibtex_candidates: list[Path],
+    ) -> CompileSetting:
+        if readme_file.name.endswith(".json"):
+            with open(readme_file) as f:
+                readme_data = json.load(f)
+        elif readme_file.name.endswith(".yaml"):
+            with open(readme_file) as f:
+                readme_data = yaml.safe_load(f)
+        else:
+            raise TexFileNotFoundError(
+                str(source_dir), detail="Unknown readme file format"
+            )
+
+        target_file_name = next(
+            (src["filename"] for src in readme_data["sources"] if src["usage"] == "toplevel"),
+            None,
+        )
+        compile_engine = readme_data["process"]["compiler"]
+
+        if target_file_name is None:
+            raise TexFileNotFoundError(
+                str(source_dir), detail="No toplevel file found in README"
+            )
+
+        return CompileSetting(
+            engine=compile_engine,
+            use_bibtex=len(bibtex_candidates) > 0,
+            target_file_name=target_file_name,
+            source_directory=str(source_dir),
+        )

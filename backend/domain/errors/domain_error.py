@@ -21,42 +21,19 @@ class TexFileNotFoundError(DomainNotFoundError):
 
 
 class TranslationFailedError(DomainUnexpectedError):
-	"""Raised when translation of a LaTeX file fails."""
+	"""Raised when the remote tex_translation service fails to translate."""
 
 	def __init__(self, detail: str = ''):
 		super().__init__(f'Translation failed: {detail}')
 		self.detail = detail
 
 
-class TranslationEmptyResultError(DomainUnexpectedError):
-	"""Raised when translation produces an empty result."""
-
-	def __init__(self):
-		super().__init__('Translated text is empty')
-
-
-class LatexCompilationError(DomainUnexpectedError):
-	"""Raised when LaTeX compilation fails."""
-
-	def __init__(self, target_file: str, detail: str = ''):
-		super().__init__(f'Error compiling {target_file}: {detail}')
-		self.target_file = target_file
-
-
 class LatexCompilationTimeoutError(DomainUnexpectedError):
-	"""Raised when LaTeX compilation times out."""
+	"""Raised when LaTeX compilation in the remote tex_translation service times out."""
 
 	def __init__(self, target_file: str):
 		super().__init__(f'Timeout compiling {target_file}')
 		self.target_file = target_file
-
-
-class PdfNotGeneratedError(DomainUnexpectedError):
-	"""Raised when the compiled PDF file is not found."""
-
-	def __init__(self, pdf_path: str):
-		super().__init__(f'PDF file not found after compilation: {pdf_path}')
-		self.pdf_path = pdf_path
 
 
 class PdfProcessingError(DomainUnexpectedError):

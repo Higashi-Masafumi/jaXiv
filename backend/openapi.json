@@ -56,50 +56,6 @@
         }
       }
     },
-    "/api/v1/translate/arxiv/{arxiv_paper_id}/stream": {
-      "get": {
-        "summary": "Translate Stream",
-        "operationId": "translate_stream_api_v1_translate_arxiv__arxiv_paper_id__stream_get",
-        "parameters": [
-          {
-            "name": "arxiv_paper_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The ID of the paper",
-              "title": "Arxiv Paper Id"
-            },
-            "description": "The ID of the paper"
-          },
-          {
-            "name": "target_language",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/TargetLanguage",
-              "description": "The target language"
-            },
-            "description": "The target language"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/blog/": {
       "get": {
         "summary": "List Blogs",

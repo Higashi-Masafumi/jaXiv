@@ -1,20 +1,13 @@
 from abc import ABC, abstractmethod
 
-from domain.entities.latex_file import TranslatedLatexFile
-
 
 class IFileStorageRepository(ABC):
-	"""Repository for storing and retrieving translated files."""
+	"""Repository for storing translated PDFs."""
 
 	@abstractmethod
-	async def save_translated_file_and_get_url(self, translated_file: TranslatedLatexFile) -> str:
-		"""
-		Save a translated file and return its public URL.
-
-		Args:
-		    translated_file: The translated file to save.
-
-		Returns:
-		    The public URL of the saved file.
-		"""
-		...
+	async def save_translated_file_and_get_url(
+		self,
+		storage_path: str,
+		content: bytes,
+	) -> str:
+		"""Upload ``content`` to ``storage_path`` and return its public URL."""
