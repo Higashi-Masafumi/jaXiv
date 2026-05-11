@@ -4,35 +4,42 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from application.usecase import (
-	ArxivRedirector,
-	ArxivRedirectorSSEUseCase,
-	ChatWithPaperUseCase,
-	DeleteChatThreadUseCase,
-	GenerateBlogPostFromPdfUseCase,
-	GenerateBlogPostFromPdfSSEUseCase,
-	GenerateBlogPostUseCase,
-	GenerateBlogPostSSEUseCase,
-	GetBlogPostUseCase,
-	GetChatThreadUseCase,
-	GetMyGenerationCountUseCase,
-	ListBlogPostsUseCase,
-	ListChatThreadsUseCase,
-	ListMyBlogPostsUseCase,
-	RagSearchImageUseCase,
-	RagSearchTextUseCase,
-	SaveTranslatedArxivUseCase,
-	SaveTranslatedArxivSSEUseCase,
-	TranslateArxivPaper,
-)
+
 from application.unit_of_works import (
 	BlogPostUnitOfWork,
 	ChatThreadUnitOfWork,
 	TranslatedArxivUnitOfWork,
 )
-
+from application.usecase import (
+	ArxivRedirector,
+	ArxivRedirectorSSEUseCase,
+	ChatWithPaperUseCase,
+	DeleteChatThreadUseCase,
+	GenerateBlogPostFromPdfSSEUseCase,
+	GenerateBlogPostFromPdfUseCase,
+	GenerateBlogPostSSEUseCase,
+	GenerateBlogPostUseCase,
+	GetBlogPostUseCase,
+	GetChatThreadUseCase,
+	GetMyChatDailyCountUseCase,
+	GetMyGenerationCountUseCase,
+	GetMySubscriptionUseCase,
+	HandleStripeWebhookUseCase,
+	ListBlogPostsUseCase,
+	ListChatThreadsUseCase,
+	ListMyBlogPostsUseCase,
+	RagSearchImageUseCase,
+	RagSearchTextUseCase,
+	SaveTranslatedArxivSSEUseCase,
+	SaveTranslatedArxivUseCase,
+	StartCheckoutUseCase,
+	StartCustomerPortalUseCase,
+	TranslateArxivPaper,
+)
+from domain.entities.auth_user import AuthUser
 from domain.gateways import (
 	IArxivSourceFetcher,
+	IBillingGateway,
 	IBlogPostGenerator,
 	IChatLLMGateway,
 	IImageEmbedder,
@@ -44,7 +51,6 @@ from domain.gateways import (
 	IPdfFigureExtractor,
 	IQueryEmbeddingGateway,
 )
-from domain.entities.auth_user import AuthUser
 from domain.repositories import (
 	IBlogPostRepository,
 	IChatThreadRepository,
@@ -54,12 +60,18 @@ from domain.repositories import (
 	ITextChunkRepository,
 	ITranslatedArxivRepository,
 	IUsageRepository,
+	IUserSubscriptionRepository,
 )
 from domain.value_objects.user_id import UserId
 from domain.value_objects.user_role import UserRole
 from infrastructure.arxiv_api import ArxivSourceFetcher
+from infrastructure.auth import (
+	get_user_id_from_payload,
+	verify_supabase_jwt,
+)
 from infrastructure.gemini import GeminiBlogPostGenerator, GeminiChatLLM
 from infrastructure.latex_subprocess import LatexCompiler
+from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.mistral import MistralLatexTranslator
 from infrastructure.pdf import (
 	HttpImageEmbedder,
@@ -78,15 +90,12 @@ from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
 	PostgresChatThreadRepository,
 	PostgresTranslatedArxivRepository,
+	PostgresUserSubscriptionRepository,
 )
-from infrastructure.auth import (
-	get_user_id_from_payload,
-	verify_supabase_jwt,
-)
-from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
+from infrastructure.stripe import StripeBillingGateway, StripeConfig, get_stripe_config
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
-from infrastructure.usage.hardcoded_usage_repository import HardcodedUsageRepository
+from infrastructure.usage.role_based_usage_repository import RoleBasedUsageRepository
 
 
 # --------------------------------------
@@ -104,17 +113,42 @@ async def get_optional_user_id(
 	return get_user_id_from_payload(payload)
 
 
+async def get_user_subscription_repository(
+	session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> IUserSubscriptionRepository:
+	return PostgresUserSubscriptionRepository(session=session)
+
+
+async def _resolve_role_from_subscription(
+	user_id: uuid.UUID,
+	sub_repo: IUserSubscriptionRepository,
+) -> UserRole:
+	"""Resolve FREE vs PAID by looking up the user's subscription record."""
+	subscription = await sub_repo.find_by_user_id(UserId(user_id))
+	if subscription is not None and subscription.is_active_paid():
+		return UserRole.PAID
+	return UserRole.FREE
+
+
 async def get_auth_user(
 	credentials: Annotated[
 		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
 	],
+	sub_repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> AuthUser:
-	"""Build AuthUser from Bearer JWT; raise 401 if no token provided."""
+	"""Build AuthUser from Bearer JWT; raise 401 if no token provided.
+
+	Anonymous users are returned with ``UserRole.ANONYMOUS``. Authenticated
+	users are upgraded to ``UserRole.PAID`` if they have an active paid
+	subscription, otherwise ``UserRole.FREE``.
+	"""
 	if credentials is None:
 		raise HTTPException(status_code=401, detail='Authentication required.')
 	payload = verify_supabase_jwt(credentials.credentials)
 	user_id = get_user_id_from_payload(payload)
-	role = UserRole.ANONYMOUS if payload.get('is_anonymous', False) else UserRole.FREE
+	if payload.get('is_anonymous', False):
+		return AuthUser(user_id=UserId(user_id), role=UserRole.ANONYMOUS)
+	role = await _resolve_role_from_subscription(user_id, sub_repo)
 	return AuthUser(user_id=UserId(user_id), role=role)
 
 
@@ -122,6 +156,7 @@ async def get_required_auth_user(
 	credentials: Annotated[
 		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
 	],
+	sub_repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> AuthUser:
 	"""Build AuthUser from Bearer JWT; raise 401 if missing, 403 if anonymous."""
 	if credentials is None:
@@ -133,7 +168,8 @@ async def get_required_auth_user(
 			detail='Full authentication is required. Please sign in with Google.',
 		)
 	user_id = get_user_id_from_payload(payload)
-	return AuthUser(user_id=UserId(user_id), role=UserRole.FREE)
+	role = await _resolve_role_from_subscription(user_id, sub_repo)
+	return AuthUser(user_id=UserId(user_id), role=role)
 
 
 async def get_required_user_id(
@@ -199,7 +235,7 @@ def get_text_chunk_repository() -> ITextChunkRepository:
 
 
 def get_usage_repository() -> IUsageRepository:
-	return HardcodedUsageRepository()
+	return RoleBasedUsageRepository()
 
 
 def get_query_embedding_gateway() -> IQueryEmbeddingGateway:
@@ -484,12 +520,14 @@ def get_chat_with_paper_use_case(
 	thread_uow: Annotated[ChatThreadUnitOfWork, Depends(get_chat_thread_unit_of_work)],
 	rag_text: Annotated[RagSearchTextUseCase, Depends(get_rag_search_text_use_case)],
 	rag_image: Annotated[RagSearchImageUseCase, Depends(get_rag_search_image_use_case)],
+	usage_repository: Annotated[IUsageRepository, Depends(get_usage_repository)],
 ) -> ChatWithPaperUseCase:
 	return ChatWithPaperUseCase(
 		llm=llm,
 		thread_uow=thread_uow,
 		rag_text=rag_text,
 		rag_image=rag_image,
+		usage_repository=usage_repository,
 	)
 
 
@@ -509,3 +547,49 @@ def get_delete_chat_thread_use_case(
 	thread_uow: Annotated[ChatThreadUnitOfWork, Depends(get_chat_thread_unit_of_work)],
 ) -> DeleteChatThreadUseCase:
 	return DeleteChatThreadUseCase(thread_uow=thread_uow)
+
+
+def get_get_my_chat_daily_count_use_case(
+	chat_thread_repository: Annotated[IChatThreadRepository, Depends(get_chat_thread_repository)],
+	usage_repository: Annotated[IUsageRepository, Depends(get_usage_repository)],
+) -> GetMyChatDailyCountUseCase:
+	return GetMyChatDailyCountUseCase(
+		chat_thread_repository=chat_thread_repository,
+		usage_repository=usage_repository,
+	)
+
+
+# --------------------------------------
+# Billing (Stripe) providers
+# --------------------------------------
+def get_billing_gateway(
+	config: Annotated[StripeConfig, Depends(get_stripe_config)],
+) -> IBillingGateway:
+	return StripeBillingGateway(config=config)
+
+
+def get_get_my_subscription_use_case(
+	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
+) -> GetMySubscriptionUseCase:
+	return GetMySubscriptionUseCase(repo=repo)
+
+
+def get_start_checkout_use_case(
+	billing: Annotated[IBillingGateway, Depends(get_billing_gateway)],
+	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
+) -> StartCheckoutUseCase:
+	return StartCheckoutUseCase(billing=billing, repo=repo)
+
+
+def get_start_customer_portal_use_case(
+	billing: Annotated[IBillingGateway, Depends(get_billing_gateway)],
+	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
+) -> StartCustomerPortalUseCase:
+	return StartCustomerPortalUseCase(billing=billing, repo=repo)
+
+
+def get_handle_stripe_webhook_use_case(
+	billing: Annotated[IBillingGateway, Depends(get_billing_gateway)],
+	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
+) -> HandleStripeWebhookUseCase:
+	return HandleStripeWebhookUseCase(billing=billing, repo=repo)

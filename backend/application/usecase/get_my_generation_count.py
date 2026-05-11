@@ -9,7 +9,7 @@ from domain.repositories import IBlogPostRepository, IUsageRepository
 class GenerationCount(BaseModel):
 	monthly: int
 	total: int
-	limit: int
+	limit: int | None  # None means unlimited
 
 
 class GetMyGenerationCountUseCase:
@@ -23,7 +23,7 @@ class GetMyGenerationCountUseCase:
 
 	async def execute(self, auth_user: AuthUser) -> GenerationCount:
 		month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-		limit = await self._usage_repo.get_max_usage_count(auth_user)
+		limit = await self._usage_repo.get_blog_monthly_limit(auth_user)
 		monthly = await self._repo.count_generated_by_user(auth_user.user_id, since=month_start)
 		total = await self._repo.count_generated_by_user(auth_user.user_id)
-		return GenerationCount(monthly=monthly, total=total, limit=limit)
+		return GenerationCount(monthly=monthly, total=total, limit=limit.value)

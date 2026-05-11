@@ -32,7 +32,14 @@ type ChatStreamEvent =
     }
   | { type: 'block_stop'; index: number }
   | { type: 'message_stop' }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; error_details?: string | null }
+
+export type ChatErrorCode = 'chat_limit_exceeded' | 'unknown'
+
+export type ChatError = {
+  code: ChatErrorCode
+  message: string
+}
 
 export type UsePaperChatOptions = {
   initialThreadId?: string | null
@@ -48,7 +55,7 @@ export function usePaperChat(
   const [status, setStatus] = useState<ChatStatus>(
     initialThreadId ? 'loading' : 'idle',
   )
-  const [error, setError] = useState<Error | null>(null)
+  const [error, setError] = useState<ChatError | null>(null)
   const threadIdRef = useRef<string | null>(initialThreadId ?? null)
   // マウント時の initialThreadId のみで一度だけ履歴 fetch する。
   // ストリーミング中に SSE 由来で URL が更新されて initialThreadId が変わっても
@@ -72,11 +79,11 @@ export function usePaperChat(
         })
       if (ac.signal.aborted) return
       if (!data) {
-        setError(
+        const message =
           apiError instanceof Error
-            ? apiError
-            : new Error('スレッドの読み込みに失敗しました'),
-        )
+            ? apiError.message
+            : 'スレッドの読み込みに失敗しました'
+        setError({ code: 'unknown', message })
         setStatus('idle')
         return
       }
@@ -176,9 +183,14 @@ export function usePaperChat(
           case 'block_stop':
           case 'message_stop':
             break
-          case 'error':
-            setError(new Error(event.message))
+          case 'error': {
+            const code: ChatErrorCode =
+              event.error_details === 'chat_limit_exceeded'
+                ? 'chat_limit_exceeded'
+                : 'unknown'
+            setError({ code, message: event.message })
             break
+          }
         }
       }
 
@@ -192,7 +204,8 @@ export function usePaperChat(
           applyEvent(raw as ChatStreamEvent)
         }
       } catch (e) {
-        setError(e instanceof Error ? e : new Error(String(e)))
+        const message = e instanceof Error ? e.message : String(e)
+        setError({ code: 'unknown', message })
       } finally {
         setStatus('idle')
       }

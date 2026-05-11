@@ -22,6 +22,7 @@ from application.chat_events import (
 	ThreadIdEvent,
 )
 from application.unit_of_works.chat_thread_unit_of_work import ChatThreadUnitOfWork
+from domain.entities.auth_user import AuthUser
 from domain.entities.chat import (
 	ChatMessage,
 	ContentBlock,
@@ -29,12 +30,14 @@ from domain.entities.chat import (
 	ToolResultBlock,
 	ToolUseBlock,
 )
+from domain.errors.domain_error import ChatLimitExceededError
 from domain.gateways.i_chat_llm_gateway import (
 	IChatLLMGateway,
 	LLMTextDelta,
 	LLMToolUse,
 	ToolDefinition,
 )
+from domain.repositories import IUsageRepository
 
 from .rag_search_image import RagSearchImageUseCase
 from .rag_search_text import RagSearchTextUseCase
@@ -78,11 +81,13 @@ class ChatWithPaperUseCase:
 		thread_uow: ChatThreadUnitOfWork,
 		rag_text: RagSearchTextUseCase,
 		rag_image: RagSearchImageUseCase,
+		usage_repository: IUsageRepository,
 	) -> None:
 		self._llm = llm
 		self._thread_uow = thread_uow
 		self._rag_text = rag_text
 		self._rag_image = rag_image
+		self._usage_repository = usage_repository
 		self._logger = getLogger(__name__)
 
 	async def execute(
@@ -90,9 +95,20 @@ class ChatWithPaperUseCase:
 		paper_id: str,
 		message: str,
 		thread_id: uuid.UUID | None,
-		user_id: uuid.UUID,
+		auth_user: AuthUser,
 	) -> AsyncIterator[ChatStreamEvent]:
+		user_id = auth_user.user_id.root
 		try:
+			limit = await self._usage_repository.get_chat_daily_limit(auth_user)
+			if not limit.is_unlimited():
+				today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+				async with self._thread_uow as uow:
+					count = await uow.chat_thread_repository.count_user_messages(
+						auth_user.user_id, since=today_start
+					)
+				if limit.is_exceeded(count):
+					raise ChatLimitExceededError(daily_count=count, limit=limit.value or 0)
+
 			async with self._thread_uow as uow:
 				repo = uow.chat_thread_repository
 				if thread_id:
@@ -102,9 +118,7 @@ class ChatWithPaperUseCase:
 
 				yield ThreadIdEvent(thread_id=str(thread.id))
 
-				user_message = ChatMessage(
-					role='user', content=[TextBlock(text=message)]
-				)
+				user_message = ChatMessage(role='user', content=[TextBlock(text=message)])
 				thread.messages.append(user_message)
 
 				block_index = 0
@@ -123,8 +137,7 @@ class ChatWithPaperUseCase:
 					user_turn_idx = [
 						i
 						for i, m in enumerate(thread.messages)
-						if m.role == 'user'
-						and any(isinstance(b, TextBlock) for b in m.content)
+						if m.role == 'user' and any(isinstance(b, TextBlock) for b in m.content)
 					]
 					cut_at = (
 						user_turn_idx[-MAX_CONVERSATION_TURNS]
@@ -155,9 +168,7 @@ class ChatWithPaperUseCase:
 
 					if assistant_blocks:
 						thread.messages.append(
-							ChatMessage(
-								id=assistant_id, role='assistant', content=assistant_blocks
-							)
+							ChatMessage(id=assistant_id, role='assistant', content=assistant_blocks)
 						)
 
 					if not tool_uses:
@@ -189,9 +200,7 @@ class ChatWithPaperUseCase:
 						block_index += 1
 					if tool_result_blocks:
 						thread.messages.append(
-							ChatMessage(
-								id=tool_user_id, role='user', content=tool_result_blocks
-							)
+							ChatMessage(id=tool_user_id, role='user', content=tool_result_blocks)
 						)
 					if unknown_tool:
 						break
@@ -206,8 +215,7 @@ class ChatWithPaperUseCase:
 					user_turn_idx = [
 						i
 						for i, m in enumerate(thread.messages)
-						if m.role == 'user'
-						and any(isinstance(b, TextBlock) for b in m.content)
+						if m.role == 'user' and any(isinstance(b, TextBlock) for b in m.content)
 					]
 					cut_at = (
 						user_turn_idx[-MAX_CONVERSATION_TURNS]
@@ -234,6 +242,9 @@ class ChatWithPaperUseCase:
 
 				thread.updated_at = datetime.now(UTC)
 				await repo.update(thread)
+		except ChatLimitExceededError:
+			yield ErrorEvent(message='chat_limit_exceeded', error_details='chat_limit_exceeded')
+			return
 		except Exception as e:
 			self._logger.exception('Chat error for paper %s', paper_id)
 			yield ErrorEvent(message=str(e))

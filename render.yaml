@@ -9,6 +9,8 @@ services:
     envVars:
       - key: LAYOUT_ANALYSIS_URL
         value: https://masamasa4-jaxiv-pdf-analysis.hf.space
+      - key: FRONTEND_BASE_URL
+        value: https://jaxiv-frontend.cruiseeast.workers.dev/
   # - name: jaxiv-frontend
   #   type: web
   #   plan: free

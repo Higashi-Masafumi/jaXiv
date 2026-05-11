@@ -9,10 +9,12 @@ from application.usecase import (
 	ChatWithPaperUseCase,
 	DeleteChatThreadUseCase,
 	GetChatThreadUseCase,
+	GetMyChatDailyCountUseCase,
 	ListChatThreadsUseCase,
 )
 from application.chat_events import ChatRequest
 from controller.schemas.chat_thread import (
+	ChatDailyCountResponse,
 	ChatThreadListResponse,
 	ChatThreadResponse,
 	ChatThreadSummaryResponse,
@@ -22,6 +24,7 @@ from infrastructure.dependencies import (
 	get_chat_with_paper_use_case,
 	get_delete_chat_thread_use_case,
 	get_get_chat_thread_use_case,
+	get_get_my_chat_daily_count_use_case,
 	get_list_chat_threads_use_case,
 	get_required_auth_user,
 )
@@ -51,7 +54,7 @@ async def chat_with_paper(
 			paper_id=paper_id,
 			message=body.message,
 			thread_id=body.thread_id,
-			user_id=auth_user.user_id.root,
+			auth_user=auth_user,
 		):
 			yield ServerSentEvent(data=event.model_dump_json())
 
@@ -99,3 +102,16 @@ async def delete_chat_thread(
 	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 ) -> None:
 	await use_case.execute(thread_id=thread_id, user_id=auth_user.user_id.root)
+
+
+@router.get(
+	'/my/daily-count',
+	response_model=ChatDailyCountResponse,
+	summary="Get the current user's chat usage for today",
+)
+async def get_my_chat_daily_count(
+	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
+	use_case: Annotated[GetMyChatDailyCountUseCase, Depends(get_get_my_chat_daily_count_use_case)],
+) -> ChatDailyCountResponse:
+	count = await use_case.execute(auth_user=auth_user)
+	return ChatDailyCountResponse.from_entity(count)

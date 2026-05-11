@@ -56,15 +56,15 @@ class GenerateBlogPostFromPdfUseCase:
 	async def execute(self, pdf_path: Path, auth_user: AuthUser) -> BlogPost:
 		paper_id = PdfPaperId.generate()
 		try:
-			max_count = await self._usage_repository.get_max_usage_count(auth_user)
+			limit = await self._usage_repository.get_blog_monthly_limit(auth_user)
 			month_start = datetime.now(UTC).replace(
 				day=1, hour=0, minute=0, second=0, microsecond=0
 			)
 			count = await self._blog_post_repository.count_generated_by_user(
 				auth_user.user_id, since=month_start
 			)
-			if count >= max_count:
-				raise GenerationLimitExceededError(monthly_count=count, limit=max_count)
+			if limit.is_exceeded(count):
+				raise GenerationLimitExceededError(monthly_count=count, limit=limit.value or 0)
 			source_url: str | None
 			try:
 				source_url = await self._figure_storage_repository.upload_pdf(

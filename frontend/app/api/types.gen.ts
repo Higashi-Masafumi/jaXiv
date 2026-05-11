@@ -67,6 +67,20 @@ export type BodyGenerateBlogFromPdfStreamApiV1BlogPdfStreamPost = {
 }
 
 /**
+ * ChatDailyCountResponse
+ */
+export type ChatDailyCountResponse = {
+  /**
+   * Daily
+   */
+  daily: number
+  /**
+   * Limit
+   */
+  limit: number | null
+}
+
+/**
  * ChatMessageResponse
  */
 export type ChatMessageResponse = {
@@ -197,7 +211,7 @@ export type GenerationCountResponseSchema = {
   /**
    * Limit
    */
-  limit: number
+  limit: number | null
 }
 
 /**
@@ -208,6 +222,28 @@ export type HttpValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * MySubscriptionResponse
+ */
+export type MySubscriptionResponse = {
+  /**
+   * Plan
+   */
+  plan: 'free' | 'paid'
+  /**
+   * Current Period End
+   */
+  current_period_end: string | null
+  /**
+   * Cancel At Period End
+   */
+  cancel_at_period_end: boolean
+  /**
+   * Has Billing Account
+   */
+  has_billing_account: boolean
 }
 
 /**
@@ -300,6 +336,16 @@ export type RagTextChunkSchema = {
    * Page Number
    */
   page_number: number
+}
+
+/**
+ * RedirectUrlResponse
+ */
+export type RedirectUrlResponse = {
+  /**
+   * Url
+   */
+  url: string
 }
 
 /**
@@ -934,6 +980,107 @@ export type GetChatThreadApiV1ChatThreadsThreadIdGetResponses = {
 
 export type GetChatThreadApiV1ChatThreadsThreadIdGetResponse =
   GetChatThreadApiV1ChatThreadsThreadIdGetResponses[keyof GetChatThreadApiV1ChatThreadsThreadIdGetResponses]
+
+export type GetMyChatDailyCountApiV1ChatMyDailyCountGetData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/chat/my/daily-count'
+}
+
+export type GetMyChatDailyCountApiV1ChatMyDailyCountGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatDailyCountResponse
+}
+
+export type GetMyChatDailyCountApiV1ChatMyDailyCountGetResponse =
+  GetMyChatDailyCountApiV1ChatMyDailyCountGetResponses[keyof GetMyChatDailyCountApiV1ChatMyDailyCountGetResponses]
+
+export type GetMySubscriptionApiV1BillingMeGetData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/billing/me'
+}
+
+export type GetMySubscriptionApiV1BillingMeGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: MySubscriptionResponse
+}
+
+export type GetMySubscriptionApiV1BillingMeGetResponse =
+  GetMySubscriptionApiV1BillingMeGetResponses[keyof GetMySubscriptionApiV1BillingMeGetResponses]
+
+export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/billing/checkout-session'
+}
+
+export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: RedirectUrlResponse
+}
+
+export type CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponse =
+  CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses[keyof CreateCheckoutSessionApiV1BillingCheckoutSessionPostResponses]
+
+export type CreatePortalSessionApiV1BillingPortalSessionPostData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/billing/portal-session'
+}
+
+export type CreatePortalSessionApiV1BillingPortalSessionPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: RedirectUrlResponse
+}
+
+export type CreatePortalSessionApiV1BillingPortalSessionPostResponse =
+  CreatePortalSessionApiV1BillingPortalSessionPostResponses[keyof CreatePortalSessionApiV1BillingPortalSessionPostResponses]
+
+export type StripeWebhookApiV1BillingWebhookPostData = {
+  body?: never
+  headers?: {
+    /**
+     * Stripe-Signature
+     */
+    'stripe-signature'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/api/v1/billing/webhook'
+}
+
+export type StripeWebhookApiV1BillingWebhookPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type StripeWebhookApiV1BillingWebhookPostError =
+  StripeWebhookApiV1BillingWebhookPostErrors[keyof StripeWebhookApiV1BillingWebhookPostErrors]
+
+export type StripeWebhookApiV1BillingWebhookPostResponses = {
+  /**
+   * Successful Response
+   */
+  204: void
+}
+
+export type StripeWebhookApiV1BillingWebhookPostResponse =
+  StripeWebhookApiV1BillingWebhookPostResponses[keyof StripeWebhookApiV1BillingWebhookPostResponses]
 
 export type RootGetData = {
   body?: never

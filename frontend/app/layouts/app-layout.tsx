@@ -3,6 +3,7 @@ import {
   ArchiveIcon,
   BookmarkIcon,
   ChevronRightIcon,
+  CrownIcon,
   FileTextIcon,
   LogInIcon,
   LogOutIcon,
@@ -43,7 +44,7 @@ const NAV_ITEMS = [
 ] as const
 
 function AppSidebar() {
-  const { user, isAnonymous, signInWithGoogle, signOut } = useAuth()
+  const { user, isAnonymous, isPaid, signInWithGoogle, signOut } = useAuth()
 
   return (
     <Sidebar collapsible="icon">
@@ -99,6 +100,26 @@ function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={isPaid ? 'プラン管理' : 'アップグレード'}
+                >
+                  <NavLink
+                    to="/pricing"
+                    end
+                    className={({ isActive }) =>
+                      isActive
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                        : 'text-sidebar-foreground'
+                    }
+                  >
+                    <CrownIcon />
+                    <span>{isPaid ? 'プラン管理' : 'アップグレード'}</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

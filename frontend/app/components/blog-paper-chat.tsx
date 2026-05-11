@@ -12,7 +12,9 @@ import {
   Trash2Icon,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
+
+import { useAuth } from '~/contexts/auth-context'
 
 import {
   AlertDialog,
@@ -445,6 +447,33 @@ function ThreadListView(props: {
   )
 }
 
+function ChatLimitAlert() {
+  const { isPaid } = useAuth()
+  return (
+    <div className="flex shrink-0 items-start gap-2 border-b border-hero-accent/40 bg-hero-accent/10 px-4 py-2 text-xs">
+      <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0 text-hero-accent" />
+      <span className="break-all">
+        {isPaid ? (
+          <>
+            本日のチャット利用が上限に達しました。日付が変わるとリセットされます。
+          </>
+        ) : (
+          <>
+            本日のチャット上限（30 メッセージ）に達しました。
+            <Link
+              to="/pricing"
+              className="ml-1 font-semibold underline underline-offset-2"
+            >
+              有料プランにアップグレード
+            </Link>
+            すると無制限で利用できます。
+          </>
+        )}
+      </span>
+    </div>
+  )
+}
+
 function ChatView(props: {
   paperId: string
   initialThreadId: string | null
@@ -478,11 +507,15 @@ function ChatView(props: {
 
   return (
     <>
-      {error && (
-        <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
-          <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span className="break-all">{error.message}</span>
-        </div>
+      {error?.code === 'chat_limit_exceeded' ? (
+        <ChatLimitAlert />
+      ) : (
+        error && (
+          <div className="flex shrink-0 items-start gap-2 border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
+            <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
+            <span className="break-all">{error.message}</span>
+          </div>
+        )
       )}
 
       <ScrollArea className="min-h-0 flex-1">
@@ -531,7 +564,7 @@ function ChatView(props: {
         <ChatComposer
           value={input}
           onChange={setInput}
-          disabled={busy}
+          disabled={busy || error?.code === 'chat_limit_exceeded'}
           onSubmit={submitChat}
         />
       </div>

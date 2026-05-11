@@ -6,6 +6,7 @@ from .i_file_storage_repository import IFileStorageRepository
 from .i_text_chunk_repository import ITextChunkRepository
 from .i_translated_arxiv_repository import ITranslatedArxivRepository
 from .i_usage_repository import IUsageRepository
+from .i_user_subscription_repository import IUserSubscriptionRepository
 
 __all__ = [
 	'IBlogPostRepository',
@@ -16,4 +17,5 @@ __all__ = [
 	'ITextChunkRepository',
 	'ITranslatedArxivRepository',
 	'IUsageRepository',
+	'IUserSubscriptionRepository',
 ]

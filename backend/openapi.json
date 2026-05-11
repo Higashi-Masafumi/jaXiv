@@ -735,6 +735,137 @@
         }
       }
     },
+    "/api/v1/chat/my/daily-count": {
+      "get": {
+        "summary": "Get the current user's chat usage for today",
+        "operationId": "get_my_chat_daily_count_api_v1_chat_my_daily_count_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatDailyCountResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/billing/me": {
+      "get": {
+        "summary": "Get My Subscription",
+        "operationId": "get_my_subscription_api_v1_billing_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MySubscriptionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/billing/checkout-session": {
+      "post": {
+        "summary": "Create Checkout Session",
+        "operationId": "create_checkout_session_api_v1_billing_checkout_session_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedirectUrlResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/billing/portal-session": {
+      "post": {
+        "summary": "Create Portal Session",
+        "operationId": "create_portal_session_api_v1_billing_portal_session_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedirectUrlResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/billing/webhook": {
+      "post": {
+        "summary": "Stripe Webhook",
+        "operationId": "stripe_webhook_api_v1_billing_webhook_post",
+        "parameters": [
+          {
+            "name": "stripe-signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stripe-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -859,6 +990,31 @@
           "file"
         ],
         "title": "Body_generate_blog_from_pdf_stream_api_v1_blog_pdf_stream_post"
+      },
+      "ChatDailyCountResponse": {
+        "properties": {
+          "daily": {
+            "type": "integer",
+            "title": "Daily"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "daily",
+          "limit"
+        ],
+        "title": "ChatDailyCountResponse"
       },
       "ChatMessageResponse": {
         "properties": {
@@ -1047,7 +1203,14 @@
             "title": "Total"
           },
           "limit": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Limit"
           }
         },
@@ -1071,6 +1234,45 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "MySubscriptionResponse": {
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "free",
+              "paid"
+            ],
+            "title": "Plan"
+          },
+          "current_period_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period End"
+          },
+          "cancel_at_period_end": {
+            "type": "boolean",
+            "title": "Cancel At Period End"
+          },
+          "has_billing_account": {
+            "type": "boolean",
+            "title": "Has Billing Account"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan",
+          "current_period_end",
+          "cancel_at_period_end",
+          "has_billing_account"
+        ],
+        "title": "MySubscriptionResponse"
       },
       "PaginatedBlogPostResponseSchema": {
         "properties": {
@@ -1208,6 +1410,22 @@
           "page_number"
         ],
         "title": "RagTextChunkSchema"
+      },
+      "RedirectUrlResponse": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "RedirectUrlResponse"
       },
       "TargetLanguage": {
         "type": "string",

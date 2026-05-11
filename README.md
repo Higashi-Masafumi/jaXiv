@@ -47,6 +47,15 @@ cd frontend && npm install && npm run dev
 
 ## 環境変数
 
+各サービスに `.env.template` を用意しています。コピーして `.env` を作成してください。
+
+```bash
+cp backend/.env.template backend/.env
+cp frontend/.env.template frontend/.env
+```
+
+- `backend/.env` には API キー等の **機密値のみ** を置きます。URL 系（`POSTGRES_URL` / `SUPABASE_URL` / `JWKS_URL` 等）は `docker-compose.yml` で固定済みです。
+- `frontend/.env` には `VITE_` プレフィックス付きの公開設定を置きます。`VITE_SUPABASE_ANON_KEY` は `supabase status` で確認できます。
 - `supabase/.env.local`（gitignore 済み）に Google OAuth クレデンシャルを置きます:
 
   ```dotenv
@@ -54,10 +63,27 @@ cd frontend && npm install && npm run dev
   SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=GOCSPX-xxxxxxxxxxxx
   ```
 
-- `backend/.env` には API キー等の **機密値のみ** を置きます。URL 系（`POSTGRES_URL` / `SUPABASE_URL` / `JWKS_URL` 等）は `docker-compose.yml` で固定済みです。
 - Google OAuth を使う場合、Google Cloud Console の OAuth クライアントに以下を登録してください:
   - 承認済みリダイレクト URI: `http://127.0.0.1:54321/auth/v1/callback`
   - 承認済み JavaScript 生成元: `http://localhost:5173`
+
+### Stripe の設定
+
+有料プランの決済に [Stripe](https://stripe.com/) を利用しています。ローカル開発では Stripe のテストモードを使います。
+
+1. [Stripe Dashboard](https://dashboard.stripe.com/) でテストモードの API キーを取得し、`backend/.env` に設定します:
+   - `STRIPE_API_KEY` — シークレットキー（`sk_test_...`）
+   - `STRIPE_PRICE_ID_PAID` — 有料プランの Price ID（`price_...`）。Dashboard の「商品」から作成できます。
+
+2. Webhook のローカルテストには [Stripe CLI](https://docs.stripe.com/stripe-cli) を使います:
+
+   ```bash
+   stripe listen --forward-to localhost:8001/api/v1/billing/webhook
+   ```
+
+   表示される Webhook signing secret（`whsec_...`）を `STRIPE_WEBHOOK_SECRET` に設定してください。
+
+3. 本番環境では Stripe Dashboard の Webhook 設定でエンドポイント URL を登録し、signing secret を環境変数に設定します。
 
 ## よく使う Supabase コマンド
 
