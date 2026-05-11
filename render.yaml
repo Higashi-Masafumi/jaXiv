@@ -1,7 +1,7 @@
 services:
   - name: jaxiv-tex-translation
-    type: pserv
-    plan: standard
+    type: web
+    plan: free
     runtime: docker
     repo: https://github.com/Higashi-Masafumi/jaXiv
     dockerfilePath: Dockerfile
