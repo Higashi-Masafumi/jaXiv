@@ -46,6 +46,7 @@ class StripeBillingGateway(IBillingGateway):
 			'metadata': {'user_id': user_id_str},
 			'subscription_data': {'metadata': {'user_id': user_id_str}},
 			'client_reference_id': user_id_str,
+			'allow_promotion_codes': True,
 		}
 		if stripe_customer_id is not None:
 			params['customer'] = stripe_customer_id
