@@ -58,7 +58,10 @@ class MistralLatexTranslator(ILatexTranslator):
                     messages=messages,
                     stream=False,
                 )
-                message_content = chat_response.choices[0].message.content
+                message = chat_response.choices[0].message
+                if message is None:
+                    raise TranslationEmptyResultError()
+                message_content = message.content
                 if message_content is None or message_content in (
                     UNSET,
                     UNSET_SENTINEL,
