@@ -2,12 +2,12 @@ import asyncio
 import re
 from logging import getLogger
 
-from mistralai import Mistral
-from mistralai.models.assistantmessage import AssistantMessage
-from mistralai.models.systemmessage import SystemMessage
-from mistralai.models.toolmessage import ToolMessage
-from mistralai.models.usermessage import UserMessage
-from mistralai.types import UNSET, UNSET_SENTINEL
+from mistralai.client import Mistral
+from mistralai.client.models.assistantmessage import AssistantMessage
+from mistralai.client.models.systemmessage import SystemMessage
+from mistralai.client.models.toolmessage import ToolMessage
+from mistralai.client.models.usermessage import UserMessage
+from mistralai.client.types import UNSET, UNSET_SENTINEL
 
 from domain.entities import LatexFile
 from domain.errors import TranslationEmptyResultError
