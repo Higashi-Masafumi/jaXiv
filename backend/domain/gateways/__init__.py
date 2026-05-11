@@ -6,12 +6,6 @@ from .i_billing_gateway import (
 	SubscriptionState,
 )
 from .i_blog_post_generator import IBlogPostGenerator
-from .i_image_embedder import IImageEmbedder, ImageEmbedItem, ImageWithEmbedding
-from .i_query_embedding_gateway import IQueryEmbeddingGateway
-from .i_latex_compiler import ILatexCompiler
-from .i_latex_translator import ILatexTranslator
-from .i_pdf_blog_post_generator import IPdfBlogPostGenerator
-from .i_pdf_figure_analyzer import IPdfFigureAnalyzer
 from .i_chat_llm_gateway import (
 	IChatLLMGateway,
 	LLMStreamEvent,
@@ -19,29 +13,33 @@ from .i_chat_llm_gateway import (
 	LLMToolUse,
 	ToolDefinition,
 )
+from .i_image_embedder import IImageEmbedder, ImageEmbedItem, ImageWithEmbedding
+from .i_pdf_blog_post_generator import IPdfBlogPostGenerator
+from .i_pdf_figure_analyzer import IPdfFigureAnalyzer
 from .i_pdf_figure_extractor import IPdfFigureExtractor
 from .i_pdf_text_chunker import IPdfChunkAnalyzer
+from .i_query_embedding_gateway import IQueryEmbeddingGateway
+from .i_tex_translation_gateway import ITexTranslationGateway
 
 __all__ = [
-	'IChatLLMGateway',
-	'LLMStreamEvent',
-	'LLMTextDelta',
-	'LLMToolUse',
-	'ToolDefinition',
+	'CheckoutSession',
 	'IArxivSourceFetcher',
+	'IBillingGateway',
 	'IBlogPostGenerator',
+	'IChatLLMGateway',
 	'IImageEmbedder',
-	'ImageEmbedItem',
-	'ImageWithEmbedding',
-	'IQueryEmbeddingGateway',
-	'ILatexCompiler',
-	'ILatexTranslator',
 	'IPdfBlogPostGenerator',
 	'IPdfChunkAnalyzer',
 	'IPdfFigureAnalyzer',
 	'IPdfFigureExtractor',
-	'IBillingGateway',
-	'CheckoutSession',
+	'IQueryEmbeddingGateway',
+	'ITexTranslationGateway',
+	'ImageEmbedItem',
+	'ImageWithEmbedding',
+	'LLMStreamEvent',
+	'LLMTextDelta',
+	'LLMToolUse',
 	'PortalSession',
 	'SubscriptionState',
+	'ToolDefinition',
 ]

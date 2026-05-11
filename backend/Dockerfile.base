@@ -1,16 +1,14 @@
 FROM python:3.13-slim
 
-# Install LaTeX environment
+# Backend base image. Tex compilation now lives in the tex_translation service,
+# so we no longer ship texlive-full here.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    texlive-full \
-    latexmk ghostscript poppler-utils \
-    libgl1 \
-    libglib2.0-0 \
+        poppler-utils \
+        libgl1 \
+        libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python package manager
 RUN pip install uv
 
-# Set the working directory
-WORKDIR /app 
+WORKDIR /app

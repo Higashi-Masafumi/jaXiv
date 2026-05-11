@@ -13,7 +13,7 @@ from .blog_stream import (
 )
 from .document_chunk import DocumentChunk, DocumentFigureChunk, DocumentTextChunk
 from .figure import ExtractedFigure, FigureWithEmbedding, UploadedFigure
-from .latex_file import LatexFile, TranslatedLatexFile
+from .latex_file import TranslatedLatexFile
 from .pdf_paper import PdfPaperMetadata
 from .stream import (
 	CompleteTranslateChunk,
@@ -38,7 +38,6 @@ __all__ = [
 	'ExtractedFigure',
 	'FigureWithEmbedding',
 	'IntermediateBlogChunk',
-	'LatexFile',
 	'PdfPaperMetadata',
 	'TextChunkWithEmbedding',
 	'TranslatedLatexFile',

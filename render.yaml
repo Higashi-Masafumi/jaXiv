@@ -1,4 +1,16 @@
 services:
+  - name: jaxiv-tex-translation
+    type: pserv
+    plan: standard
+    runtime: docker
+    repo: https://github.com/Higashi-Masafumi/jaXiv
+    dockerfilePath: Dockerfile
+    rootDir: ./tex_translation
+    envVars:
+      # MISTRAL_API_KEY は Render ダッシュボードでシークレットとして設定する
+      - key: MISTRAL_API_KEY
+        sync: false
+
   - name: arxiv-translation-service
     type: web
     plan: free
@@ -9,6 +21,9 @@ services:
     envVars:
       - key: LAYOUT_ANALYSIS_URL
         value: https://masamasa4-jaxiv-pdf-analysis.hf.space
+      - key: TEX_TRANSLATION_URL
+        # Render private service: 同アカウント内から http://<service-name>:<port> で解決できる
+        value: http://jaxiv-tex-translation:8100
       - key: FRONTEND_BASE_URL
         value: https://jaxiv-frontend.cruiseeast.workers.dev/
   # - name: jaxiv-frontend

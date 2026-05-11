@@ -43,13 +43,12 @@ from domain.gateways import (
 	IBlogPostGenerator,
 	IChatLLMGateway,
 	IImageEmbedder,
-	ILatexCompiler,
-	ILatexTranslator,
 	IPdfBlogPostGenerator,
 	IPdfChunkAnalyzer,
 	IPdfFigureAnalyzer,
 	IPdfFigureExtractor,
 	IQueryEmbeddingGateway,
+	ITexTranslationGateway,
 )
 from domain.repositories import (
 	IBlogPostRepository,
@@ -70,9 +69,7 @@ from infrastructure.auth import (
 	verify_supabase_jwt,
 )
 from infrastructure.gemini import GeminiBlogPostGenerator, GeminiChatLLM
-from infrastructure.latex_subprocess import LatexCompiler
 from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
-from infrastructure.mistral import MistralLatexTranslator
 from infrastructure.pdf import (
 	HttpImageEmbedder,
 	HttpPdfChunkAnalyzer,
@@ -95,6 +92,7 @@ from infrastructure.postgres.repositories import (
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
 from infrastructure.stripe import StripeBillingGateway, StripeConfig, get_stripe_config
 from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
+from infrastructure.tex_translation import HttpTexTranslationGateway
 from infrastructure.usage.role_based_usage_repository import RoleBasedUsageRepository
 
 
@@ -271,12 +269,8 @@ def get_arxiv_source_fetcher() -> IArxivSourceFetcher:
 	return ArxivSourceFetcher()
 
 
-def get_latex_compiler() -> ILatexCompiler:
-	return LatexCompiler()
-
-
-def get_latex_translator() -> ILatexTranslator:
-	return MistralLatexTranslator()
+def get_tex_translation_gateway() -> ITexTranslationGateway:
+	return HttpTexTranslationGateway()
 
 
 def get_blog_post_generator() -> IBlogPostGenerator:
@@ -325,15 +319,11 @@ def get_sse_arxiv_redirector(
 
 
 def get_translate_arxiv_paper(
-	arxiv_source_fetcher: Annotated[IArxivSourceFetcher, Depends(get_arxiv_source_fetcher)],
-	latex_compiler: Annotated[ILatexCompiler, Depends(get_latex_compiler)],
-	latex_translator: Annotated[ILatexTranslator, Depends(get_latex_translator)],
+	tex_translation_gateway: Annotated[
+		ITexTranslationGateway, Depends(get_tex_translation_gateway)
+	],
 ) -> TranslateArxivPaper:
-	return TranslateArxivPaper(
-		arxiv_source_fetcher=arxiv_source_fetcher,
-		latex_compiler=latex_compiler,
-		latex_translator=latex_translator,
-	)
+	return TranslateArxivPaper(tex_translation_gateway=tex_translation_gateway)
 
 
 async def get_save_translated_arxiv(
