@@ -78,7 +78,7 @@ export default function Pricing() {
         />
         <PlanCard
           name="Paid"
-          price="¥980 / 月"
+          price="¥500 / 月"
           highlight
           features={['ブログ生成: 月100回', 'チャット: 無制限', '優先サポート']}
           cta={
