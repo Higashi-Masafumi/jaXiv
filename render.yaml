@@ -23,7 +23,7 @@ services:
         value: https://masamasa4-jaxiv-pdf-analysis.hf.space
       - key: TEX_TRANSLATION_URL
         # Render private service: 同アカウント内から http://<service-name>:<port> で解決できる
-        value: http://jaxiv-tex-translation:8100
+        value: https://jaxiv-tex-translation.onrender.com
       - key: FRONTEND_BASE_URL
         value: https://jaxiv-frontend.cruiseeast.workers.dev/
   # - name: jaxiv-frontend
