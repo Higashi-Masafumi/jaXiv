@@ -30,5 +30,5 @@ dev = [
 python_version = "3.13"
 
 [[tool.mypy.overrides]]
-module = ["arxiv", "arxiv.*"]
+module = ["arxiv", "arxiv.*", "mistralai", "mistralai.*"]
 ignore_missing_imports = true
