@@ -2,10 +2,10 @@ import re
 
 from pydantic import ConfigDict, RootModel, StrictStr, field_validator
 
-from domain.errors import DomainError
+from domain.errors import DomainBadRequestError
 
 
-class InvalidArxivPaperIdError(DomainError):
+class InvalidArxivPaperIdError(DomainBadRequestError):
     def __init__(self, value: str) -> None:
         super().__init__(f"Invalid arXiv paper ID: {value}")
         self.value = value

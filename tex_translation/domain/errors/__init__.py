@@ -1,6 +1,8 @@
 from .base import (
+    DomainBadRequestError,
     DomainError,
     DomainNotFoundError,
+    DomainTimeoutError,
     DomainUnexpectedError,
 )
 from .translation_error import (
@@ -15,8 +17,10 @@ from .translation_error import (
 
 __all__ = [
     "ArxivPaperNotFoundError",
+    "DomainBadRequestError",
     "DomainError",
     "DomainNotFoundError",
+    "DomainTimeoutError",
     "DomainUnexpectedError",
     "LatexCompilationError",
     "LatexCompilationTimeoutError",

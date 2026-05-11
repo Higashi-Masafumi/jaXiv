@@ -1,4 +1,4 @@
-from .base import DomainNotFoundError, DomainUnexpectedError
+from .base import DomainNotFoundError, DomainTimeoutError, DomainUnexpectedError
 
 
 class ArxivPaperNotFoundError(DomainNotFoundError):
@@ -32,7 +32,7 @@ class LatexCompilationError(DomainUnexpectedError):
         self.target_file = target_file
 
 
-class LatexCompilationTimeoutError(DomainUnexpectedError):
+class LatexCompilationTimeoutError(DomainTimeoutError):
     def __init__(self, target_file: str) -> None:
         super().__init__(f"Timeout compiling {target_file}")
         self.target_file = target_file
