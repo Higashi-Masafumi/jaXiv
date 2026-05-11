@@ -8,7 +8,7 @@ class ITexTranslationGateway(ABC):
 
 	The remote service downloads the arXiv source, translates each ``.tex`` file
 	with an LLM, compiles the result via ``latexmk``, and returns the produced
-	PDF as binary.
+	PDF as binary bytes.
 	"""
 
 	@abstractmethod
@@ -16,12 +16,8 @@ class ITexTranslationGateway(ABC):
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		target_language: TargetLanguage,
-		output_dir: str,
-	) -> str:
-		"""Translate ``arxiv_paper_id`` and write the resulting PDF under ``output_dir``.
-
-		Returns:
-		    Local filesystem path to the saved PDF.
+	) -> bytes:
+		"""Translate ``arxiv_paper_id`` and return the compiled PDF as bytes.
 
 		Raises:
 		    ArxivPaperNotFoundError: If the remote service reports 404.

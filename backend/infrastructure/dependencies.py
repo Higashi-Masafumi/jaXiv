@@ -8,11 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.unit_of_works import (
 	BlogPostUnitOfWork,
 	ChatThreadUnitOfWork,
-	TranslatedArxivUnitOfWork,
 )
 from application.usecase import (
 	ArxivRedirector,
-	ArxivRedirectorSSEUseCase,
 	ChatWithPaperUseCase,
 	DeleteChatThreadUseCase,
 	GenerateBlogPostFromPdfSSEUseCase,
@@ -30,7 +28,6 @@ from application.usecase import (
 	ListMyBlogPostsUseCase,
 	RagSearchImageUseCase,
 	RagSearchTextUseCase,
-	SaveTranslatedArxivSSEUseCase,
 	SaveTranslatedArxivUseCase,
 	StartCheckoutUseCase,
 	StartCustomerPortalUseCase,
@@ -79,7 +76,6 @@ from infrastructure.pdf import (
 from infrastructure.postgres import (
 	PostgresBlogPostUnitOfWork,
 	PostgresChatThreadUnitOfWork,
-	PostgresTranslatedArxivUnitOfWork,
 	create_async_session_factory,
 	get_async_session,
 )
@@ -216,10 +212,6 @@ def get_sse_blog_post_unit_of_work() -> BlogPostUnitOfWork:
 	return PostgresBlogPostUnitOfWork(session_factory=create_async_session_factory())
 
 
-def get_sse_translated_arxiv_unit_of_work() -> TranslatedArxivUnitOfWork:
-	return PostgresTranslatedArxivUnitOfWork(session_factory=create_async_session_factory())
-
-
 def get_figure_storage_repository() -> IFigureStorageRepository:
 	return SupabaseFigureStorageRepository()
 
@@ -310,14 +302,6 @@ async def get_arxiv_redirector(
 	)
 
 
-def get_sse_arxiv_redirector(
-	translated_arxiv_unit_of_work: Annotated[
-		TranslatedArxivUnitOfWork, Depends(get_sse_translated_arxiv_unit_of_work)
-	],
-) -> ArxivRedirectorSSEUseCase:
-	return ArxivRedirectorSSEUseCase(translated_arxiv_unit_of_work=translated_arxiv_unit_of_work)
-
-
 def get_translate_arxiv_paper(
 	tex_translation_gateway: Annotated[
 		ITexTranslationGateway, Depends(get_tex_translation_gateway)
@@ -337,22 +321,6 @@ async def get_save_translated_arxiv(
 ) -> SaveTranslatedArxivUseCase:
 	return SaveTranslatedArxivUseCase(
 		translated_arxiv_repository=translated_arxiv_repository,
-		file_storage_repository=file_storage_repository,
-		arxiv_source_fetcher=arxiv_source_fetcher,
-	)
-
-
-def get_sse_save_translated_arxiv(
-	translated_arxiv_unit_of_work: Annotated[
-		TranslatedArxivUnitOfWork, Depends(get_sse_translated_arxiv_unit_of_work)
-	],
-	file_storage_repository: Annotated[
-		IFileStorageRepository, Depends(get_file_storage_repository)
-	],
-	arxiv_source_fetcher: Annotated[IArxivSourceFetcher, Depends(get_arxiv_source_fetcher)],
-) -> SaveTranslatedArxivSSEUseCase:
-	return SaveTranslatedArxivSSEUseCase(
-		translated_arxiv_unit_of_work=translated_arxiv_unit_of_work,
 		file_storage_repository=file_storage_repository,
 		arxiv_source_fetcher=arxiv_source_fetcher,
 	)

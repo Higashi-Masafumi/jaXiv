@@ -21,7 +21,7 @@ class TexFileNotFoundError(DomainNotFoundError):
 
 
 class TranslationFailedError(DomainUnexpectedError):
-	"""Raised when translation of a LaTeX file fails (remote or local)."""
+	"""Raised when the remote tex_translation service fails to translate."""
 
 	def __init__(self, detail: str = ''):
 		super().__init__(f'Translation failed: {detail}')

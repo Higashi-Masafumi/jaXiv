@@ -1,4 +1,3 @@
-import os
 from logging import getLogger
 
 import httpx
@@ -14,6 +13,16 @@ from domain.value_objects import ArxivPaperId, TargetLanguage
 from infrastructure.tex_translation.config import get_tex_translation_config
 
 
+def _extract_detail(response: httpx.Response) -> str:
+	try:
+		body = response.json()
+	except ValueError:
+		return response.text
+	if isinstance(body, dict) and 'detail' in body:
+		return str(body['detail'])
+	return response.text
+
+
 class HttpTexTranslationGateway(ITexTranslationGateway):
 	"""Gateway implementation that delegates to the tex_translation microservice."""
 
@@ -27,8 +36,7 @@ class HttpTexTranslationGateway(ITexTranslationGateway):
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		target_language: TargetLanguage,
-		output_dir: str,
-	) -> str:
+	) -> bytes:
 		url = f'{self._base_url}/api/v1/translate/arxiv/{arxiv_paper_id.root}'
 		params = {'target_language': target_language.value}
 
@@ -44,7 +52,7 @@ class HttpTexTranslationGateway(ITexTranslationGateway):
 			raise TranslationFailedError(f'tex_translation request failed: {e}') from e
 
 		if response.status_code == 404:
-			detail = self._extract_detail(response)
+			detail = _extract_detail(response)
 			if 'No tex file found' in detail:
 				raise TexFileNotFoundError(arxiv_paper_id.root, detail=detail)
 			raise ArxivPaperNotFoundError(arxiv_paper_id.root)
@@ -53,25 +61,7 @@ class HttpTexTranslationGateway(ITexTranslationGateway):
 		if response.status_code >= 400:
 			raise TranslationFailedError(
 				f'tex_translation returned {response.status_code}: '
-				f'{self._extract_detail(response)}'
+				f'{_extract_detail(response)}'
 			)
 
-		# Write into a per-paper subdirectory so the caller can safely rmtree the
-		# parent once the PDF has been uploaded to long-term storage.
-		paper_dir = os.path.join(output_dir, arxiv_paper_id.root)
-		os.makedirs(paper_dir, exist_ok=True)
-		pdf_path = os.path.join(paper_dir, f'{arxiv_paper_id.root}_translated.pdf')
-		with open(pdf_path, 'wb') as f:
-			f.write(response.content)
-		self._logger.info('Saved translated PDF to %s', pdf_path)
-		return pdf_path
-
-	@staticmethod
-	def _extract_detail(response: httpx.Response) -> str:
-		try:
-			body = response.json()
-		except ValueError:
-			return response.text
-		if isinstance(body, dict) and 'detail' in body:
-			return str(body['detail'])
-		return response.text
+		return response.content
