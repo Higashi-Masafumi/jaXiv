@@ -9,7 +9,7 @@ from typing import Final
 import requests
 import yaml
 
-from domain.errors import TexFileNotFoundError
+from domain.errors import ArxivPaperNotFoundError, TexFileNotFoundError
 from domain.gateways import IArxivSourceFetcher
 from domain.value_objects import ArxivPaperId, CompileSetting
 
@@ -32,6 +32,8 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
 
         self._logger.info("Downloading tar source from %s", tar_src_url)
         response = requests.get(tar_src_url)
+        if response.status_code == 404:
+            raise ArxivPaperNotFoundError(paper_id.root)
         response.raise_for_status()
         with tarfile.open(fileobj=BytesIO(response.content), mode="r|gz") as tar:
             tar.extractall(path=source_dir)
