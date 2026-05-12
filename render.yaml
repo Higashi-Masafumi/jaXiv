@@ -14,11 +14,14 @@ services:
   - name: arxiv-translation-service
     type: web
     plan: free
-    runtime: docker
+    runtime: python
     repo: https://github.com/Higashi-Masafumi/jaXiv
-    dockerfilePath: Dockerfile.render
     rootDir: ./backend
+    buildCommand: pip install uv && uv sync
+    startCommand: uv run uvicorn main:app --host 0.0.0.0 --port 8000
     envVars:
+      - key: NIXPACKS_APT_PKGS
+        value: poppler-utils
       - key: LAYOUT_ANALYSIS_URL
         value: https://masamasa4-jaxiv-pdf-analysis.hf.space
       - key: TEX_TRANSLATION_URL
