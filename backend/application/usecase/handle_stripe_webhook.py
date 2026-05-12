@@ -6,8 +6,6 @@ from logging import getLogger
 from domain.entities.user_subscription import UserSubscription
 from domain.gateways.i_billing_gateway import (
 	IBillingGateway,
-	SubscriptionDeleted,
-	SubscriptionUpdated,
 )
 from domain.repositories.i_user_subscription_repository import (
 	IUserSubscriptionRepository,
@@ -35,7 +33,6 @@ class HandleStripeWebhookUseCase:
 
 		match effect.event_type:
 			case 'updated':
-				assert isinstance(effect, SubscriptionUpdated)
 				state = effect.state
 				existing = await self._repo.find_by_user_id(state.user_id)
 				await self._repo.upsert(
@@ -53,7 +50,6 @@ class HandleStripeWebhookUseCase:
 				)
 
 			case 'deleted':
-				assert isinstance(effect, SubscriptionDeleted)
 				existing = await self._repo.find_by_user_id(effect.user_id)
 				billing: BillingAccount | None = None
 				if existing and existing.billing is not None:

@@ -5,9 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class TexTranslationConfig(BaseSettings):
-	model_config = SettingsConfigDict(
-		env_file='.env', env_file_encoding='utf-8', extra='ignore'
-	)
+	model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 	tex_translation_url: str = Field(
 		default='http://localhost:8100',
 		description='Base URL of the tex_translation microservice',
