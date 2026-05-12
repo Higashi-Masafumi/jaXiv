@@ -1194,12 +1194,7 @@
       "MySubscriptionResponse": {
         "properties": {
           "plan": {
-            "type": "string",
-            "enum": [
-              "free",
-              "paid"
-            ],
-            "title": "Plan"
+            "$ref": "#/components/schemas/SubscriptionPlan"
           },
           "current_period_end": {
             "anyOf": [
@@ -1382,6 +1377,14 @@
           "url"
         ],
         "title": "RedirectUrlResponse"
+      },
+      "SubscriptionPlan": {
+        "type": "string",
+        "enum": [
+          "free",
+          "paid"
+        ],
+        "title": "SubscriptionPlan"
       },
       "TargetLanguage": {
         "type": "string",

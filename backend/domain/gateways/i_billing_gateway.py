@@ -6,6 +6,8 @@ from pydantic import BaseModel, ConfigDict, Discriminator, HttpUrl, Tag
 
 from domain.value_objects.user_id import UserId
 
+from domain.value_objects.subscription_plan import SubscriptionPlan
+
 
 class CheckoutSession(BaseModel):
 	model_config = ConfigDict(frozen=True)
@@ -28,7 +30,7 @@ class SubscriptionState(BaseModel):
 	user_id: UserId
 	stripe_customer_id: str
 	stripe_subscription_id: str
-	plan: Literal['free', 'paid']
+	plan: SubscriptionPlan
 	current_period_end: datetime | None
 	cancel_at_period_end: bool
 

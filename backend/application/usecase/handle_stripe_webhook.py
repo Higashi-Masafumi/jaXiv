@@ -11,6 +11,7 @@ from domain.repositories.i_user_subscription_repository import (
 	IUserSubscriptionRepository,
 )
 from domain.value_objects.billing_account import BillingAccount
+from domain.value_objects.subscription_plan import SubscriptionPlan
 
 
 class HandleStripeWebhookUseCase:
@@ -62,7 +63,7 @@ class HandleStripeWebhookUseCase:
 				await self._repo.upsert(
 					UserSubscription(
 						user_id=effect.user_id,
-						plan='free',
+						plan=SubscriptionPlan.FREE,
 						billing=billing,
 						created_at=existing.created_at if existing else datetime.now(UTC),
 					)

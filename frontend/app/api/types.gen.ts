@@ -228,10 +228,7 @@ export type HttpValidationError = {
  * MySubscriptionResponse
  */
 export type MySubscriptionResponse = {
-  /**
-   * Plan
-   */
-  plan: 'free' | 'paid'
+  plan: SubscriptionPlan
   /**
    * Current Period End
    */
@@ -347,6 +344,11 @@ export type RedirectUrlResponse = {
    */
   url: string
 }
+
+/**
+ * SubscriptionPlan
+ */
+export type SubscriptionPlan = 'free' | 'paid'
 
 /**
  * TargetLanguage
@@ -498,42 +500,6 @@ export type TranslateSyncApiV1TranslateArxivArxivPaperIdPostResponses = {
 
 export type TranslateSyncApiV1TranslateArxivArxivPaperIdPostResponse =
   TranslateSyncApiV1TranslateArxivArxivPaperIdPostResponses[keyof TranslateSyncApiV1TranslateArxivArxivPaperIdPostResponses]
-
-export type TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetData = {
-  body?: never
-  path: {
-    /**
-     * Arxiv Paper Id
-     *
-     * The ID of the paper
-     */
-    arxiv_paper_id: string
-  }
-  query: {
-    /**
-     * The target language
-     */
-    target_language: TargetLanguage
-  }
-  url: '/api/v1/translate/arxiv/{arxiv_paper_id}/stream'
-}
-
-export type TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
-
-export type TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetError =
-  TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetErrors[keyof TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetErrors]
-
-export type TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetResponses = {
-  /**
-   * Successful Response
-   */
-  200: unknown
-}
 
 export type ListBlogsApiV1BlogGetData = {
   body?: never

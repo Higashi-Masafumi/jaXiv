@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 from logging import getLogger
-from typing import Any, Literal
+from typing import Any
 
 import stripe
 from pydantic import HttpUrl
@@ -21,6 +21,7 @@ from domain.errors.domain_error import InvalidStripeSignatureError
 from domain.value_objects.user_id import UserId
 
 from .config import StripeConfig
+from domain.value_objects.subscription_plan import SubscriptionPlan
 
 
 class StripeBillingGateway(IBillingGateway):
@@ -146,7 +147,9 @@ class StripeBillingGateway(IBillingGateway):
 			self._logger.warning('Subscription %s has invalid user_id: %s', sub.id, raw_user_id)
 			return None
 
-		plan: Literal['free', 'paid'] = 'paid' if sub.status in {'active', 'trialing'} else 'free'
+		plan = (
+			SubscriptionPlan.PAID if sub.status in {'active', 'trialing'} else SubscriptionPlan.FREE
+		)
 		raw_period_end = sub.items.data[0].current_period_end if sub.items.data else None
 		current_period_end = (
 			datetime.fromtimestamp(raw_period_end, tz=UTC) if raw_period_end is not None else None
@@ -158,6 +161,6 @@ class StripeBillingGateway(IBillingGateway):
 				stripe_subscription_id=str(sub.id),
 				plan=plan,
 				current_period_end=current_period_end,
-				cancel_at_period_end=bool(sub.cancel_at_period_end),
-			),
+				cancel_at_period_end=sub.cancel_at_period_end,
+			)
 		)

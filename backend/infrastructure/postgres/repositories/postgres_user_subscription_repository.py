@@ -9,6 +9,7 @@ from sqlmodel import col
 from domain.entities.user_subscription import UserSubscription
 from domain.repositories import IUserSubscriptionRepository
 from domain.value_objects.billing_account import BillingAccount
+from domain.value_objects.subscription_plan import SubscriptionPlan
 from domain.value_objects.user_id import UserId
 
 from ..models import UserSubscriptionModel
@@ -28,7 +29,6 @@ class PostgresUserSubscriptionRepository(IUserSubscriptionRepository):
 		self._logger = getLogger(__name__)
 
 	def _to_entity(self, row: UserSubscriptionModel) -> UserSubscription:
-		plan = row.plan if row.plan in ('free', 'paid') else 'free'
 		billing: BillingAccount | None = None
 		if row.stripe_customer_id is not None:
 			billing = BillingAccount(
@@ -39,7 +39,7 @@ class PostgresUserSubscriptionRepository(IUserSubscriptionRepository):
 			)
 		return UserSubscription(
 			user_id=UserId(row.user_id),
-			plan=plan,  # type: ignore[arg-type]
+			plan=SubscriptionPlan(row.plan),
 			billing=billing,
 			created_at=row.created_at,
 			updated_at=row.updated_at,
@@ -58,7 +58,7 @@ class PostgresUserSubscriptionRepository(IUserSubscriptionRepository):
 		billing = subscription.billing
 		values = {
 			'user_id': subscription.user_id.root,
-			'plan': subscription.plan,
+			'plan': subscription.plan.value,
 			'stripe_customer_id': billing.customer_id if billing else None,
 			'stripe_subscription_id': billing.subscription_id if billing else None,
 			'current_period_end': billing.current_period_end if billing else None,
