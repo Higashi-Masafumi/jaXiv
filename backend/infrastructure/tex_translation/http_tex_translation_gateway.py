@@ -60,8 +60,7 @@ class HttpTexTranslationGateway(ITexTranslationGateway):
 			raise LatexCompilationTimeoutError(arxiv_paper_id.root)
 		if response.status_code >= 400:
 			raise TranslationFailedError(
-				f'tex_translation returned {response.status_code}: '
-				f'{_extract_detail(response)}'
+				f'tex_translation returned {response.status_code}: {_extract_detail(response)}'
 			)
 
 		return response.content

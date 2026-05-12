@@ -33,9 +33,7 @@ from controller.schemas.rag_response import (
 	RagSearchRequestSchema,
 	RagSearchTextResponseSchema,
 )
-from domain.errors.domain_error import GenerationLimitExceededError, PdfProcessingError
 from domain.value_objects.arxiv_paper_id import ArxivPaperId
-from domain.value_objects.blog_paper_id import InvalidBlogPaperIdError
 from infrastructure.dependencies import (
 	get_auth_user,
 	get_generate_blog_post,
@@ -103,20 +101,12 @@ async def generate_blog(
 ) -> BlogPostResponseSchema:
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
-	try:
-		blog_post = await generate_blog_post.execute(
-			arxiv_paper_id=paper_id,
-			output_dir=output_dir,
-			auth_user=auth_user,
-		)
-		return BlogPostResponseSchema.from_entity(blog_post)
-	except GenerationLimitExceededError as e:
-		raise HTTPException(
-			status_code=429,
-			detail={'reason': 'limit_exceeded', 'monthly': e.monthly_count},
-		) from e
-	except Exception as e:
-		raise HTTPException(status_code=500, detail=str(e)) from e
+	blog_post = await generate_blog_post.execute(
+		arxiv_paper_id=paper_id,
+		output_dir=output_dir,
+		auth_user=auth_user,
+	)
+	return BlogPostResponseSchema.from_entity(blog_post)
 
 
 @router.get('/arxiv/{arxiv_paper_id}/stream', response_class=EventSourceResponse)
@@ -153,17 +143,12 @@ async def rag_search_text(
 	body: RagSearchRequestSchema,
 	use_case: Annotated[RagSearchTextUseCase, Depends(get_rag_search_text_use_case)],
 ) -> RagSearchTextResponseSchema:
-	try:
-		result = await use_case.execute(
-			paper_id=paper_id,
-			query=body.query,
-			limit=body.limit,
-		)
-		return RagSearchTextResponseSchema.from_result(result)
-	except InvalidBlogPaperIdError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
-	except PdfProcessingError as e:
-		raise HTTPException(status_code=502, detail=str(e)) from e
+	result = await use_case.execute(
+		paper_id=paper_id,
+		query=body.query,
+		limit=body.limit,
+	)
+	return RagSearchTextResponseSchema.from_result(result)
 
 
 @router.post('/{paper_id}/rag/image', response_model=RagSearchImageResponseSchema)
@@ -172,17 +157,12 @@ async def rag_search_image(
 	body: RagSearchRequestSchema,
 	use_case: Annotated[RagSearchImageUseCase, Depends(get_rag_search_image_use_case)],
 ) -> RagSearchImageResponseSchema:
-	try:
-		result = await use_case.execute(
-			paper_id=paper_id,
-			query=body.query,
-			limit=body.limit,
-		)
-		return RagSearchImageResponseSchema.from_result(result)
-	except InvalidBlogPaperIdError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
-	except PdfProcessingError as e:
-		raise HTTPException(status_code=502, detail=str(e)) from e
+	result = await use_case.execute(
+		paper_id=paper_id,
+		query=body.query,
+		limit=body.limit,
+	)
+	return RagSearchImageResponseSchema.from_result(result)
 
 
 @router.get('/{paper_id}', response_model=BlogPostResponseSchema)
@@ -219,18 +199,10 @@ async def generate_blog_from_pdf(
 		tmp.write(content)
 		tmp.close()
 
-		try:
-			blog_post = await generate_blog_post_from_pdf.execute(
-				pdf_path=pdf_path, auth_user=auth_user
-			)
-			return BlogPostResponseSchema.from_entity(blog_post)
-		except GenerationLimitExceededError as e:
-			raise HTTPException(
-				status_code=429,
-				detail={'reason': 'limit_exceeded', 'monthly': e.monthly_count},
-			) from e
-		except Exception as e:
-			raise HTTPException(status_code=500, detail=str(e)) from e
+		blog_post = await generate_blog_post_from_pdf.execute(
+			pdf_path=pdf_path, auth_user=auth_user
+		)
+		return BlogPostResponseSchema.from_entity(blog_post)
 	finally:
 		pdf_path.unlink(missing_ok=True)
 

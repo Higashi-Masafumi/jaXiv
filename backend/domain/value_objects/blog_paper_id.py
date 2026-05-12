@@ -2,12 +2,12 @@
 
 from pydantic import ConfigDict, RootModel
 
-from domain.errors import DomainError
+from domain.errors import DomainBadRequestError
 from domain.value_objects.arxiv_paper_id import ArxivPaperId, InvalidArxivPaperIdError
 from domain.value_objects.pdf_paper_id import PdfPaperId, InvalidPdfPaperIdError
 
 
-class InvalidBlogPaperIdError(DomainError):
+class InvalidBlogPaperIdError(DomainBadRequestError):
 	"""パス上の文字列がどちらの論文 ID 形式にも合わないとき。"""
 
 

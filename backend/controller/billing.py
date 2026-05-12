@@ -10,7 +10,6 @@ from application.usecase import (
 	StartCheckoutUseCase,
 	StartCustomerPortalUseCase,
 )
-from application.usecase.start_customer_portal import NoBillingAccountError
 from domain.entities.auth_user import AuthUser
 from infrastructure.dependencies import (
 	get_get_my_subscription_use_case,
@@ -68,10 +67,7 @@ async def create_portal_session(
 	auth_user: Annotated[AuthUser, Depends(get_required_auth_user)],
 	use_case: Annotated[StartCustomerPortalUseCase, Depends(get_start_customer_portal_use_case)],
 ) -> RedirectUrlResponse:
-	try:
-		session = await use_case.execute(auth_user=auth_user)
-	except NoBillingAccountError as e:
-		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+	session = await use_case.execute(auth_user=auth_user)
 	return RedirectUrlResponse(url=session.url)
 
 
@@ -87,7 +83,4 @@ async def stripe_webhook(
 			detail='Missing Stripe signature header.',
 		)
 	payload = await request.body()
-	try:
-		await use_case.execute(payload=payload, signature=stripe_signature)
-	except ValueError as e:  # signature verification failure
-		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+	await use_case.execute(payload=payload, signature=stripe_signature)

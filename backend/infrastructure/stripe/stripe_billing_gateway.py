@@ -17,6 +17,7 @@ from domain.gateways.i_billing_gateway import (
 	SubscriptionUpdated,
 	WebhookEffect,
 )
+from domain.errors.domain_error import InvalidStripeSignatureError
 from domain.value_objects.user_id import UserId
 
 from .config import StripeConfig
@@ -82,7 +83,7 @@ class StripeBillingGateway(IBillingGateway):
 				secret=self._config.stripe_webhook_secret,
 			)
 		except stripe.SignatureVerificationError as e:
-			raise ValueError(f'Invalid Stripe signature: {e}') from e
+			raise InvalidStripeSignatureError(str(e)) from e
 
 		event_type: str = event.type
 		data_object = event.data.object

@@ -34,7 +34,5 @@ class SupabaseStorageRepository(IFileStorageRepository):
 			},
 		)
 		self._logger.info('Saved translated file %s', storage_path)
-		response_url = await supabase.storage.from_(self._bucket_name).get_public_url(
-			storage_path
-		)
+		response_url = await supabase.storage.from_(self._bucket_name).get_public_url(storage_path)
 		return response_url
