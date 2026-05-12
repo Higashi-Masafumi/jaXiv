@@ -13,6 +13,8 @@ from domain.errors import (
 	DomainNotFoundError,
 	DomainUnauthorizedError,
 	DomainUnexpectedError,
+	GenerationLimitExceededError,
+	PdfProcessingError,
 )
 
 
@@ -24,6 +26,15 @@ class ExceptionHandler(BaseHTTPMiddleware):
 	async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
 		try:
 			return await call_next(request)
+		except GenerationLimitExceededError as e:
+			self.logger.error(f'GenerationLimitExceededError: {e.detail}')
+			exc = HTTPException(
+				status_code=429,
+				detail={'reason': 'limit_exceeded', 'monthly': e.monthly_count},
+			)
+		except PdfProcessingError as e:
+			self.logger.error(f'PdfProcessingError: {e.detail}')
+			exc = HTTPException(status_code=502, detail=e.detail)
 		except DomainBadRequestError as e:
 			self.logger.error(f'DomainBadRequestError: {e.detail}')
 			exc = HTTPException(status_code=400, detail=e.detail)

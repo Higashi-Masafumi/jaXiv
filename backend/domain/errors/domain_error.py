@@ -1,4 +1,9 @@
-from domain.errors._base import DomainExhaustedError, DomainNotFoundError, DomainUnexpectedError
+from domain.errors._base import (
+	DomainBadRequestError,
+	DomainExhaustedError,
+	DomainNotFoundError,
+	DomainUnexpectedError,
+)
 
 
 class ArxivPaperNotFoundError(DomainNotFoundError):
@@ -66,3 +71,10 @@ class ChatThreadNotFoundError(DomainNotFoundError):
 	def __init__(self, thread_id: str):
 		super().__init__(f'Chat thread not found: {thread_id}')
 		self.thread_id = thread_id
+
+
+class InvalidStripeSignatureError(DomainBadRequestError):
+	"""Raised when Stripe webhook signature verification fails."""
+
+	def __init__(self, detail: str = ''):
+		super().__init__(f'Invalid Stripe signature: {detail}')
