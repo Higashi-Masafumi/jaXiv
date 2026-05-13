@@ -9,6 +9,7 @@ import {
   MessageSquareIcon,
   PlusIcon,
   SearchIcon,
+  SquareIcon,
   Trash2Icon,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -53,23 +54,27 @@ const dateFormatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short' })
 function ChatComposer(props: {
   value: string
   onChange: (v: string) => void
+  busy: boolean
   disabled: boolean
   onSubmit: () => void
 }) {
-  const { value, onChange, disabled, onSubmit } = props
+  const { value, onChange, busy, disabled, onSubmit } = props
+  const canSubmit = !busy && !disabled && value.trim().length > 0
 
   return (
     <form
       className="pointer-events-auto mx-3 mb-3 mt-1"
       onSubmit={e => {
         e.preventDefault()
+        if (!canSubmit) return
         onSubmit()
       }}
     >
       <div
         className={cn(
-          'flex min-w-0 items-end gap-1.5 rounded-2xl border border-border/70 bg-muted/60 px-2 py-1.5',
-          'shadow-md backdrop-blur-sm dark:bg-muted/40',
+          'flex min-w-0 items-end gap-1.5 rounded-2xl border border-chat-composer-border bg-chat-composer-surface px-2 py-1.5',
+          'shadow-sm backdrop-blur-sm transition-shadow',
+          'focus-within:border-ring/60 focus-within:shadow-md',
         )}
       >
         <Textarea
@@ -81,27 +86,33 @@ function ChatComposer(props: {
           aria-label="チャット入力（⌘+Enter または Ctrl+Enter で送信）"
           title="⌘+Enter（Windows は Ctrl+Enter）で送信"
           className={cn(
-            'min-h-10 min-w-0 flex-1 resize-none text-sm leading-relaxed',
+            'min-h-10 min-w-0 flex-1 resize-none text-[15px] leading-6 text-foreground placeholder:text-muted-foreground/80',
             'border-0 bg-transparent shadow-none',
             'outline-none focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-none',
-            'max-h-36 py-2',
+            'max-h-40 py-2',
           )}
           onKeyDown={e => {
             if (e.key !== 'Enter') return
             if (!e.metaKey && !e.ctrlKey) return
             if (e.nativeEvent.isComposing) return
             e.preventDefault()
+            if (!canSubmit) return
             onSubmit()
           }}
         />
         <Button
           type="submit"
           size="icon"
-          disabled={disabled || !value.trim()}
+          disabled={!canSubmit}
           className="size-9 shrink-0 rounded-full"
-          aria-label="送信"
+          aria-label={busy ? '生成中' : '送信'}
+          title={busy ? '生成中…' : '送信 (⌘+Enter)'}
         >
-          <ArrowUpIcon className="size-4" strokeWidth={2.25} />
+          {busy ? (
+            <SquareIcon className="size-3.5 fill-current" strokeWidth={0} />
+          ) : (
+            <ArrowUpIcon className="size-4" strokeWidth={2.25} />
+          )}
         </Button>
       </div>
     </form>
@@ -227,7 +238,12 @@ function AssistantMessage({
 }) {
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+      <div
+        className={cn(
+          'max-w-[88%] rounded-2xl border border-chat-assistant-border bg-chat-assistant-surface text-chat-assistant-foreground',
+          'px-4 py-3 text-[15px] leading-7 shadow-[0_1px_2px_rgb(0_0_0/0.02)]',
+        )}
+      >
         {message.content.map((block, i) => {
           if (block.type === 'text') {
             return (
@@ -270,7 +286,12 @@ function UserMessage({ message }: { message: PaperChatMessage }) {
   if (textBlocks.length === 0) return null
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
+      <div
+        className={cn(
+          'max-w-[80%] rounded-2xl bg-chat-user-surface text-chat-user-foreground',
+          'px-4 py-2.5 text-[15px] leading-6 shadow-sm',
+        )}
+      >
         {textBlocks.map((block, i) => (
           <MarkdownWithMath key={i} variant="primary">
             {block.text}
@@ -519,18 +540,18 @@ function ChatView(props: {
       )}
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-3 px-4 py-4">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6">
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-5">
               <div className="flex justify-end">
-                <Skeleton className="h-12 w-2/3 rounded-lg" />
+                <Skeleton className="h-14 w-2/3 rounded-2xl" />
               </div>
               <div className="flex justify-start">
-                <Skeleton className="h-12 w-2/3 rounded-lg" />
+                <Skeleton className="h-20 w-3/4 rounded-2xl" />
               </div>
             </div>
           ) : messages.length === 0 && !busy ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[15px] leading-7 text-muted-foreground">
               論文の内容について質問してください。
             </p>
           ) : (
@@ -549,8 +570,8 @@ function ChatView(props: {
 
           {isSubmitted && (
             <div className="flex justify-start">
-              <div className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                <Loader2Icon className="size-3 animate-spin" />
+              <div className="flex items-center gap-2 rounded-2xl border border-chat-assistant-border bg-chat-assistant-surface px-4 py-2.5 text-sm text-muted-foreground">
+                <Loader2Icon className="size-3.5 animate-spin" />
                 考え中…
               </div>
             </div>
@@ -561,12 +582,15 @@ function ChatView(props: {
       </ScrollArea>
 
       <div className="shrink-0 border-t border-border/40 bg-background/95 backdrop-blur-md">
-        <ChatComposer
-          value={input}
-          onChange={setInput}
-          disabled={busy || error?.code === 'chat_limit_exceeded'}
-          onSubmit={submitChat}
-        />
+        <div className="mx-auto w-full max-w-3xl">
+          <ChatComposer
+            value={input}
+            onChange={setInput}
+            busy={busy}
+            disabled={error?.code === 'chat_limit_exceeded'}
+            onSubmit={submitChat}
+          />
+        </div>
       </div>
     </>
   )
