@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1270 760">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#082f49"/>
+      <stop offset="1" stop-color="#0c4a6e"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#0369a1"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1270" height="760" fill="url(#bg)"/>
+
+  <text x="635" y="110" text-anchor="middle"
+        font-family="Inter, system-ui, sans-serif" font-size="56" font-weight="800"
+        letter-spacing="-2" fill="#ffffff">
+    研究を、もっと速く読む3つの方法
+  </text>
+  <text x="635" y="158" text-anchor="middle"
+        font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="500" fill="#7dd3fc">
+    jaXivは、論文の翻訳・整形・対話までを一つのワークフローに。
+  </text>
+
+  <!-- feature cards -->
+  <g font-family="Inter, system-ui, sans-serif">
+    <!-- card 1 -->
+    <g transform="translate(80,230)">
+      <rect width="350" height="420" rx="24" fill="#ffffff" opacity="0.06"/>
+      <rect width="350" height="420" rx="24" fill="none" stroke="#0ea5e9" stroke-opacity="0.4" stroke-width="2"/>
+      <g transform="translate(40,40)">
+        <rect width="68" height="68" rx="16" fill="url(#card)"/>
+        <text x="34" y="48" text-anchor="middle" font-size="36" font-weight="800" fill="#ffffff">A</text>
+      </g>
+      <text x="40" y="170" font-size="28" font-weight="800" fill="#ffffff">レイアウトを保つ翻訳</text>
+      <g font-size="18" font-weight="500" fill="#bae6fd">
+        <text x="40" y="220">arXivのソースをLaTeXで</text>
+        <text x="40" y="246">再コンパイル。</text>
+        <text x="40" y="290">図・数式・引用がズレない</text>
+        <text x="40" y="316">日本語PDFを生成します。</text>
+      </g>
+    </g>
+
+    <!-- card 2 -->
+    <g transform="translate(460,230)">
+      <rect width="350" height="420" rx="24" fill="#ffffff" opacity="0.06"/>
+      <rect width="350" height="420" rx="24" fill="none" stroke="#0ea5e9" stroke-opacity="0.4" stroke-width="2"/>
+      <g transform="translate(40,40)">
+        <rect width="68" height="68" rx="16" fill="url(#card)"/>
+        <g stroke="#ffffff" stroke-width="3" stroke-linecap="round" fill="none">
+          <path d="M16 30 H52 M16 42 H44 M16 54 H38"/>
+        </g>
+      </g>
+      <text x="40" y="170" font-size="28" font-weight="800" fill="#ffffff">論文とチャットする</text>
+      <g font-size="18" font-weight="500" fill="#bae6fd">
+        <text x="40" y="220">PDFをセクション単位で</text>
+        <text x="40" y="246">解析・インデックス化。</text>
+        <text x="40" y="290">「この式の意味は？」と</text>
+        <text x="40" y="316">日本語で問い合わせ可能。</text>
+      </g>
+    </g>
+
+    <!-- card 3 -->
+    <g transform="translate(840,230)">
+      <rect width="350" height="420" rx="24" fill="#ffffff" opacity="0.06"/>
+      <rect width="350" height="420" rx="24" fill="none" stroke="#0ea5e9" stroke-opacity="0.4" stroke-width="2"/>
+      <g transform="translate(40,40)">
+        <rect width="68" height="68" rx="16" fill="url(#card)"/>
+        <g stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round">
+          <path d="M20 50 L34 38 L46 46 L56 22"/>
+          <circle cx="20" cy="50" r="2.5" fill="#ffffff"/>
+          <circle cx="34" cy="38" r="2.5" fill="#ffffff"/>
+          <circle cx="46" cy="46" r="2.5" fill="#ffffff"/>
+          <circle cx="56" cy="22" r="2.5" fill="#ffffff"/>
+        </g>
+      </g>
+      <text x="40" y="170" font-size="28" font-weight="800" fill="#ffffff">ブログ化してシェア</text>
+      <g font-size="18" font-weight="500" fill="#bae6fd">
+        <text x="40" y="220">翻訳した論文を、Zenn風の</text>
+        <text x="40" y="246">読みやすいブログに整形。</text>
+        <text x="40" y="290">研究室内・SNSで知見を</text>
+        <text x="40" y="316">高速に流通させられます。</text>
+      </g>
+    </g>
+  </g>
+
+  <text x="635" y="720" text-anchor="middle"
+        font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600"
+        letter-spacing="3" fill="#7dd3fc">JAXIV.APP  ·  OPEN SOURCE</text>
+</svg>

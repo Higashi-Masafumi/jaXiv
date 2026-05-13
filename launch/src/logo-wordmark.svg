@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" role="img" aria-label="jaXiv">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#0369a1"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(20,20)">
+    <rect width="200" height="200" rx="44" fill="url(#bg2)"/>
+    <circle cx="100" cy="50" r="19" fill="#dc2626"/>
+    <path d="M84 78 h32 v82 a29 29 0 0 1 -29 29 h-16 a7 7 0 0 1 -7 -7 v-17 a7 7 0 0 1 7 -7 h11 a2 2 0 0 0 2 -2 Z" fill="#ffffff"/>
+  </g>
+
+  <text x="250" y="165"
+        font-family="Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-weight="800"
+        font-size="148"
+        letter-spacing="-4"
+        fill="#0f172a">ja<tspan fill="#0284c7">X</tspan>iv</text>
+</svg>
