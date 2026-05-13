@@ -62,9 +62,6 @@ import type {
   StripeWebhookApiV1BillingWebhookPostData,
   StripeWebhookApiV1BillingWebhookPostErrors,
   StripeWebhookApiV1BillingWebhookPostResponses,
-  TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetData,
-  TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetErrors,
-  TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetResponses,
   TranslateSyncApiV1TranslateArxivArxivPaperIdPostData,
   TranslateSyncApiV1TranslateArxivArxivPaperIdPostErrors,
   TranslateSyncApiV1TranslateArxivArxivPaperIdPostResponses,
@@ -105,23 +102,6 @@ export const translateSyncApiV1TranslateArxivArxivPaperIdPost = <
     TranslateSyncApiV1TranslateArxivArxivPaperIdPostErrors,
     ThrowOnError
   >({ url: '/api/v1/translate/arxiv/{arxiv_paper_id}', ...options })
-
-/**
- * Translate Stream
- */
-export const translateStreamApiV1TranslateArxivArxivPaperIdStreamGet = <
-  ThrowOnError extends boolean = false,
->(
-  options: Options<
-    TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetData,
-    ThrowOnError
-  >,
-) =>
-  (options.client ?? client).get<
-    TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetResponses,
-    TranslateStreamApiV1TranslateArxivArxivPaperIdStreamGetErrors,
-    ThrowOnError
-  >({ url: '/api/v1/translate/arxiv/{arxiv_paper_id}/stream', ...options })
 
 /**
  * List Blogs

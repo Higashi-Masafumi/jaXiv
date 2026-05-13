@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 from logging import getLogger
-from typing import Any, Literal
+from typing import Any
 
 import stripe
 from pydantic import HttpUrl
@@ -21,6 +21,7 @@ from domain.errors.domain_error import InvalidStripeSignatureError
 from domain.value_objects.user_id import UserId
 
 from .config import StripeConfig
+from domain.value_objects.subscription_plan import SubscriptionPlan
 
 
 class StripeBillingGateway(IBillingGateway):
@@ -88,25 +89,6 @@ class StripeBillingGateway(IBillingGateway):
 		event_type: str = event.type
 		data_object = event.data.object
 
-		if event_type in {
-			'checkout.session.completed',
-			'customer.subscription.created',
-			'customer.subscription.updated',
-		}:
-			subscription_id = (
-				data_object.subscription
-				if event_type == 'checkout.session.completed'
-				else data_object.id
-			)
-			if not subscription_id:
-				self._logger.warning(
-					'%s has no subscription id (event %s)',
-					event_type,
-					event.id,
-				)
-				return None
-			return self._resolve_subscription_updated(str(subscription_id))
-
 		if event_type == 'customer.subscription.deleted':
 			metadata = data_object.metadata.to_dict() if data_object.metadata else {}
 			raw_user_id: str = metadata.get('user_id', '')
@@ -122,21 +104,31 @@ class StripeBillingGateway(IBillingGateway):
 				self._logger.warning('Invalid user_id metadata: %s', raw_user_id)
 				return None
 
-		self._logger.debug('Stripe event type %s not handled', event_type)
-		return None
-
-	def _resolve_subscription_updated(
-		self,
-		subscription_id: str,
-	) -> SubscriptionUpdated | None:
-		try:
-			sub = stripe.Subscription.retrieve(subscription_id)
-		except stripe.StripeError:
-			self._logger.exception('Failed to fetch Stripe subscription %s', subscription_id)
+		if event_type == 'checkout.session.completed':
+			subscription_id = data_object.subscription
+			if not subscription_id:
+				self._logger.warning(
+					'checkout.session.completed has no subscription id (event %s)',
+					event.id,
+				)
+				return None
+			try:
+				sub = stripe.Subscription.retrieve(str(subscription_id))
+			except stripe.StripeError:
+				self._logger.exception('Failed to fetch Stripe subscription %s', subscription_id)
+				return None
+		elif event_type in {
+			'customer.subscription.created',
+			'customer.subscription.updated',
+		}:
+			self._logger.info('Stripe event type %s: %s', event_type, data_object)
+			sub = data_object
+		else:
+			self._logger.debug('Stripe event type %s not handled', event_type)
 			return None
 
 		metadata = sub.metadata.to_dict() if sub.metadata else {}
-		raw_user_id: str = metadata.get('user_id', '')
+		raw_user_id = metadata.get('user_id', '')
 		if not raw_user_id:
 			self._logger.warning('Subscription %s has no user_id metadata', sub.id)
 			return None
@@ -146,7 +138,9 @@ class StripeBillingGateway(IBillingGateway):
 			self._logger.warning('Subscription %s has invalid user_id: %s', sub.id, raw_user_id)
 			return None
 
-		plan: Literal['free', 'paid'] = 'paid' if sub.status in {'active', 'trialing'} else 'free'
+		plan = (
+			SubscriptionPlan.PAID if sub.status in {'active', 'trialing'} else SubscriptionPlan.FREE
+		)
 		raw_period_end = sub.items.data[0].current_period_end if sub.items.data else None
 		current_period_end = (
 			datetime.fromtimestamp(raw_period_end, tz=UTC) if raw_period_end is not None else None
@@ -158,6 +152,8 @@ class StripeBillingGateway(IBillingGateway):
 				stripe_subscription_id=str(sub.id),
 				plan=plan,
 				current_period_end=current_period_end,
-				cancel_at_period_end=bool(sub.cancel_at_period_end),
-			),
+				cancel_at_period_end=bool(sub.cancel_at_period_end)
+				or sub.cancel_at
+				is not None,  # billing modeがflexibleの場合はcancel_at_period_endがFalseになる
+			)
 		)

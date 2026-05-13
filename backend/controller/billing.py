@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, HttpUrl
@@ -11,6 +11,7 @@ from application.usecase import (
 	StartCustomerPortalUseCase,
 )
 from domain.entities.auth_user import AuthUser
+from domain.value_objects.subscription_plan import SubscriptionPlan
 from infrastructure.dependencies import (
 	get_get_my_subscription_use_case,
 	get_handle_stripe_webhook_use_case,
@@ -23,7 +24,7 @@ router = APIRouter(prefix='/api/v1/billing')
 
 
 class MySubscriptionResponse(BaseModel):
-	plan: Literal['free', 'paid']
+	plan: SubscriptionPlan
 	current_period_end: str | None
 	cancel_at_period_end: bool
 	has_billing_account: bool
