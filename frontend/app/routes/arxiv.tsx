@@ -1,10 +1,30 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 import { useAuth } from '~/contexts/auth-context'
 import { useBlogStream } from '../hooks/use-blog-stream'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormControl,
+  FormMessage,
+} from '../components/ui/form'
+
+const arxivIdSchema = z.object({
+  paperId: z
+    .string()
+    .trim()
+    .regex(
+      /^\d{4}\.\d{4,5}(v\d+)?$/,
+      '有効なarXiv IDを入力してください（例: 2301.00001）',
+    ),
+})
 
 export function meta() {
   return [
@@ -21,18 +41,19 @@ export default function Arxiv() {
   const { isAnonymous, isPaid, signInWithGoogle } = useAuth()
   const { status, steps, error, paperId, startArxivStream } = useBlogStream()
 
+  const form = useForm<z.infer<typeof arxivIdSchema>>({
+    resolver: zodResolver(arxivIdSchema),
+    defaultValues: { paperId: '' },
+  })
+
   useEffect(() => {
     if (status === 'complete' && paperId) {
       navigate(`/blog/${paperId}`)
     }
   }, [status, paperId, navigate])
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const id =
-      new FormData(e.currentTarget).get('paperId')?.toString().trim() ?? ''
-    if (!id) return
-    startArxivStream(id)
+  function handleSubmit(values: z.infer<typeof arxivIdSchema>) {
+    startArxivStream(values.paperId)
   }
 
   const isStreaming = status === 'streaming'
@@ -59,82 +80,95 @@ export default function Arxiv() {
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="w-full rounded-2xl border border-hero-card-border/70 bg-hero-card/80 p-5 shadow-2xl backdrop-blur-sm sm:p-6"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Input
-              type="text"
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="w-full rounded-2xl border border-hero-card-border/70 bg-hero-card/80 p-5 shadow-2xl backdrop-blur-sm sm:p-6"
+          >
+            <FormField
+              control={form.control}
               name="paperId"
-              placeholder="arXiv ID（例: 2301.00001）"
-              disabled={isStreaming}
-              className="border-input bg-background text-foreground placeholder:text-muted-foreground sm:flex-1"
-            />
-            <Button
-              type="submit"
-              disabled={isStreaming}
-              className="bg-hero-accent font-semibold text-primary-foreground transition-colors hover:bg-hero-accent/90 sm:w-40"
-            >
-              {isStreaming ? '生成中...' : 'ブログを生成'}
-            </Button>
-          </div>
-
-          {steps.length > 0 && (
-            <ul className="mt-4 space-y-1.5 text-sm">
-              {steps.map((step, i) => (
-                <li
-                  key={i}
-                  className={`flex items-center gap-2 transition-opacity ${step.done ? 'text-muted-foreground' : 'text-foreground'}`}
-                >
-                  {step.done ? (
-                    <span className="text-hero-accent">✓</span>
-                  ) : (
-                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-hero-accent border-t-transparent" />
-                  )}
-                  <span className={step.done ? 'line-through' : ''}>
-                    {step.message}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {error === 'limit_exceeded' ? (
-            <div className="mt-3 rounded-lg border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
-              {isAnonymous ? (
-                <span>
-                  今月の無料生成回数（3回）を使い切りました。
-                  <button
-                    type="button"
-                    onClick={signInWithGoogle}
-                    className="ml-1 font-semibold underline underline-offset-2"
-                  >
-                    Googleでログイン
-                  </button>
-                  すると月10回まで生成できます。
-                </span>
-              ) : isPaid ? (
-                <span>
-                  今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
-                </span>
-              ) : (
-                <span>
-                  今月の生成回数（10回）を使い切りました。
-                  <Link
-                    to="/pricing"
-                    className="ml-1 font-semibold underline underline-offset-2"
-                  >
-                    有料プランにアップグレード
-                  </Link>
-                  すると月100回まで生成できます。
-                </span>
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="arXiv ID（例: 2301.00001）"
+                        disabled={isStreaming}
+                        className="border-input bg-background text-foreground placeholder:text-muted-foreground sm:flex-1"
+                        {...field}
+                      />
+                    </FormControl>
+                    <Button
+                      type="submit"
+                      disabled={isStreaming}
+                      className="bg-hero-accent font-semibold text-primary-foreground transition-colors hover:bg-hero-accent/90 sm:w-40"
+                    >
+                      {isStreaming ? '生成中...' : 'ブログを生成'}
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
-          ) : error ? (
-            <p className="mt-3 text-sm text-destructive">{error}</p>
-          ) : null}
-        </form>
+            />
+
+            {steps.length > 0 && (
+              <ul className="mt-4 space-y-1.5 text-sm">
+                {steps.map((step, i) => (
+                  <li
+                    key={i}
+                    className={`flex items-center gap-2 transition-opacity ${step.done ? 'text-muted-foreground' : 'text-foreground'}`}
+                  >
+                    {step.done ? (
+                      <span className="text-hero-accent">✓</span>
+                    ) : (
+                      <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-hero-accent border-t-transparent" />
+                    )}
+                    <span className={step.done ? 'line-through' : ''}>
+                      {step.message}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {error === 'limit_exceeded' ? (
+              <div className="mt-3 rounded-lg border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
+                {isAnonymous ? (
+                  <span>
+                    今月の無料生成回数（3回）を使い切りました。
+                    <button
+                      type="button"
+                      onClick={signInWithGoogle}
+                      className="ml-1 font-semibold underline underline-offset-2"
+                    >
+                      Googleでログイン
+                    </button>
+                    すると月10回まで生成できます。
+                  </span>
+                ) : isPaid ? (
+                  <span>
+                    今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
+                  </span>
+                ) : (
+                  <span>
+                    今月の生成回数（10回）を使い切りました。
+                    <Link
+                      to="/pricing"
+                      className="ml-1 font-semibold underline underline-offset-2"
+                    >
+                      有料プランにアップグレード
+                    </Link>
+                    すると月100回まで生成できます。
+                  </span>
+                )}
+              </div>
+            ) : error ? (
+              <p className="mt-3 text-sm text-destructive">{error}</p>
+            ) : null}
+          </form>
+        </Form>
       </section>
     </main>
   )
