@@ -62,6 +62,14 @@ body {
   --color-hero-accent-secondary-soft: var(--secondary);
   --color-hero-card: var(--card);
   --color-hero-card-border: var(--border);
+  /* Chat semantic tokens (resolve to brand tokens above) */
+  --color-chat-user-surface: var(--chat-user-surface);
+  --color-chat-user-foreground: var(--chat-user-foreground);
+  --color-chat-assistant-surface: var(--chat-assistant-surface);
+  --color-chat-assistant-foreground: var(--chat-assistant-foreground);
+  --color-chat-assistant-border: var(--chat-assistant-border);
+  --color-chat-composer-surface: var(--chat-composer-surface);
+  --color-chat-composer-border: var(--chat-composer-border);
 }
 
 :root {
@@ -97,6 +105,14 @@ body {
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Chat brand → semantic mapping (light) */
+  --chat-user-surface: var(--primary);
+  --chat-user-foreground: var(--primary-foreground);
+  --chat-assistant-surface: oklch(0.985 0 0);
+  --chat-assistant-foreground: var(--foreground);
+  --chat-assistant-border: oklch(0.922 0 0);
+  --chat-composer-surface: oklch(0.99 0 0);
+  --chat-composer-border: oklch(0.9 0 0);
 }
 
 .dark {
@@ -131,6 +147,14 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* Chat brand → semantic mapping (dark) */
+  --chat-user-surface: oklch(0.6 0.13 240);
+  --chat-user-foreground: oklch(0.985 0 0);
+  --chat-assistant-surface: oklch(0.225 0 0);
+  --chat-assistant-foreground: var(--foreground);
+  --chat-assistant-border: oklch(1 0 0 / 8%);
+  --chat-composer-surface: oklch(0.205 0 0);
+  --chat-composer-border: oklch(1 0 0 / 12%);
 }
 
 @layer base {
