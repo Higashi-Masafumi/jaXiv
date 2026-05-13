@@ -88,7 +88,7 @@ const markdownComponents: NonNullable<
 type MarkdownWithMathProps = {
   children: string
   className?: string
-  /** ユーザー吹き出し（primary 背景）用の KaTeX 色 */
+  /** ユーザー吹き出し（chat-user-surface 背景）用の文字・KaTeX 色 */
   variant?: 'default' | 'primary'
 }
 
@@ -108,8 +108,8 @@ export function MarkdownWithMath({
         '[&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:mt-3 [&_h3]:mb-1.5',
         variant === 'default' && 'text-foreground',
         variant === 'primary' && [
-          'prose-invert text-primary-foreground',
-          '[&_.katex]:text-primary-foreground',
+          'prose-invert text-chat-user-foreground',
+          '[&_.katex]:text-chat-user-foreground',
         ],
         className,
       )}
