@@ -20,7 +20,10 @@ const arxivIdSchema = z.object({
   paperId: z
     .string()
     .trim()
-    .regex(/^\d{4}\.\d{4,5}(v\d+)?$/, '有効なarXiv IDを入力してください（例: 2301.00001）'),
+    .regex(
+      /^\d{4}\.\d{4,5}(v\d+)?$/,
+      '有効なarXiv IDを入力してください（例: 2301.00001）',
+    ),
 })
 
 export function meta() {
@@ -110,60 +113,60 @@ export default function Arxiv() {
               )}
             />
 
-          {steps.length > 0 && (
-            <ul className="mt-4 space-y-1.5 text-sm">
-              {steps.map((step, i) => (
-                <li
-                  key={i}
-                  className={`flex items-center gap-2 transition-opacity ${step.done ? 'text-muted-foreground' : 'text-foreground'}`}
-                >
-                  {step.done ? (
-                    <span className="text-hero-accent">✓</span>
-                  ) : (
-                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-hero-accent border-t-transparent" />
-                  )}
-                  <span className={step.done ? 'line-through' : ''}>
-                    {step.message}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+            {steps.length > 0 && (
+              <ul className="mt-4 space-y-1.5 text-sm">
+                {steps.map((step, i) => (
+                  <li
+                    key={i}
+                    className={`flex items-center gap-2 transition-opacity ${step.done ? 'text-muted-foreground' : 'text-foreground'}`}
+                  >
+                    {step.done ? (
+                      <span className="text-hero-accent">✓</span>
+                    ) : (
+                      <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-hero-accent border-t-transparent" />
+                    )}
+                    <span className={step.done ? 'line-through' : ''}>
+                      {step.message}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-          {error === 'limit_exceeded' ? (
-            <div className="mt-3 rounded-lg border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
-              {isAnonymous ? (
-                <span>
-                  今月の無料生成回数（3回）を使い切りました。
-                  <button
-                    type="button"
-                    onClick={signInWithGoogle}
-                    className="ml-1 font-semibold underline underline-offset-2"
-                  >
-                    Googleでログイン
-                  </button>
-                  すると月10回まで生成できます。
-                </span>
-              ) : isPaid ? (
-                <span>
-                  今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
-                </span>
-              ) : (
-                <span>
-                  今月の生成回数（10回）を使い切りました。
-                  <Link
-                    to="/pricing"
-                    className="ml-1 font-semibold underline underline-offset-2"
-                  >
-                    有料プランにアップグレード
-                  </Link>
-                  すると月100回まで生成できます。
-                </span>
-              )}
-            </div>
-          ) : error ? (
-            <p className="mt-3 text-sm text-destructive">{error}</p>
-          ) : null}
+            {error === 'limit_exceeded' ? (
+              <div className="mt-3 rounded-lg border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
+                {isAnonymous ? (
+                  <span>
+                    今月の無料生成回数（3回）を使い切りました。
+                    <button
+                      type="button"
+                      onClick={signInWithGoogle}
+                      className="ml-1 font-semibold underline underline-offset-2"
+                    >
+                      Googleでログイン
+                    </button>
+                    すると月10回まで生成できます。
+                  </span>
+                ) : isPaid ? (
+                  <span>
+                    今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
+                  </span>
+                ) : (
+                  <span>
+                    今月の生成回数（10回）を使い切りました。
+                    <Link
+                      to="/pricing"
+                      className="ml-1 font-semibold underline underline-offset-2"
+                    >
+                      有料プランにアップグレード
+                    </Link>
+                    すると月100回まで生成できます。
+                  </span>
+                )}
+              </div>
+            ) : error ? (
+              <p className="mt-3 text-sm text-destructive">{error}</p>
+            ) : null}
           </form>
         </Form>
       </section>
