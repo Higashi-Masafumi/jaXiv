@@ -11,7 +11,9 @@
       "WebFetch",
       "Bash",
       "Write",
-      "Edit"
+      "Edit",
+      "mcp__playwright",
+      "mcp__playwright__*"
     ]
   },
   "hooks": {
