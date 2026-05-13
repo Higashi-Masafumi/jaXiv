@@ -24,6 +24,7 @@
     "@ai-sdk/react": "^3.0.147",
     "@hey-api/client-fetch": "^0.13.1",
     "@hey-api/openapi-ts": "^0.94.5",
+    "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-slot": "^1.2.4",
     "@react-router/node": "^7.9.2",
     "@react-router/serve": "^7.9.2",
@@ -35,6 +36,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-hook-form": "^7.75.0",
     "react-markdown": "^10.1.0",
     "react-pdf": "^10.4.1",
     "react-resizable-panels": "^4.9.0",
@@ -47,7 +49,8 @@
     "workers-ai-provider": "^3.1.9",
     "zenn-content-css": "^0.4.7",
     "zenn-embed-elements": "^0.4.7",
-    "zenn-markdown-html": "^0.4.7"
+    "zenn-markdown-html": "^0.4.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.1",
