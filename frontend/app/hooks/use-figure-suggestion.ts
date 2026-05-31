@@ -22,11 +22,8 @@ const INITIAL_STATE: FigureSuggestState = {
  * `submit(query)` runs the search; `isPending` tracks the in-flight request.
  */
 export function useFigureSuggestion() {
-  const [state, submit, isPending] = useActionState(
-    async (
-      _prev: FigureSuggestState,
-      query: string,
-    ): Promise<FigureSuggestState> => {
+  const [state, submit, isPending] = useActionState<FigureSuggestState, string>(
+    async (_prev, query) => {
       const { data, error } = await suggestFiguresApiV1FiguresSuggestPost({
         body: { query, limit: 24 },
       })
