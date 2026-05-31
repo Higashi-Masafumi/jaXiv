@@ -32,14 +32,22 @@ def get_onnx_session() -> InferenceSession:
 def get_nomic_image_embedding_gateway() -> NomicImageEmbeddingGateway:
     # local_files_only=True: HF hub が再ダウンロードして n_inner=2048.0(float) に戻るのを防ぐ
     processor = AutoImageProcessor.from_pretrained(NOMIC_VISION_MODEL)
-    model = AutoModel.from_pretrained(NOMIC_VISION_MODEL, trust_remote_code=True)
+    # low_cpu_mem_usage=False: nomic のカスタム modeling は meta デバイス上の重みを
+    # in-place copy で読み込むため no-op になり meta のまま残る。実体化を強制する
+    model = AutoModel.from_pretrained(
+        NOMIC_VISION_MODEL, trust_remote_code=True, low_cpu_mem_usage=False
+    )
     return NomicImageEmbeddingGateway(model=model, processor=processor)
 
 
 @lru_cache
 def get_nomic_text_embedding_gateway() -> NomicTextEmbeddingGateway:
     tokenizer = AutoTokenizer.from_pretrained(NOMIC_TEXT_MODEL, trust_remote_code=True)
-    model = AutoModel.from_pretrained(NOMIC_TEXT_MODEL, trust_remote_code=True)
+    # low_cpu_mem_usage=False: nomic のカスタム modeling は meta デバイス上の重みを
+    # in-place copy で読み込むため no-op になり meta のまま残る。実体化を強制する
+    model = AutoModel.from_pretrained(
+        NOMIC_TEXT_MODEL, trust_remote_code=True, low_cpu_mem_usage=False
+    )
     return NomicTextEmbeddingGateway(model=model, tokenizer=tokenizer)
 
 
