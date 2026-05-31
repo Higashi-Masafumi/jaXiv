@@ -1,5 +1,6 @@
 import { FileTextIcon } from 'lucide-react'
 
+import { Button } from '~/components/ui/button'
 import type { FigureSuggestionItem } from '~/hooks/use-figure-suggestion'
 
 type FigureCardProps = {
@@ -9,10 +10,10 @@ type FigureCardProps = {
 
 export function FigureCard({ item, onSelect }: FigureCardProps) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
       onClick={() => onSelect(item)}
-      className="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative mb-4 block h-auto w-full break-inside-avoid overflow-hidden whitespace-normal rounded-xl border border-border bg-card p-0 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-card hover:shadow-xl"
     >
       <img
         src={item.image_url}
@@ -33,6 +34,6 @@ export function FigureCard({ item, onSelect }: FigureCardProps) {
           <span className="shrink-0">· p.{item.page_number}</span>
         </div>
       </div>
-    </button>
+    </Button>
   )
 }

@@ -4,11 +4,10 @@ from typing import Final
 
 from google import genai
 from google.genai import errors as genai_errors
-from google.genai import types
 from pydantic import BaseModel, Field
 from tenacity import (
-	AsyncRetrying,
 	before_sleep_log,
+	retry,
 	retry_if_exception_type,
 	stop_after_attempt,
 	wait_exponential,
@@ -16,6 +15,8 @@ from tenacity import (
 
 from domain.gateways import IFigureQueryGenerator
 from infrastructure.gemini.config import get_gemini_config
+
+logger = getLogger(__name__)
 
 
 class FigureQueriesResponse(BaseModel):
@@ -40,7 +41,6 @@ class GeminiFigureQueryGenerator(IFigureQueryGenerator):
 
 	def __init__(self, model: str = 'gemini-2.5-flash'):
 		self.client = genai.Client(api_key=gemini_config.gemini_api_key.get_secret_value())
-		self.logger = getLogger(__name__)
 		self.model: Final[str] = model
 
 	@property
@@ -60,13 +60,20 @@ class GeminiFigureQueryGenerator(IFigureQueryGenerator):
 - 指定された個数だけ生成すること
 """
 
+	@retry(
+		retry=retry_if_exception_type(genai_errors.ServerError),
+		stop=stop_after_attempt(5),
+		wait=wait_exponential(multiplier=1, min=2, max=16),
+		before_sleep=before_sleep_log(logger, logging.WARNING),
+		reraise=True,
+	)
 	async def generate_queries(self, user_input: str, n: int = 4) -> list[str]:
 		user_prompt = (
 			f'# ユーザーの入力\n{user_input}\n\n'
 			f'上記の内容を参考にできる図を探すための検索クエリを {n} 個生成してください。'
 		)
-		self.logger.info('Generating %d figure search queries with %s', n, self.model)
-		response = await self._generate_with_retry(
+		logger.info('Generating %d figure search queries with %s', n, self.model)
+		response = await self.client.aio.models.generate_content(
 			model=self.model,
 			config={
 				'system_instruction': self.system_prompt,
@@ -85,16 +92,3 @@ class GeminiFigureQueryGenerator(IFigureQueryGenerator):
 				seen.add(query.lower())
 				queries.append(query)
 		return queries[:n]
-
-	async def _generate_with_retry(self, **kwargs: object) -> types.GenerateContentResponse:
-		"""Call generate_content with exponential backoff on ServerError (e.g. 503)."""
-		async for attempt in AsyncRetrying(
-			retry=retry_if_exception_type(genai_errors.ServerError),
-			stop=stop_after_attempt(5),
-			wait=wait_exponential(multiplier=1, min=2, max=16),
-			before_sleep=before_sleep_log(self.logger, logging.WARNING),
-			reraise=True,
-		):
-			with attempt:
-				return await self.client.aio.models.generate_content(**kwargs)  # type: ignore[arg-type]
-		raise RuntimeError('Unreachable')  # pragma: no cover

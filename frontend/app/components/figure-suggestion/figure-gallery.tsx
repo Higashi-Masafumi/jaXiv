@@ -1,16 +1,16 @@
 import { ImageOffIcon } from 'lucide-react'
 
 import { Skeleton } from '~/components/ui/skeleton'
+import { cn } from '~/lib/utils'
 import type { FigureSuggestionItem } from '~/hooks/use-figure-suggestion'
 
 import { FigureCard } from './figure-card'
 
 const MASONRY_CLASS = 'columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4'
 
-// Varied heights so the skeleton reads as a masonry layout while loading.
-const SKELETON_HEIGHTS = [
-  220, 320, 180, 260, 300, 200, 340, 240, 280, 190, 320, 230,
-]
+const SKELETON_COUNT = 8
+// Cycled aspect ratios so the loading state reads as a masonry layout.
+const SKELETON_ASPECTS = ['aspect-square', 'aspect-[3/4]', 'aspect-[4/3]']
 
 type FigureGalleryProps = {
   items: FigureSuggestionItem[]
@@ -26,11 +26,13 @@ export function FigureGallery({
   if (isLoading) {
     return (
       <div className={MASONRY_CLASS}>
-        {SKELETON_HEIGHTS.map((height, i) => (
+        {Array.from({ length: SKELETON_COUNT }, (_, i) => (
           <Skeleton
             key={i}
-            className="mb-4 w-full rounded-xl"
-            style={{ height }}
+            className={cn(
+              'mb-4 w-full rounded-xl',
+              SKELETON_ASPECTS[i % SKELETON_ASPECTS.length],
+            )}
           />
         ))}
       </div>

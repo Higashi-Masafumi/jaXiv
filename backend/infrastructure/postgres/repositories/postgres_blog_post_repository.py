@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from logging import getLogger
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -100,13 +100,25 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		result = await self._session.execute(statement)
 		return result.scalar_one()
 
-	async def find_titles_by_paper_ids(self, paper_ids: list[str]) -> dict[str, str]:
-		"""Return a mapping of paper_id to title for the given paper IDs."""
+	async def find_accessible_titles_by_paper_ids(
+		self, paper_ids: list[str], user_id: UserId
+	) -> dict[str, str]:
+		"""Return paper_id -> title for papers the given user may access.
+
+		Accessible papers are public arXiv posts or PDF posts owned by ``user_id``.
+		Other users' private PDF posts and unknown paper IDs are omitted.
+		"""
 		if not paper_ids:
 			return {}
 		statement = select(
 			col(BlogPostContentModel.paper_id), col(BlogPostContentModel.title)
-		).where(col(BlogPostContentModel.paper_id).in_(paper_ids))
+		).where(
+			col(BlogPostContentModel.paper_id).in_(paper_ids),
+			or_(
+				col(BlogPostContentModel.source_type) == 'arxiv',
+				col(BlogPostContentModel.user_id) == user_id.root,
+			),
+		)
 		result = await self._session.execute(statement)
 		return {paper_id: (title or '') for paper_id, title in result.all()}
 

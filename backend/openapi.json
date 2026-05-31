@@ -825,7 +825,7 @@
     "/api/v1/figures/suggest": {
       "post": {
         "summary": "Suggest Figures",
-        "description": "Suggest reference figures across all papers from a free-form description.",
+        "description": "Suggest reference figures across all papers from a free-form description.\n\nOnly figures from public arXiv papers and the requester's own PDF papers are\nreturned, mirroring the blog post visibility rules.",
         "operationId": "suggest_figures_api_v1_figures_suggest_post",
         "requestBody": {
           "content": {

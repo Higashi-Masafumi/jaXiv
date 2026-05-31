@@ -9,17 +9,14 @@ export type FigureSuggestionItem = FigureSuggestionItemSchema
 
 export function useFigureSuggestion() {
   const [status, setStatus] = useState<FigureSuggestStatus>('idle')
-  const [queries, setQueries] = useState<string[]>([])
   const [items, setItems] = useState<FigureSuggestionItem[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [lastQuery, setLastQuery] = useState<string>('')
 
   const suggest = useCallback(async (query: string) => {
     const trimmed = query.trim()
     if (!trimmed) return
     setStatus('loading')
     setError(null)
-    setLastQuery(trimmed)
 
     const { data, error: requestError } =
       await suggestFiguresApiV1FiguresSuggestPost({
@@ -36,18 +33,9 @@ export function useFigureSuggestion() {
       return
     }
 
-    setQueries(data.queries)
     setItems(data.items)
     setStatus('success')
   }, [])
 
-  const reset = useCallback(() => {
-    setStatus('idle')
-    setQueries([])
-    setItems([])
-    setError(null)
-    setLastQuery('')
-  }, [])
-
-  return { status, queries, items, error, lastQuery, suggest, reset }
+  return { status, items, error, suggest }
 }

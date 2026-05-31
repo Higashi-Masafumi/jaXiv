@@ -24,12 +24,18 @@ export function meta() {
 
 export default function Figures() {
   const { isAnonymous, signInWithGoogle } = useAuth()
-  const { status, queries, items, error, suggest } = useFigureSuggestion()
+  const { status, items, error, suggest } = useFigureSuggestion()
   const [activeQuery, setActiveQuery] = useState<string | null>(null)
   const [selected, setSelected] = useState<FigureSuggestionItem | null>(null)
 
   const isLoading = status === 'loading'
-  const hasResults = status === 'success' || status === 'error'
+
+  // The AI-generated queries that actually surfaced figures, derived from the
+  // results so we never show a chip that filters down to nothing.
+  const queries = useMemo(
+    () => [...new Set(items.map(item => item.matched_query))],
+    [items],
+  )
 
   const visibleItems = useMemo(
     () =>
@@ -74,7 +80,7 @@ export default function Figures() {
         )}
       </section>
 
-      {hasResults && status === 'success' && (
+      {status === 'success' && (
         <section className="mx-auto mt-10 flex w-full max-w-7xl flex-col gap-5">
           <FigureQueryChips
             queries={queries}
