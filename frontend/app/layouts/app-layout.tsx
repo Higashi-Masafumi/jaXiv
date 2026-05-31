@@ -5,6 +5,7 @@ import {
   ChevronRightIcon,
   CrownIcon,
   FileTextIcon,
+  ImagesIcon,
   LogInIcon,
   LogOutIcon,
   ScaleIcon,
@@ -41,6 +42,7 @@ const NAV_ITEMS = [
   { title: 'arXiv', url: '/', icon: SparklesIcon },
   { title: 'PDF', url: '/pdf', icon: FileTextIcon },
   { title: 'ブログ一覧', url: '/blog', icon: ArchiveIcon },
+  { title: '図面提案', url: '/figures', icon: ImagesIcon },
 ] as const
 
 function AppSidebar() {

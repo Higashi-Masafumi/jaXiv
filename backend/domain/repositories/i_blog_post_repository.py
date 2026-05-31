@@ -14,6 +14,11 @@ class IBlogPostRepository(ABC):
 		...
 
 	@abstractmethod
+	async def find_titles_by_paper_ids(self, paper_ids: list[str]) -> dict[str, str]:
+		"""Return a mapping of paper_id to title for the given paper IDs."""
+		...
+
+	@abstractmethod
 	async def find_all(self, page: int, page_size: int) -> list[BlogPost]:
 		"""Find arXiv blog posts ordered by created_at descending with pagination."""
 		...

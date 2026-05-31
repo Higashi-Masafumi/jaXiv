@@ -100,6 +100,16 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		result = await self._session.execute(statement)
 		return result.scalar_one()
 
+	async def find_titles_by_paper_ids(self, paper_ids: list[str]) -> dict[str, str]:
+		"""Return a mapping of paper_id to title for the given paper IDs."""
+		if not paper_ids:
+			return {}
+		statement = select(
+			col(BlogPostContentModel.paper_id), col(BlogPostContentModel.title)
+		).where(col(BlogPostContentModel.paper_id).in_(paper_ids))
+		result = await self._session.execute(statement)
+		return {paper_id: (title or '') for paper_id, title in result.all()}
+
 	async def find_by_paper_id(self, paper_id: str) -> BlogPost | None:
 		statement = select(BlogPostContentModel).where(
 			col(BlogPostContentModel.paper_id) == paper_id

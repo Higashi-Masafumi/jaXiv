@@ -197,6 +197,68 @@ export type ChatThreadSummaryResponse = {
 }
 
 /**
+ * FigureSuggestionItemSchema
+ */
+export type FigureSuggestionItemSchema = {
+  /**
+   * Image Url
+   */
+  image_url: string
+  /**
+   * Caption
+   */
+  caption: string | null
+  /**
+   * Page Number
+   */
+  page_number: number
+  /**
+   * Paper Id
+   */
+  paper_id: string
+  /**
+   * Paper Title
+   */
+  paper_title: string | null
+  /**
+   * Score
+   */
+  score: number
+  /**
+   * Matched Query
+   */
+  matched_query: string
+}
+
+/**
+ * FigureSuggestionRequestSchema
+ */
+export type FigureSuggestionRequestSchema = {
+  /**
+   * Query
+   */
+  query: string
+  /**
+   * Limit
+   */
+  limit?: number
+}
+
+/**
+ * FigureSuggestionResponseSchema
+ */
+export type FigureSuggestionResponseSchema = {
+  /**
+   * Queries
+   */
+  queries: Array<string>
+  /**
+   * Items
+   */
+  items: Array<FigureSuggestionItemSchema>
+}
+
+/**
  * GenerationCountResponseSchema
  */
 export type GenerationCountResponseSchema = {
@@ -1047,6 +1109,33 @@ export type StripeWebhookApiV1BillingWebhookPostResponses = {
 
 export type StripeWebhookApiV1BillingWebhookPostResponse =
   StripeWebhookApiV1BillingWebhookPostResponses[keyof StripeWebhookApiV1BillingWebhookPostResponses]
+
+export type SuggestFiguresApiV1FiguresSuggestPostData = {
+  body: FigureSuggestionRequestSchema
+  path?: never
+  query?: never
+  url: '/api/v1/figures/suggest'
+}
+
+export type SuggestFiguresApiV1FiguresSuggestPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type SuggestFiguresApiV1FiguresSuggestPostError =
+  SuggestFiguresApiV1FiguresSuggestPostErrors[keyof SuggestFiguresApiV1FiguresSuggestPostErrors]
+
+export type SuggestFiguresApiV1FiguresSuggestPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: FigureSuggestionResponseSchema
+}
+
+export type SuggestFiguresApiV1FiguresSuggestPostResponse =
+  SuggestFiguresApiV1FiguresSuggestPostResponses[keyof SuggestFiguresApiV1FiguresSuggestPostResponses]
 
 export type RootGetData = {
   body?: never
