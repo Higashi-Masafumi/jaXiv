@@ -24,31 +24,14 @@ export function meta() {
 
 export default function Figures() {
   const { isAnonymous, signInWithGoogle } = useAuth()
-  const { status, items, error, suggest } = useFigureSuggestion()
-  const [activeQuery, setActiveQuery] = useState<string | null>(null)
+  const { items, error, submitted, isPending, submit } = useFigureSuggestion()
   const [selected, setSelected] = useState<FigureSuggestionItem | null>(null)
 
-  const isLoading = status === 'loading'
-
-  // The AI-generated queries that actually surfaced figures, derived from the
-  // results so we never show a chip that filters down to nothing.
+  // The distinct AI-generated queries that surfaced the results, shown as chips.
   const queries = useMemo(
     () => [...new Set(items.map(item => item.matched_query))],
     [items],
   )
-
-  const visibleItems = useMemo(
-    () =>
-      activeQuery === null
-        ? items
-        : items.filter(item => item.matched_query === activeQuery),
-    [items, activeQuery],
-  )
-
-  function handleSubmit(query: string) {
-    setActiveQuery(null)
-    void suggest(query)
-  }
 
   return (
     <main className="relative min-h-[calc(100vh-3rem)] overflow-y-auto bg-hero-background px-4 py-16 text-hero-foreground">
@@ -59,7 +42,7 @@ export default function Figures() {
       </div>
 
       <section className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6">
-        <FigureSearchComposer isLoading={isLoading} onSubmit={handleSubmit} />
+        <FigureSearchComposer isLoading={isPending} onSubmit={submit} />
 
         {isAnonymous && (
           <div className="w-full rounded-xl border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
@@ -75,29 +58,23 @@ export default function Figures() {
           </div>
         )}
 
-        {status === 'error' && error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </section>
 
-      {status === 'success' && (
-        <section className="mx-auto mt-10 flex w-full max-w-7xl flex-col gap-5">
-          <FigureQueryChips
-            queries={queries}
-            activeQuery={activeQuery}
-            onToggle={setActiveQuery}
-          />
-          <FigureGallery
-            items={visibleItems}
-            isLoading={false}
-            onSelect={setSelected}
-          />
+      {isPending && (
+        <section className="mx-auto mt-10 w-full max-w-7xl">
+          <FigureGallery items={[]} isLoading onSelect={setSelected} />
         </section>
       )}
 
-      {isLoading && (
-        <section className="mx-auto mt-10 w-full max-w-7xl">
-          <FigureGallery items={[]} isLoading onSelect={setSelected} />
+      {!isPending && submitted && !error && (
+        <section className="mx-auto mt-10 flex w-full max-w-7xl flex-col gap-5">
+          <FigureQueryChips queries={queries} />
+          <FigureGallery
+            items={items}
+            isLoading={false}
+            onSelect={setSelected}
+          />
         </section>
       )}
 
