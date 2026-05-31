@@ -31,6 +31,7 @@ from application.usecase import (
 	SaveTranslatedArxivUseCase,
 	StartCheckoutUseCase,
 	StartCustomerPortalUseCase,
+	SuggestFiguresUseCase,
 	TranslateArxivPaper,
 )
 from domain.entities.auth_user import AuthUser
@@ -39,6 +40,7 @@ from domain.gateways import (
 	IBillingGateway,
 	IBlogPostGenerator,
 	IChatLLMGateway,
+	IFigureQueryGenerator,
 	IImageEmbedder,
 	IPdfBlogPostGenerator,
 	IPdfChunkAnalyzer,
@@ -65,7 +67,11 @@ from infrastructure.auth import (
 	get_user_id_from_payload,
 	verify_supabase_jwt,
 )
-from infrastructure.gemini import GeminiBlogPostGenerator, GeminiChatLLM
+from infrastructure.gemini import (
+	GeminiBlogPostGenerator,
+	GeminiChatLLM,
+	GeminiFigureQueryGenerator,
+)
 from infrastructure.layout_analysis import HttpQueryEmbeddingGateway
 from infrastructure.pdf import (
 	HttpImageEmbedder,
@@ -251,6 +257,26 @@ def get_rag_search_image_use_case(
 	return RagSearchImageUseCase(
 		query_embedding=query_embedding,
 		figure_chunk_repository=figure_chunk_repository,
+	)
+
+
+def get_figure_query_generator() -> IFigureQueryGenerator:
+	return GeminiFigureQueryGenerator()
+
+
+def get_suggest_figures_use_case(
+	query_generator: Annotated[IFigureQueryGenerator, Depends(get_figure_query_generator)],
+	query_embedding: Annotated[IQueryEmbeddingGateway, Depends(get_query_embedding_gateway)],
+	figure_chunk_repository: Annotated[
+		IFigureChunkRepository, Depends(get_figure_chunk_repository)
+	],
+	blog_post_repository: Annotated[IBlogPostRepository, Depends(get_blog_post_repository)],
+) -> SuggestFiguresUseCase:
+	return SuggestFiguresUseCase(
+		query_generator=query_generator,
+		query_embedding=query_embedding,
+		figure_chunk_repository=figure_chunk_repository,
+		blog_post_repository=blog_post_repository,
 	)
 
 

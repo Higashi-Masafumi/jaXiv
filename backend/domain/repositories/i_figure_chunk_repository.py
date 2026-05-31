@@ -1,10 +1,29 @@
 from abc import ABC, abstractmethod
 from typing import Literal
 
+from pydantic import BaseModel, ConfigDict
+
 from domain.entities.document_chunk import DocumentFigureChunk
 from domain.value_objects.arxiv_paper_id import ArxivPaperId
 from domain.value_objects.embedding import Embedding
 from domain.value_objects.pdf_paper_id import PdfPaperId
+
+
+class GlobalFigureHit(BaseModel):
+	"""Lightweight result of a cross-paper figure similarity search.
+
+	Unlike ``DocumentFigureChunk`` this does not carry the figure embeddings,
+	since global suggestion only needs payload metadata plus the similarity
+	score for ranking and deduplication.
+	"""
+
+	model_config = ConfigDict(frozen=True)
+
+	paper_id: str
+	image_url: str
+	caption: str | None
+	page_number: int
+	score: float
 
 
 class IFigureChunkRepository(ABC):
@@ -24,4 +43,14 @@ class IFigureChunkRepository(ABC):
 		limit: int = 5,
 	) -> list[DocumentFigureChunk]:
 		"""Query figure chunks by paper ID using vector similarity search."""
+		...
+
+	@abstractmethod
+	async def query_global(
+		self,
+		query_embeddings: Embedding,
+		using: Literal['image', 'caption'] = 'caption',
+		limit: int = 20,
+	) -> list[GlobalFigureHit]:
+		"""Query figure chunks across all papers using vector similarity search."""
 		...

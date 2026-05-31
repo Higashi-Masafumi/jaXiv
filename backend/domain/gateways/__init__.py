@@ -13,6 +13,7 @@ from .i_chat_llm_gateway import (
 	LLMToolUse,
 	ToolDefinition,
 )
+from .i_figure_query_generator import IFigureQueryGenerator
 from .i_image_embedder import IImageEmbedder, ImageEmbedItem, ImageWithEmbedding
 from .i_pdf_blog_post_generator import IPdfBlogPostGenerator
 from .i_pdf_figure_analyzer import IPdfFigureAnalyzer
@@ -27,6 +28,7 @@ __all__ = [
 	'IBillingGateway',
 	'IBlogPostGenerator',
 	'IChatLLMGateway',
+	'IFigureQueryGenerator',
 	'IImageEmbedder',
 	'IPdfBlogPostGenerator',
 	'IPdfChunkAnalyzer',

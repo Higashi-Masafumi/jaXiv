@@ -14,6 +14,18 @@ class IBlogPostRepository(ABC):
 		...
 
 	@abstractmethod
+	async def find_accessible_titles_by_paper_ids(
+		self, paper_ids: list[str], user_id: UserId
+	) -> dict[str, str]:
+		"""Return paper_id -> title for papers the given user may access.
+
+		A paper is accessible when it is a public arXiv post, or a PDF post owned
+		by ``user_id``. Inaccessible papers (e.g. other users' private PDFs) and
+		unknown paper IDs are omitted from the result.
+		"""
+		...
+
+	@abstractmethod
 	async def find_all(self, page: int, page_size: int) -> list[BlogPost]:
 		"""Find arXiv blog posts ordered by created_at descending with pagination."""
 		...

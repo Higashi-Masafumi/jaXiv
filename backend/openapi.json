@@ -822,6 +822,50 @@
         }
       }
     },
+    "/api/v1/figures/suggest": {
+      "post": {
+        "summary": "Suggest Figures",
+        "description": "Suggest reference figures across all papers from a free-form description.\n\nOnly figures from public arXiv papers and the requester's own PDF papers are\nreturned, mirroring the blog post visibility rules.",
+        "operationId": "suggest_figures_api_v1_figures_suggest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FigureSuggestionRequestSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FigureSuggestionResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -1147,6 +1191,109 @@
           "title"
         ],
         "title": "ChatThreadSummaryResponse"
+      },
+      "FigureSuggestionItemSchema": {
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "title": "Image Url"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "page_number": {
+            "type": "integer",
+            "title": "Page Number"
+          },
+          "paper_id": {
+            "type": "string",
+            "title": "Paper Id"
+          },
+          "paper_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Title"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "matched_query": {
+            "type": "string",
+            "title": "Matched Query"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_url",
+          "caption",
+          "page_number",
+          "paper_id",
+          "paper_title",
+          "score",
+          "matched_query"
+        ],
+        "title": "FigureSuggestionItemSchema"
+      },
+      "FigureSuggestionRequestSchema": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 24
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "FigureSuggestionRequestSchema"
+      },
+      "FigureSuggestionResponseSchema": {
+        "properties": {
+          "queries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Queries"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FigureSuggestionItemSchema"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "queries",
+          "items"
+        ],
+        "title": "FigureSuggestionResponseSchema"
       },
       "GenerationCountResponseSchema": {
         "properties": {

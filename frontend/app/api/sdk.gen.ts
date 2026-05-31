@@ -62,6 +62,9 @@ import type {
   StripeWebhookApiV1BillingWebhookPostData,
   StripeWebhookApiV1BillingWebhookPostErrors,
   StripeWebhookApiV1BillingWebhookPostResponses,
+  SuggestFiguresApiV1FiguresSuggestPostData,
+  SuggestFiguresApiV1FiguresSuggestPostErrors,
+  SuggestFiguresApiV1FiguresSuggestPostResponses,
   TranslateSyncApiV1TranslateArxivArxivPaperIdPostData,
   TranslateSyncApiV1TranslateArxivArxivPaperIdPostErrors,
   TranslateSyncApiV1TranslateArxivArxivPaperIdPostResponses,
@@ -482,6 +485,30 @@ export const stripeWebhookApiV1BillingWebhookPost = <
     StripeWebhookApiV1BillingWebhookPostErrors,
     ThrowOnError
   >({ url: '/api/v1/billing/webhook', ...options })
+
+/**
+ * Suggest Figures
+ *
+ * Suggest reference figures across all papers from a free-form description.
+ */
+export const suggestFiguresApiV1FiguresSuggestPost = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<SuggestFiguresApiV1FiguresSuggestPostData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    SuggestFiguresApiV1FiguresSuggestPostResponses,
+    SuggestFiguresApiV1FiguresSuggestPostErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/figures/suggest',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
 
 /**
  * Root

@@ -19,6 +19,11 @@ from .rag_search_text import RagSearchTextUseCase
 from .save_translated_arxiv import SaveTranslatedArxivUseCase
 from .start_checkout import StartCheckoutUseCase
 from .start_customer_portal import StartCustomerPortalUseCase
+from .suggest_figures import (
+	FigureSuggestionItem,
+	SuggestFiguresResult,
+	SuggestFiguresUseCase,
+)
 from .translate_arxiv_paper import TranslateArxivPaper
 
 __all__ = [
@@ -27,6 +32,7 @@ __all__ = [
 	'ChatThreadSummary',
 	'ChatWithPaperUseCase',
 	'DeleteChatThreadUseCase',
+	'FigureSuggestionItem',
 	'GenerateBlogPostFromPdfSSEUseCase',
 	'GenerateBlogPostFromPdfUseCase',
 	'GenerateBlogPostSSEUseCase',
@@ -46,5 +52,7 @@ __all__ = [
 	'SaveTranslatedArxivUseCase',
 	'StartCheckoutUseCase',
 	'StartCustomerPortalUseCase',
+	'SuggestFiguresResult',
+	'SuggestFiguresUseCase',
 	'TranslateArxivPaper',
 ]

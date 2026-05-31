@@ -13,7 +13,10 @@ from qdrant_client.models import (
 )
 
 from domain.entities.document_chunk import DocumentFigureChunk
-from domain.repositories.i_figure_chunk_repository import IFigureChunkRepository
+from domain.repositories.i_figure_chunk_repository import (
+	GlobalFigureHit,
+	IFigureChunkRepository,
+)
 from domain.value_objects.arxiv_paper_id import ArxivPaperId
 from domain.value_objects.embedding import Embedding
 from domain.value_objects.image_url import ImageUrl
@@ -113,6 +116,36 @@ class QdrantFigureChunkRepository(IFigureChunkRepository):
 					page_number=point.payload['page_number'],
 					image_embeddings=Embedding(cast(list[float], vecs['image'])),
 					caption_embeddings=Embedding(cast(list[float], vecs['caption'])),
+				)
+			)
+		return out
+
+	async def query_global(
+		self,
+		query_embeddings: Embedding,
+		using: Literal['image', 'caption'] = 'caption',
+		limit: int = 20,
+	) -> list[GlobalFigureHit]:
+		response = self._client.query_points(
+			collection_name=qdrant_config.figure_collection_name,
+			query=query_embeddings.root,
+			using=using,
+			# No paper_id filter: search figures across every paper.
+			limit=limit,
+			with_payload=True,
+			with_vectors=False,
+		)
+		out: list[GlobalFigureHit] = []
+		for point in response.points:
+			if point.payload is None:
+				continue
+			out.append(
+				GlobalFigureHit(
+					paper_id=point.payload['paper_id'],
+					image_url=point.payload['image_url'],
+					caption=point.payload.get('caption'),
+					page_number=point.payload['page_number'],
+					score=point.score,
 				)
 			)
 		return out
