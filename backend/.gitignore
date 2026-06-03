@@ -12,6 +12,3 @@ output/
 raw_output/
 translated_output/
 .env
-
-# Local figure-search evaluation labels (see scripts/figure_search_eval.example.json)
-scripts/figure_search_eval.json
