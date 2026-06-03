@@ -8,6 +8,12 @@ from domain.value_objects.arxiv_paper_id import ArxivPaperId
 from domain.value_objects.embedding import Embedding
 from domain.value_objects.pdf_paper_id import PdfPaperId
 
+# Vector(s) to score figures against. ``image``/``caption`` use a single named
+# vector; ``hybrid`` fuses both (reciprocal rank fusion). The query is always a
+# nomic-embed-text vector, which is directly comparable to the nomic-embed-vision
+# image vectors because the two models share one latent space.
+FigureSearchMode = Literal['image', 'caption', 'hybrid']
+
 
 class GlobalFigureHit(BaseModel):
 	"""Lightweight result of a cross-paper figure similarity search.
@@ -39,7 +45,7 @@ class IFigureChunkRepository(ABC):
 		self,
 		paper_id: ArxivPaperId | PdfPaperId,
 		query_embeddings: Embedding,
-		using: Literal['image', 'caption'] = 'caption',
+		mode: FigureSearchMode = 'hybrid',
 		limit: int = 5,
 	) -> list[DocumentFigureChunk]:
 		"""Query figure chunks by paper ID using vector similarity search."""
@@ -49,7 +55,7 @@ class IFigureChunkRepository(ABC):
 	async def query_global(
 		self,
 		query_embeddings: Embedding,
-		using: Literal['image', 'caption'] = 'caption',
+		mode: FigureSearchMode = 'hybrid',
 		limit: int = 20,
 	) -> list[GlobalFigureHit]:
 		"""Query figure chunks across all papers using vector similarity search."""

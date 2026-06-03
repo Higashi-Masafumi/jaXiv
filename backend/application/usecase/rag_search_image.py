@@ -39,7 +39,7 @@ class RagSearchImageUseCase:
 		chunks = await self._figure_chunk_repository.query(
 			blog_paper_id.root,
 			emb,
-			using='caption',
+			mode='hybrid',
 			limit=limit,
 		)
 		return RagSearchImageResult(
