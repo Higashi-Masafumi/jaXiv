@@ -1,19 +1,24 @@
 import uuid
-from typing import Literal, cast
+from typing import cast
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
 	Distance,
 	FieldCondition,
 	Filter,
+	Fusion,
+	FusionQuery,
 	MatchValue,
 	PayloadSchemaType,
 	PointStruct,
+	Prefetch,
+	ScoredPoint,
 	VectorParams,
 )
 
 from domain.entities.document_chunk import DocumentFigureChunk
 from domain.repositories.i_figure_chunk_repository import (
+	FigureSearchMode,
 	GlobalFigureHit,
 	IFigureChunkRepository,
 )
@@ -82,26 +87,72 @@ class QdrantFigureChunkRepository(IFigureChunkRepository):
 			],
 		)
 
+	def _search(
+		self,
+		query_embeddings: Embedding,
+		mode: FigureSearchMode,
+		limit: int,
+		with_vectors: bool,
+		query_filter: Filter | None = None,
+	) -> list[ScoredPoint]:
+		"""Run a figure similarity search in the requested mode.
+
+		``image``/``caption`` score against a single named vector. ``hybrid``
+		prefetches both and fuses the two rankings with reciprocal rank fusion
+		(RRF), which is robust to the differing score scales of the two vectors.
+		"""
+		if mode == 'hybrid':
+			response = self._client.query_points(
+				collection_name=qdrant_config.figure_collection_name,
+				prefetch=[
+					Prefetch(
+						query=query_embeddings.root,
+						using='image',
+						filter=query_filter,
+						limit=limit,
+					),
+					Prefetch(
+						query=query_embeddings.root,
+						using='caption',
+						filter=query_filter,
+						limit=limit,
+					),
+				],
+				query=FusionQuery(fusion=Fusion.RRF),
+				limit=limit,
+				with_payload=True,
+				with_vectors=with_vectors,
+			)
+		else:
+			response = self._client.query_points(
+				collection_name=qdrant_config.figure_collection_name,
+				query=query_embeddings.root,
+				using=mode,
+				query_filter=query_filter,
+				limit=limit,
+				with_payload=True,
+				with_vectors=with_vectors,
+			)
+		return response.points
+
 	async def query(
 		self,
 		paper_id: ArxivPaperId | PdfPaperId,
 		query_embeddings: Embedding,
-		using: Literal['image', 'caption'] = 'caption',
+		mode: FigureSearchMode = 'hybrid',
 		limit: int = 5,
 	) -> list[DocumentFigureChunk]:
-		response = self._client.query_points(
-			collection_name=qdrant_config.figure_collection_name,
-			query=query_embeddings.root,
-			using=using,
+		points = self._search(
+			query_embeddings,
+			mode,
+			limit,
+			with_vectors=True,
 			query_filter=Filter(
 				must=[FieldCondition(key='paper_id', match=MatchValue(value=paper_id.root))]
 			),
-			limit=limit,
-			with_payload=True,
-			with_vectors=True,
 		)
 		out: list[DocumentFigureChunk] = []
-		for point in response.points:
+		for point in points:
 			if point.payload is None or point.vector is None:
 				continue
 			vecs = point.vector
@@ -123,20 +174,13 @@ class QdrantFigureChunkRepository(IFigureChunkRepository):
 	async def query_global(
 		self,
 		query_embeddings: Embedding,
-		using: Literal['image', 'caption'] = 'caption',
+		mode: FigureSearchMode = 'hybrid',
 		limit: int = 20,
 	) -> list[GlobalFigureHit]:
-		response = self._client.query_points(
-			collection_name=qdrant_config.figure_collection_name,
-			query=query_embeddings.root,
-			using=using,
-			# No paper_id filter: search figures across every paper.
-			limit=limit,
-			with_payload=True,
-			with_vectors=False,
-		)
+		# No paper_id filter: search figures across every paper.
+		points = self._search(query_embeddings, mode, limit, with_vectors=False)
 		out: list[GlobalFigureHit] = []
-		for point in response.points:
+		for point in points:
 			if point.payload is None:
 				continue
 			out.append(

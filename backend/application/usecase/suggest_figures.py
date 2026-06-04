@@ -64,7 +64,7 @@ class SuggestFiguresUseCase:
 			emb = await self._query_embedding.embed_query(query, 'nomic')
 			hits = await self._figure_chunk_repository.query_global(
 				emb,
-				using='caption',
+				mode='hybrid',
 				limit=limit,
 			)
 			return [(hit, query) for hit in hits]
