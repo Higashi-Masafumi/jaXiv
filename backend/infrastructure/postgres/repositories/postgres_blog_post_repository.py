@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from logging import getLogger
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -35,8 +35,27 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			updated_at=row.updated_at,
 		)
 
-	async def find_all(self, page: int, page_size: int) -> list[BlogPost]:
-		"""Return arXiv blog posts only (public)."""
+	def _keyword_condition(self, keyword: str | None) -> ColumnElement[bool] | None:
+		"""Build a case-insensitive partial-match filter over title/summary/authors."""
+		if keyword is None or not keyword.strip():
+			return None
+		# Escape LIKE metacharacters so the keyword is matched literally; otherwise
+		# inputs like '%' or '_' would behave as wildcards. Escape the backslash
+		# first to avoid double-escaping.
+		escaped = keyword.strip().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+		pattern = f'%{escaped}%'
+		return or_(
+			col(BlogPostContentModel.title).ilike(pattern, escape='\\'),
+			col(BlogPostContentModel.summary).ilike(pattern, escape='\\'),
+			func.array_to_string(col(BlogPostContentModel.authors), ' ').ilike(
+				pattern, escape='\\'
+			),
+		)
+
+	async def find_all(
+		self, page: int, page_size: int, keyword: str | None = None
+	) -> list[BlogPost]:
+		"""Return arXiv blog posts only (public), optionally filtered by keyword."""
 		offset = (page - 1) * page_size
 		statement = (
 			select(BlogPostContentModel)
@@ -45,17 +64,23 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			.offset(offset)
 			.limit(page_size)
 		)
+		condition = self._keyword_condition(keyword)
+		if condition is not None:
+			statement = statement.where(condition)
 		result = await self._session.execute(statement)
 		rows = result.scalars().all()
 		return [self._to_entity(row) for row in rows]
 
-	async def count_all(self) -> int:
-		"""Return the total number of arXiv blog posts."""
+	async def count_all(self, keyword: str | None = None) -> int:
+		"""Return the total number of arXiv blog posts, optionally filtered by keyword."""
 		statement = (
 			select(func.count())
 			.select_from(BlogPostContentModel)
 			.where(col(BlogPostContentModel.source_type) == 'arxiv')
 		)
+		condition = self._keyword_condition(keyword)
+		if condition is not None:
+			statement = statement.where(condition)
 		result = await self._session.execute(statement)
 		return result.scalar_one()
 

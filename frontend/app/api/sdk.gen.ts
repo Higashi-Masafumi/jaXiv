@@ -490,6 +490,9 @@ export const stripeWebhookApiV1BillingWebhookPost = <
  * Suggest Figures
  *
  * Suggest reference figures across all papers from a free-form description.
+ *
+ * Only figures from public arXiv papers and the requester's own PDF papers are
+ * returned, mirroring the blog post visibility rules.
  */
 export const suggestFiguresApiV1FiguresSuggestPost = <
   ThrowOnError extends boolean = false,

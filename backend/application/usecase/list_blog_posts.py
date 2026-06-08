@@ -18,9 +18,13 @@ class ListBlogPostsUseCase:
 	def __init__(self, blog_post_repository: IBlogPostRepository):
 		self._blog_post_repository = blog_post_repository
 
-	async def execute(self, page: int, page_size: int) -> PaginatedBlogPosts:
-		items = await self._blog_post_repository.find_all(page=page, page_size=page_size)
-		total = await self._blog_post_repository.count_all()
+	async def execute(
+		self, page: int, page_size: int, keyword: str | None = None
+	) -> PaginatedBlogPosts:
+		items = await self._blog_post_repository.find_all(
+			page=page, page_size=page_size, keyword=keyword
+		)
+		total = await self._blog_post_repository.count_all(keyword=keyword)
 		total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
 		return PaginatedBlogPosts(
 			items=items,

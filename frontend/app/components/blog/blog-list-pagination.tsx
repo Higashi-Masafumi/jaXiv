@@ -24,19 +24,26 @@ const DEFAULT_PAGE_SIZE = 10
 export function parsePageParams(url: URL): {
   page: number
   pageSize: number
+  keyword: string | undefined
 } {
   const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
   const raw = Number(url.searchParams.get('page_size'))
   const pageSize = (PAGE_SIZE_OPTIONS as readonly number[]).includes(raw)
     ? raw
     : DEFAULT_PAGE_SIZE
-  return { page, pageSize }
+  const keyword = url.searchParams.get('keyword')?.trim() || undefined
+  return { page, pageSize, keyword }
 }
 
-function buildPageUrl(page: number, pageSize: number): string {
+function buildPageUrl(
+  page: number,
+  pageSize: number,
+  keyword?: string,
+): string {
   const params = new URLSearchParams()
   params.set('page', String(page))
   if (pageSize !== DEFAULT_PAGE_SIZE) params.set('page_size', String(pageSize))
+  if (keyword) params.set('keyword', keyword)
   return `?${params}`
 }
 
@@ -60,10 +67,12 @@ export function BlogListPagination({
   currentPage,
   totalPages,
   pageSize,
+  keyword,
 }: {
   currentPage: number
   totalPages: number
   pageSize: number
+  keyword?: string
 }) {
   const navigate = useNavigate()
 
@@ -77,7 +86,7 @@ export function BlogListPagination({
         <span>表示件数</span>
         <Select
           value={String(pageSize)}
-          onValueChange={v => navigate(buildPageUrl(1, Number(v)))}
+          onValueChange={v => navigate(buildPageUrl(1, Number(v), keyword))}
         >
           <SelectTrigger className="w-20">
             <SelectValue />
@@ -99,7 +108,7 @@ export function BlogListPagination({
               <PaginationPrevious
                 href={
                   currentPage > 1
-                    ? buildPageUrl(currentPage - 1, pageSize)
+                    ? buildPageUrl(currentPage - 1, pageSize, keyword)
                     : undefined
                 }
                 aria-disabled={currentPage <= 1}
@@ -116,7 +125,7 @@ export function BlogListPagination({
               ) : (
                 <PaginationItem key={page}>
                   <PaginationLink
-                    href={buildPageUrl(page, pageSize)}
+                    href={buildPageUrl(page, pageSize, keyword)}
                     isActive={page === currentPage}
                   >
                     {page}
@@ -128,7 +137,7 @@ export function BlogListPagination({
               <PaginationNext
                 href={
                   currentPage < totalPages
-                    ? buildPageUrl(currentPage + 1, pageSize)
+                    ? buildPageUrl(currentPage + 1, pageSize, keyword)
                     : undefined
                 }
                 aria-disabled={currentPage >= totalPages}

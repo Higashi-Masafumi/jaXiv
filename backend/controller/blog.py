@@ -66,8 +66,11 @@ async def list_blogs(
 	list_blog_posts: Annotated[ListBlogPostsUseCase, Depends(get_list_blog_posts)],
 	page: Annotated[int, Query(ge=1, description='Page number')] = 1,
 	page_size: Annotated[int, Query(ge=1, le=100, description='Items per page')] = 10,
+	keyword: Annotated[
+		str | None, Query(description='Keyword to filter by title/summary/authors')
+	] = None,
 ) -> PaginatedBlogPostResponseSchema:
-	paginated = await list_blog_posts.execute(page=page, page_size=page_size)
+	paginated = await list_blog_posts.execute(page=page, page_size=page_size, keyword=keyword)
 	return PaginatedBlogPostResponseSchema.from_paginated(paginated)
 
 

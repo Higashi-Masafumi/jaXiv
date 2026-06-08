@@ -579,6 +579,12 @@ export type ListBlogsApiV1BlogGetData = {
      * Items per page
      */
     page_size?: number
+    /**
+     * Keyword
+     *
+     * Keyword to filter by title/summary/authors
+     */
+    keyword?: string | null
   }
   url: '/api/v1/blog/'
 }
