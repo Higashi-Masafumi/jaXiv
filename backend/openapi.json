@@ -87,6 +87,24 @@
               "title": "Page Size"
             },
             "description": "Items per page"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keyword to filter by title/summary/authors",
+              "title": "Keyword"
+            },
+            "description": "Keyword to filter by title/summary/authors"
           }
         ],
         "responses": {

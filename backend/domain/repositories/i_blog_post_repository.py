@@ -26,13 +26,23 @@ class IBlogPostRepository(ABC):
 		...
 
 	@abstractmethod
-	async def find_all(self, page: int, page_size: int) -> list[BlogPost]:
-		"""Find arXiv blog posts ordered by created_at descending with pagination."""
+	async def find_all(
+		self, page: int, page_size: int, keyword: str | None = None
+	) -> list[BlogPost]:
+		"""Find arXiv blog posts ordered by created_at descending with pagination.
+
+		When ``keyword`` is given, results are filtered by a case-insensitive partial
+		match against the title, summary, or authors.
+		"""
 		...
 
 	@abstractmethod
-	async def count_all(self) -> int:
-		"""Return the total number of arXiv blog posts."""
+	async def count_all(self, keyword: str | None = None) -> int:
+		"""Return the total number of arXiv blog posts.
+
+		When ``keyword`` is given, only posts matching it (title/summary/authors) are
+		counted.
+		"""
 		...
 
 	@abstractmethod
