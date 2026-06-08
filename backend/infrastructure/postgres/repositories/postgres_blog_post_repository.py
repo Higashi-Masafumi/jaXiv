@@ -39,11 +39,17 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		"""Build a case-insensitive partial-match filter over title/summary/authors."""
 		if keyword is None or not keyword.strip():
 			return None
-		pattern = f'%{keyword.strip()}%'
+		# Escape LIKE metacharacters so the keyword is matched literally; otherwise
+		# inputs like '%' or '_' would behave as wildcards. Escape the backslash
+		# first to avoid double-escaping.
+		escaped = keyword.strip().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+		pattern = f'%{escaped}%'
 		return or_(
-			col(BlogPostContentModel.title).ilike(pattern),
-			col(BlogPostContentModel.summary).ilike(pattern),
-			func.array_to_string(col(BlogPostContentModel.authors), ' ').ilike(pattern),
+			col(BlogPostContentModel.title).ilike(pattern, escape='\\'),
+			col(BlogPostContentModel.summary).ilike(pattern, escape='\\'),
+			func.array_to_string(col(BlogPostContentModel.authors), ' ').ilike(
+				pattern, escape='\\'
+			),
 		)
 
 	async def find_all(
