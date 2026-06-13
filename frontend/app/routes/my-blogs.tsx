@@ -56,7 +56,7 @@ function BlogPostList({ data }: { data: PaginatedBlogPostResponseSchema }) {
       <ul className="grid gap-3 sm:grid-cols-2">
         {data.items.map(post => (
           <li key={post.paper_id}>
-            <BlogPostCard post={post} />
+            <BlogPostCard post={post} showPaperId={false} />
           </li>
         ))}
       </ul>

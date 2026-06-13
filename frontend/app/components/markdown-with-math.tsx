@@ -100,7 +100,8 @@ export function MarkdownWithMath({
   return (
     <div
       className={cn(
-        'prose prose-sm max-w-none break-words dark:prose-invert',
+        'prose prose-sm max-w-none wrap-anywhere dark:prose-invert',
+        '[&_a]:wrap-anywhere [&_code]:wrap-anywhere [&_pre]:overflow-x-auto',
         // Tighten prose defaults for chat: 15px base, comfortable 1.7 line-height
         '[&_p]:text-[15px] [&_p]:leading-7 [&_li]:text-[15px] [&_li]:leading-7',
         '[&_p:not(:last-child)]:mb-3 [&_li]:my-1 [&_ul]:my-3 [&_ol]:my-3',
