@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useLocation } from 'react-router'
 import {
   ArchiveIcon,
   BookmarkIcon,
@@ -45,15 +45,37 @@ const NAV_ITEMS = [
   { title: '図面提案', url: '/figures', icon: ImagesIcon },
 ] as const
 
+const LEGAL_ITEMS = [
+  { title: '利用規約', url: '/terms' },
+  { title: 'プライバシーポリシー', url: '/privacy' },
+  { title: '特商法表記', url: '/commercial' },
+] as const
+
+const NAV_ACTIVE_CLASS =
+  'data-[active=true]:bg-primary/10 data-[active=true]:font-medium data-[active=true]:text-primary'
+
+function isNavActive(pathname: string, url: string) {
+  if (url === '/') return pathname === '/'
+  return pathname === url || pathname.startsWith(`${url}/`)
+}
+
 function AppSidebar() {
   const { user, isAnonymous, isPaid, signInWithGoogle, signOut } = useAuth()
+  const { pathname } = useLocation()
+  const isLegalActive = LEGAL_ITEMS.some(item => item.url === pathname)
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-4 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
-        <span className="text-base font-black tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-          jaXiv
-        </span>
+      <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-4 py-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+        <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+          <div className="flex size-6 items-center justify-center rounded-md bg-primary">
+            <SparklesIcon className="size-3.5 text-primary-foreground" />
+          </div>
+          <span className="text-sm font-bold tracking-tight text-sidebar-foreground">
+            jaXiv
+          </span>
+        </div>
+        {/* icon モードではこのトリガーだけが表示される（mx-auto で中央配置） */}
         <SidebarTrigger
           className="shrink-0 text-sidebar-foreground group-data-[collapsible=icon]:mx-auto"
           aria-label="サイドバーを切り替え"
@@ -66,16 +88,13 @@ function AppSidebar() {
             <SidebarMenu>
               {NAV_ITEMS.map(item => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className={({ isActive }) =>
-                        isActive
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                          : 'text-sidebar-foreground'
-                      }
-                    >
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isNavActive(pathname, item.url)}
+                    tooltip={item.title}
+                    className={NAV_ACTIVE_CLASS}
+                  >
+                    <NavLink to={item.url} end>
                       <item.icon />
                       <span>{item.title}</span>
                     </NavLink>
@@ -83,19 +102,15 @@ function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {/* マイブログ: ログイン済みユーザーのみ表示 */}
               {!isAnonymous && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="マイブログ">
-                    <NavLink
-                      to="/my-blogs"
-                      end
-                      className={({ isActive }) =>
-                        isActive
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                          : 'text-sidebar-foreground'
-                      }
-                    >
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isNavActive(pathname, '/my-blogs')}
+                    tooltip="マイブログ"
+                    className={NAV_ACTIVE_CLASS}
+                  >
+                    <NavLink to="/my-blogs" end>
                       <BookmarkIcon />
                       <span>マイブログ</span>
                     </NavLink>
@@ -106,17 +121,11 @@ function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
+                  isActive={isNavActive(pathname, '/pricing')}
                   tooltip={isPaid ? 'プラン管理' : 'アップグレード'}
+                  className={NAV_ACTIVE_CLASS}
                 >
-                  <NavLink
-                    to="/pricing"
-                    end
-                    className={({ isActive }) =>
-                      isActive
-                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                        : 'text-sidebar-foreground'
-                    }
-                  >
+                  <NavLink to="/pricing" end>
                     <CrownIcon />
                     <span>{isPaid ? 'プラン管理' : 'アップグレード'}</span>
                   </NavLink>
@@ -128,7 +137,7 @@ function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="px-3 py-3">
-        <Collapsible className="group/legal">
+        <Collapsible defaultOpen={isLegalActive} className="group/legal">
           <SidebarMenu>
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
@@ -140,21 +149,17 @@ function AppSidebar() {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton asChild>
-                      <NavLink to="/terms">利用規約</NavLink>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton asChild>
-                      <NavLink to="/privacy">プライバシーポリシー</NavLink>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton asChild>
-                      <NavLink to="/commercial">特商法表記</NavLink>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
+                  {LEGAL_ITEMS.map(item => (
+                    <SidebarMenuSubItem key={item.url}>
+                      <SidebarMenuSubButton
+                        asChild
+                        isActive={pathname === item.url}
+                        className="data-[active=true]:font-medium data-[active=true]:text-primary"
+                      >
+                        <NavLink to={item.url}>{item.title}</NavLink>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ))}
                 </SidebarMenuSub>
               </CollapsibleContent>
             </SidebarMenuItem>
@@ -198,10 +203,6 @@ function AppSidebar() {
   )
 }
 
-/**
- * モバイルは Sheet のため、シートが閉じているときだけ開く用トリガーを出す。
- * デスクトップは collapsible="icon" で常にアイコン列が残るため不要。
- */
 function AppMain() {
   const { isMobile, openMobile } = useSidebar()
 

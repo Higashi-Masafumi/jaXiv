@@ -1,8 +1,11 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { ArrowRightIcon, FileUpIcon } from 'lucide-react'
 
 import { useAuth } from '~/contexts/auth-context'
 import { useBlogStream } from '../hooks/use-blog-stream'
+import { GenerationHero } from '../components/generation-hero'
+import { GenerationSteps } from '../components/generation-steps'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 
@@ -38,28 +41,16 @@ export default function Pdf() {
   const isDisabled = isStreaming || isAnonymous
 
   return (
-    <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-hero-background px-4 py-16 text-hero-foreground">
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-hero-accent-soft/20 blur-3xl" />
-        <div className="absolute -right-24 bottom-12 h-80 w-80 rounded-full bg-hero-accent-secondary-soft/20 blur-3xl" />
-        <div className="absolute inset-0 bg-gradient-to-b from-hero-accent/10 via-transparent to-transparent" />
-      </div>
-
-      <section className="mx-auto flex w-full max-w-2xl flex-col items-center gap-8">
-        <div className="space-y-4 text-center">
-          <p className="mx-auto w-fit rounded-full border border-hero-accent/30 bg-hero-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-hero-accent">
-            AI Research Companion
-          </p>
-          <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
-            PDF 生成
-          </h1>
-          <p className="mx-auto max-w-xl text-base leading-relaxed text-hero-muted sm:text-lg">
-            PDF 論文をアップロードして、読みやすいブログ記事に変換します。
-          </p>
-        </div>
-
+    <main className="h-full overflow-y-auto bg-background">
+      <GenerationHero
+        icon={FileUpIcon}
+        badge="PDF を貼るだけでブログ記事に"
+        titleLead="PDF 論文を、"
+        titleHighlight="読みやすいブログに。"
+        description="PDF ファイルをアップロードするだけで、AI が論文の内容を日本語ブログ記事に変換します。"
+      >
         {isAnonymous && (
-          <div className="w-full rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
             PDF生成には
             <Link
               to="/login"
@@ -67,75 +58,77 @@ export default function Pdf() {
             >
               ログイン
             </Link>
-            が必要です。
+            が必要です。arXiv ID の入力は
+            <Link
+              to="/"
+              className="ml-1 font-semibold underline underline-offset-2"
+            >
+              ログインなしで利用できます
+            </Link>
+            。
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          className="w-full rounded-2xl border border-hero-card-border/70 bg-hero-card/80 p-5 shadow-2xl backdrop-blur-sm sm:p-6"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Input
-              type="file"
-              name="file"
-              accept=".pdf"
-              disabled={isDisabled}
-              className="border-input bg-background text-foreground sm:flex-1"
-            />
-            <Button
-              type="submit"
-              disabled={isDisabled}
-              className="bg-hero-accent font-semibold text-primary-foreground transition-colors hover:bg-hero-accent/90 sm:w-40"
-            >
-              {isStreaming ? '生成中...' : 'ブログを生成'}
-            </Button>
-          </div>
-
-          {steps.length > 0 && (
-            <ul className="mt-4 space-y-1.5 text-sm">
-              {steps.map((step, i) => (
-                <li
-                  key={i}
-                  className={`flex items-center gap-2 transition-opacity ${step.done ? 'text-muted-foreground' : 'text-foreground'}`}
-                >
-                  {step.done ? (
-                    <span className="text-hero-accent">✓</span>
-                  ) : (
-                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-hero-accent border-t-transparent" />
-                  )}
-                  <span className={step.done ? 'line-through' : ''}>
-                    {step.message}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {error === 'limit_exceeded' ? (
-            <div className="mt-3 rounded-lg border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
-              {isPaid ? (
-                <span>
-                  今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
-                </span>
-              ) : (
-                <span>
-                  今月の生成回数（10回）を使い切りました。
-                  <Link
-                    to="/pricing"
-                    className="ml-1 font-semibold underline underline-offset-2"
-                  >
-                    有料プランにアップグレード
-                  </Link>
-                  すると月100回まで生成できます。
-                </span>
-              )}
+        <div className="mt-7">
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-2xl border border-border/80 bg-white/90 p-5 shadow-lg shadow-indigo-100/40 backdrop-blur-sm dark:bg-card/90 dark:shadow-none"
+          >
+            <div className="flex flex-col gap-2.5 sm:flex-row">
+              <Input
+                type="file"
+                name="file"
+                accept=".pdf"
+                disabled={isDisabled}
+                className="h-11 rounded-xl border-border/70 bg-background shadow-sm sm:flex-1"
+              />
+              <Button
+                type="submit"
+                disabled={isDisabled}
+                size="lg"
+                className="h-11 gap-1.5 rounded-xl px-6 font-semibold sm:w-44"
+              >
+                {isStreaming ? (
+                  <>
+                    <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    生成中...
+                  </>
+                ) : (
+                  <>
+                    ブログを生成
+                    <ArrowRightIcon className="size-4" />
+                  </>
+                )}
+              </Button>
             </div>
-          ) : error ? (
-            <p className="mt-3 text-sm text-destructive">{error}</p>
-          ) : null}
-        </form>
-      </section>
+
+            <GenerationSteps steps={steps} />
+
+            {error === 'limit_exceeded' ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                {isPaid ? (
+                  <span>
+                    今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
+                  </span>
+                ) : (
+                  <span>
+                    今月の生成回数（10回）を使い切りました。
+                    <Link
+                      to="/pricing"
+                      className="ml-1 font-semibold underline underline-offset-2"
+                    >
+                      有料プランにアップグレード
+                    </Link>
+                    すると月100回まで生成できます。
+                  </span>
+                )}
+              </div>
+            ) : error ? (
+              <p className="mt-3 text-sm text-destructive">{error}</p>
+            ) : null}
+          </form>
+        </div>
+      </GenerationHero>
     </main>
   )
 }

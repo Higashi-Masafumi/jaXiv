@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { LogInIcon } from 'lucide-react'
+import { ImagesIcon } from 'lucide-react'
 
 import { useAuth } from '~/contexts/auth-context'
 import {
   useFigureSuggestion,
   type FigureSuggestionItem,
 } from '~/hooks/use-figure-suggestion'
+import { GenerationHero } from '~/components/generation-hero'
 import { FigureSearchComposer } from '~/components/figure-suggestion/figure-search-composer'
 import { FigureQueryChips } from '~/components/figure-suggestion/figure-query-chips'
 import { FigureGallery } from '~/components/figure-suggestion/figure-gallery'
@@ -23,7 +24,7 @@ export function meta() {
 }
 
 export default function Figures() {
-  const { isAnonymous, signInWithGoogle } = useAuth()
+  const { isAnonymous } = useAuth()
   const { items, error, submitted, isPending, submit } = useFigureSuggestion()
   const [selected, setSelected] = useState<FigureSuggestionItem | null>(null)
 
@@ -34,48 +35,40 @@ export default function Figures() {
   )
 
   return (
-    <main className="relative min-h-[calc(100vh-3rem)] overflow-y-auto bg-hero-background px-4 py-16 text-hero-foreground">
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-hero-accent-soft/20 blur-3xl" />
-        <div className="absolute -right-24 bottom-12 h-80 w-80 rounded-full bg-hero-accent-secondary-soft/20 blur-3xl" />
-        <div className="absolute inset-0 bg-gradient-to-b from-hero-accent/10 via-transparent to-transparent" />
-      </div>
-
-      <section className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6">
-        <FigureSearchComposer isLoading={isPending} onSubmit={submit} />
-
-        {isAnonymous && (
-          <div className="w-full rounded-xl border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
-            図面提案を利用するにはログインが必要です。
-            <button
-              type="button"
-              onClick={signInWithGoogle}
-              className="ml-1 inline-flex items-center gap-1 font-semibold underline underline-offset-2"
-            >
-              <LogInIcon className="size-3.5" />
-              Googleでログイン
-            </button>
-          </div>
-        )}
-
-        {error && <p className="text-sm text-destructive">{error}</p>}
-      </section>
-
-      {isPending && (
-        <section className="mx-auto mt-10 w-full max-w-7xl">
-          <FigureGallery items={[]} isLoading onSelect={setSelected} />
-        </section>
-      )}
-
-      {!isPending && submitted && !error && (
-        <section className="mx-auto mt-10 flex w-full max-w-7xl flex-col gap-5">
-          <FigureQueryChips queries={queries} />
-          <FigureGallery
-            items={items}
-            isLoading={false}
-            onSelect={setSelected}
+    <main className="h-full overflow-y-auto bg-background">
+      <GenerationHero
+        icon={ImagesIcon}
+        badge="AI が論文を横断して図を提案"
+        titleLead="作りたい図を、"
+        titleHighlight="論文から見つける。"
+        description="作りたい図や研究内容を入力すると、AI が検索クエリを組み立て、論文全体から参考になる図を探します。"
+      >
+        <div className="mt-7">
+          <FigureSearchComposer
+            isLoading={isPending}
+            disabled={isAnonymous}
+            onSubmit={submit}
           />
-        </section>
+
+          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+        </div>
+      </GenerationHero>
+
+      {(isPending || (submitted && !error)) && (
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+          {isPending ? (
+            <FigureGallery items={[]} isLoading onSelect={setSelected} />
+          ) : (
+            <div className="flex flex-col gap-5">
+              <FigureQueryChips queries={queries} />
+              <FigureGallery
+                items={items}
+                isLoading={false}
+                onSelect={setSelected}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       <FigureLightbox item={selected} onClose={() => setSelected(null)} />
