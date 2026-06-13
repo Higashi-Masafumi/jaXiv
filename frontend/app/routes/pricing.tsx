@@ -176,11 +176,7 @@ function PlanCard(props: {
         <div className="mb-3 flex items-center gap-2">
           {icon && (
             <span
-              className={
-                highlight
-                  ? 'text-primary'
-                  : 'text-muted-foreground'
-              }
+              className={highlight ? 'text-primary' : 'text-muted-foreground'}
             >
               {icon}
             </span>

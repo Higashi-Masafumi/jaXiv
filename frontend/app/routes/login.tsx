@@ -24,7 +24,10 @@ export default function Login() {
   return (
     <main className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-50/80 via-background to-violet-50/60 px-4 dark:from-indigo-950/20 dark:to-violet-950/20">
       {/* Decorative blobs */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
         <div className="absolute -right-40 -top-40 h-80 w-80 rounded-full bg-indigo-200/30 blur-3xl dark:bg-indigo-500/10" />
         <div className="absolute -left-20 bottom-10 h-64 w-64 rounded-full bg-violet-200/25 blur-3xl dark:bg-violet-500/10" />
       </div>
