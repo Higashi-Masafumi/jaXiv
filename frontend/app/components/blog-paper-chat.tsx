@@ -238,10 +238,10 @@ function AssistantMessage({
   toolResults: Map<string, ToolResultBlock>
 }) {
   return (
-    <div className="flex justify-start">
+    <div className="flex min-w-0 justify-start">
       <div
         className={cn(
-          'max-w-[88%] rounded-2xl border border-chat-assistant-border bg-chat-assistant-surface text-chat-assistant-foreground',
+          'min-w-0 max-w-[88%] rounded-2xl border border-chat-assistant-border bg-chat-assistant-surface text-chat-assistant-foreground',
           'px-4 py-3 text-[15px] leading-7 shadow-[0_1px_2px_rgb(0_0_0/0.02)]',
         )}
       >
@@ -286,10 +286,10 @@ function UserMessage({ message }: { message: PaperChatMessage }) {
   const textBlocks = message.content.filter(b => b.type === 'text')
   if (textBlocks.length === 0) return null
   return (
-    <div className="flex justify-end">
+    <div className="flex min-w-0 justify-end">
       <div
         className={cn(
-          'max-w-[80%] rounded-2xl bg-chat-user-surface text-chat-user-foreground',
+          'min-w-0 max-w-[80%] rounded-2xl bg-chat-user-surface text-chat-user-foreground',
           'px-4 py-2.5 text-[15px] leading-6 shadow-sm',
         )}
       >
@@ -553,8 +553,8 @@ function ChatView(props: {
         )
       )}
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6">
+      <ScrollArea className="min-h-0 min-w-0 flex-1">
+        <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-5 px-4 py-6">
           {isLoading ? (
             <div className="space-y-5">
               <div className="flex justify-end">
