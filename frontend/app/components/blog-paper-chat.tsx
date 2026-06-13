@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
   HistoryIcon,
   Loader2Icon,
+  LogInIcon,
   MessageSquareIcon,
   PlusIcon,
   SearchIcon,
@@ -176,7 +177,7 @@ function ToolUseView({
     ) : state === 'done' ? (
       <CheckIcon className="size-3 shrink-0 text-green-500" />
     ) : (
-      <AlertCircleIcon className="size-3 shrink-0 text-red-500" />
+      <AlertCircleIcon className="size-3 shrink-0 text-destructive" />
     )
 
   const stateLabel =
@@ -471,8 +472,8 @@ function ThreadListView(props: {
 function ChatLimitAlert() {
   const { isPaid } = useAuth()
   return (
-    <div className="flex shrink-0 items-start gap-2 border-b border-hero-accent/40 bg-hero-accent/10 px-4 py-2 text-xs">
-      <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0 text-hero-accent" />
+    <div className="flex shrink-0 items-start gap-2 border-b border-primary/40 bg-primary/10 px-4 py-2 text-xs">
+      <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0 text-primary" />
       <span className="break-all">
         {isPaid ? (
           <>
@@ -495,12 +496,19 @@ function ChatLimitAlert() {
   )
 }
 
+const STARTER_QUESTIONS = [
+  'この論文の新規性を一言で教えて',
+  '提案手法をわかりやすく説明して',
+  '実験結果と限界は？',
+] as const
+
 function ChatView(props: {
   paperId: string
   initialThreadId: string | null
   onThreadCreated: (id: string) => void
 }) {
   const { paperId, initialThreadId, onThreadCreated } = props
+  const { isAnonymous, signInWithGoogle } = useAuth()
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -512,6 +520,7 @@ function ChatView(props: {
   const isLoading = status === 'loading'
   const isSubmitted = status === 'submitted'
   const busy = isLoading || isSubmitted || status === 'streaming'
+  const limitReached = error?.code === 'chat_limit_exceeded'
 
   const toolResults = useMemo(() => buildToolResultIndex(messages), [messages])
 
@@ -526,9 +535,14 @@ function ChatView(props: {
     setInput('')
   }
 
+  const ask = (question: string) => {
+    if (busy || limitReached) return
+    void sendMessage(question)
+  }
+
   return (
     <>
-      {error?.code === 'chat_limit_exceeded' ? (
+      {limitReached ? (
         <ChatLimitAlert />
       ) : (
         error && (
@@ -550,10 +564,41 @@ function ChatView(props: {
                 <Skeleton className="h-20 w-3/4 rounded-2xl" />
               </div>
             </div>
+          ) : isAnonymous ? (
+            <div className="flex flex-col items-center gap-4 py-10 text-center">
+              <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <MessageSquareIcon className="size-6" aria-hidden />
+              </span>
+              <p className="text-sm text-muted-foreground">
+                ログインすると、論文について AI に質問できます。
+              </p>
+              <Button onClick={signInWithGoogle} className="gap-1.5">
+                <LogInIcon className="size-4" />
+                Googleでログイン
+              </Button>
+            </div>
           ) : messages.length === 0 && !busy ? (
-            <p className="text-[15px] leading-7 text-muted-foreground">
-              論文の内容について質問してください。
-            </p>
+            <div className="flex flex-col items-center gap-4 py-10 text-center">
+              <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <MessageSquareIcon className="size-6" aria-hidden />
+              </span>
+              <p className="text-sm text-muted-foreground">
+                論文の内容について質問してみましょう。
+              </p>
+              <div className="flex w-full max-w-xs flex-col gap-2">
+                {STARTER_QUESTIONS.map(q => (
+                  <button
+                    key={q}
+                    type="button"
+                    disabled={limitReached}
+                    onClick={() => ask(q)}
+                    className="rounded-lg border border-border bg-card px-3 py-2 text-left text-sm text-foreground transition-colors hover:border-primary/50 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : (
             messages.map(m =>
               m.role === 'assistant' ? (
@@ -587,7 +632,7 @@ function ChatView(props: {
             value={input}
             onChange={setInput}
             busy={busy}
-            disabled={error?.code === 'chat_limit_exceeded'}
+            disabled={limitReached || isAnonymous}
             onSubmit={submitChat}
           />
         </div>

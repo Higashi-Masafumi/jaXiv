@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
+import { Loader2Icon } from 'lucide-react'
 import { supabase } from '~/lib/supabase'
 
 export function meta() {
@@ -18,8 +19,9 @@ export default function AuthCallback() {
   }, [navigate])
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-hero-background text-hero-foreground">
-      <p className="text-hero-muted">認証中...</p>
+    <main className="flex min-h-svh items-center justify-center gap-2 bg-background text-muted-foreground">
+      <Loader2Icon className="size-4 animate-spin" aria-hidden />
+      <p>認証中...</p>
     </main>
   )
 }

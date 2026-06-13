@@ -1,8 +1,12 @@
 import { Suspense } from 'react'
 import { Await, Link } from 'react-router'
+import { FileTextIcon } from 'lucide-react'
 
 import { listMyBlogsApiV1BlogMyGet } from '~/api/sdk.gen'
 import type { PaginatedBlogPostResponseSchema } from '~/api/types.gen'
+import { Button } from '~/components/ui/button'
+import { EmptyState } from '~/components/empty-state'
+import { PageHeader } from '~/components/page-header'
 import { BlogListSkeleton } from '~/components/blog/blog-card-skeleton'
 import {
   BlogListPagination,
@@ -35,18 +39,21 @@ async function fetchMyBlogs(
 function BlogPostList({ data }: { data: PaginatedBlogPostResponseSchema }) {
   if (data.items.length === 0) {
     return (
-      <p className="text-muted-foreground">
-        まだPDF生成ブログがありません。{' '}
-        <Link to="/pdf" className="underline underline-offset-2">
-          PDFからブログを生成
-        </Link>{' '}
-        してみましょう。
-      </p>
+      <EmptyState
+        icon={FileTextIcon}
+        title="まだPDF生成ブログがありません"
+        description="PDF をアップロードして、最初のブログ記事を生成しましょう。"
+        action={
+          <Button asChild>
+            <Link to="/pdf">PDFから生成する</Link>
+          </Button>
+        }
+      />
     )
   }
   return (
     <>
-      <ul className="flex flex-col gap-4">
+      <ul className="grid gap-3 sm:grid-cols-2">
         {data.items.map(post => (
           <li key={post.paper_id}>
             <BlogPostCard post={post} />
@@ -70,9 +77,15 @@ export function clientLoader({ request }: Route.ClientLoaderArgs) {
 
 export function HydrateFallback() {
   return (
-    <main className="h-full overflow-y-auto px-4 py-12" aria-busy="true">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="mb-8 text-2xl font-bold text-foreground">マイブログ</h1>
+    <main
+      className="h-full overflow-y-auto px-4 pb-10 pt-12 sm:px-6 sm:py-10"
+      aria-busy="true"
+    >
+      <div className="mx-auto max-w-4xl">
+        <PageHeader
+          title="マイブログ"
+          description="あなたが PDF から生成したブログ記事の一覧です。"
+        />
         <BlogListSkeleton />
       </div>
     </main>
@@ -81,9 +94,12 @@ export function HydrateFallback() {
 
 export default function MyBlogs({ loaderData }: Route.ComponentProps) {
   return (
-    <main className="h-full overflow-y-auto px-4 py-12">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="mb-8 text-2xl font-bold text-foreground">マイブログ</h1>
+    <main className="h-full overflow-y-auto px-4 pb-10 pt-12 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-4xl">
+        <PageHeader
+          title="マイブログ"
+          description="あなたが PDF から生成したブログ記事の一覧です。"
+        />
         <Suspense fallback={<BlogListSkeleton />}>
           <Await resolve={loaderData.blogs}>
             {data => <BlogPostList data={data} />}

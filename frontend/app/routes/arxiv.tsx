@@ -1,11 +1,17 @@
-import { useEffect } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Suspense, useEffect } from 'react'
+import { Await, Link, useNavigate } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { ArrowRightIcon, SparklesIcon } from 'lucide-react'
 
 import { useAuth } from '~/contexts/auth-context'
 import { useBlogStream } from '../hooks/use-blog-stream'
+import { listBlogsApiV1BlogGet } from '~/api/sdk.gen'
+import { GenerationHero } from '../components/generation-hero'
+import { GenerationSteps } from '../components/generation-steps'
+import { BlogCardSkeleton } from '~/components/blog/blog-card-skeleton'
+import { BlogPostCard } from '~/components/blog/blog-post-card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import {
@@ -15,6 +21,9 @@ import {
   FormControl,
   FormMessage,
 } from '../components/ui/form'
+import type { Route } from './+types/arxiv'
+
+const RECENT_COUNT = 6
 
 const arxivIdSchema = z.object({
   paperId: z
@@ -36,7 +45,18 @@ export function meta() {
   ]
 }
 
-export default function Arxiv() {
+export function clientLoader() {
+  const recent = listBlogsApiV1BlogGet({
+    baseUrl: import.meta.env.VITE_API_BASE_URL,
+    query: { page: 1, page_size: RECENT_COUNT },
+  }).then(({ data, error }) => {
+    if (error || !data) throw new Response('Failed to load recent blogs')
+    return data.items
+  })
+  return { recent }
+}
+
+export default function Arxiv({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate()
   const { isAnonymous, isPaid, signInWithGoogle } = useAuth()
   const { status, steps, error, paperId, startArxivStream } = useBlogStream()
@@ -59,117 +79,155 @@ export default function Arxiv() {
   const isStreaming = status === 'streaming'
 
   return (
-    <main className="relative min-h-[calc(100vh-3rem)] overflow-hidden bg-hero-background px-4 py-16 text-hero-foreground">
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-hero-accent-soft/20 blur-3xl" />
-        <div className="absolute -right-24 bottom-12 h-80 w-80 rounded-full bg-hero-accent-secondary-soft/20 blur-3xl" />
-        <div className="absolute inset-0 bg-gradient-to-b from-hero-accent/10 via-transparent to-transparent" />
-      </div>
+    <main className="h-full overflow-y-auto bg-background">
+      <GenerationHero
+        icon={SparklesIcon}
+        badge="AI で論文を瞬時にブログへ変換"
+        titleLead="arXiv 論文を、"
+        titleHighlight="読みやすいブログに。"
+        description={
+          <>
+            arXiv ID を入力するだけで、AI
+            が論文の内容を日本語ブログ記事に変換します。
+            <br className="hidden sm:block" />
+            難しい英語論文も、すらすら読める記事になって届きます。
+          </>
+        }
+      >
+        <div className="mt-7">
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className="rounded-2xl border border-border/80 bg-white/90 p-5 shadow-lg shadow-indigo-100/40 backdrop-blur-sm dark:bg-card/90 dark:shadow-none"
+            >
+              <FormField
+                control={form.control}
+                name="paperId"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex flex-col gap-2.5 sm:flex-row">
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="arXiv ID（例: 2301.00001）"
+                          disabled={isStreaming}
+                          className="h-11 rounded-xl border-border/70 bg-background text-sm shadow-sm sm:flex-1 sm:text-base"
+                          {...field}
+                        />
+                      </FormControl>
+                      <Button
+                        type="submit"
+                        disabled={isStreaming}
+                        size="lg"
+                        className="h-11 gap-1.5 rounded-xl px-6 font-semibold sm:w-44"
+                      >
+                        {isStreaming ? (
+                          <>
+                            <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            生成中...
+                          </>
+                        ) : (
+                          <>
+                            ブログを生成
+                            <ArrowRightIcon className="size-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <FormMessage className="mt-1.5 text-xs" />
+                  </FormItem>
+                )}
+              />
 
-      <section className="mx-auto flex w-full max-w-2xl flex-col items-center gap-8">
-        <div className="space-y-4 text-center">
-          <p className="mx-auto w-fit rounded-full border border-hero-accent/30 bg-hero-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-hero-accent">
-            AI Research Companion
-          </p>
-          <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
-            jaXiv
-          </h1>
-          <p className="mx-auto max-w-xl text-base leading-relaxed text-hero-muted sm:text-lg">
-            arXiv 論文を読みやすいブログ記事に変換します。まずは paper ID
-            を入力して、要点をすぐに把握しましょう。
-          </p>
+              <GenerationSteps steps={steps} />
+
+              {error === 'limit_exceeded' ? (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                  {isAnonymous ? (
+                    <span>
+                      無料生成回数（3回）を使い切りました。
+                      <button
+                        type="button"
+                        onClick={signInWithGoogle}
+                        className="ml-1 font-semibold underline underline-offset-2"
+                      >
+                        Googleでログイン
+                      </button>
+                      すると月10回まで生成できます。
+                    </span>
+                  ) : isPaid ? (
+                    <span>
+                      今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
+                    </span>
+                  ) : (
+                    <span>
+                      今月の生成回数（10回）を使い切りました。
+                      <Link
+                        to="/pricing"
+                        className="ml-1 font-semibold underline underline-offset-2"
+                      >
+                        有料プランにアップグレード
+                      </Link>
+                      すると月100回まで生成できます。
+                    </span>
+                  )}
+                </div>
+              ) : error ? (
+                <p className="mt-3 text-sm text-destructive">{error}</p>
+              ) : null}
+            </form>
+          </Form>
+        </div>
+      </GenerationHero>
+
+      {/* Recent Blogs Section */}
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+            最近のブログ
+          </h2>
+          <Link
+            to="/blog"
+            className="flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            すべて見る
+            <ArrowRightIcon className="size-3.5" />
+          </Link>
         </div>
 
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(handleSubmit)}
-            className="w-full rounded-2xl border border-hero-card-border/70 bg-hero-card/80 p-5 shadow-2xl backdrop-blur-sm sm:p-6"
-          >
-            <FormField
-              control={form.control}
-              name="paperId"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <FormControl>
-                      <Input
-                        type="text"
-                        placeholder="arXiv ID（例: 2301.00001）"
-                        disabled={isStreaming}
-                        className="border-input bg-background text-foreground placeholder:text-muted-foreground sm:flex-1"
-                        {...field}
-                      />
-                    </FormControl>
-                    <Button
-                      type="submit"
-                      disabled={isStreaming}
-                      className="bg-hero-accent font-semibold text-primary-foreground transition-colors hover:bg-hero-accent/90 sm:w-40"
-                    >
-                      {isStreaming ? '生成中...' : 'ブログを生成'}
-                    </Button>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {steps.length > 0 && (
-              <ul className="mt-4 space-y-1.5 text-sm">
-                {steps.map((step, i) => (
-                  <li
-                    key={i}
-                    className={`flex items-center gap-2 transition-opacity ${step.done ? 'text-muted-foreground' : 'text-foreground'}`}
-                  >
-                    {step.done ? (
-                      <span className="text-hero-accent">✓</span>
-                    ) : (
-                      <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-hero-accent border-t-transparent" />
-                    )}
-                    <span className={step.done ? 'line-through' : ''}>
-                      {step.message}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {error === 'limit_exceeded' ? (
-              <div className="mt-3 rounded-lg border border-hero-accent/40 bg-hero-accent/10 px-4 py-3 text-sm">
-                {isAnonymous ? (
-                  <span>
-                    今月の無料生成回数（3回）を使い切りました。
-                    <button
-                      type="button"
-                      onClick={signInWithGoogle}
-                      className="ml-1 font-semibold underline underline-offset-2"
-                    >
-                      Googleでログイン
-                    </button>
-                    すると月10回まで生成できます。
-                  </span>
-                ) : isPaid ? (
-                  <span>
-                    今月の生成回数（100回）に達しました。来月のリセットまでお待ちください。
-                  </span>
-                ) : (
-                  <span>
-                    今月の生成回数（10回）を使い切りました。
-                    <Link
-                      to="/pricing"
-                      className="ml-1 font-semibold underline underline-offset-2"
-                    >
-                      有料プランにアップグレード
-                    </Link>
-                    すると月100回まで生成できます。
-                  </span>
-                )}
-              </div>
-            ) : error ? (
-              <p className="mt-3 text-sm text-destructive">{error}</p>
-            ) : null}
-          </form>
-        </Form>
-      </section>
+        <Suspense
+          fallback={
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }, (_, i) => (
+                <li key={i}>
+                  <BlogCardSkeleton />
+                </li>
+              ))}
+            </ul>
+          }
+        >
+          <Await resolve={loaderData.recent} errorElement={null}>
+            {items =>
+              items.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    まだブログがありません。上の入力から最初の 1
+                    本を生成しましょう。
+                  </p>
+                </div>
+              ) : (
+                <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map(post => (
+                    <li key={post.paper_id}>
+                      <BlogPostCard post={post} />
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+          </Await>
+        </Suspense>
+      </div>
     </main>
   )
 }

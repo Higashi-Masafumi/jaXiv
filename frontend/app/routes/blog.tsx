@@ -1,7 +1,11 @@
 import { Suspense } from 'react'
-import { Await } from 'react-router'
+import { Await, Link } from 'react-router'
+import { ArchiveIcon, SearchXIcon } from 'lucide-react'
 
 import { listBlogsApiV1BlogGet } from '~/api/sdk.gen'
+import { Button } from '~/components/ui/button'
+import { EmptyState } from '~/components/empty-state'
+import { PageHeader } from '~/components/page-header'
 import { BlogListSkeleton } from '~/components/blog/blog-card-skeleton'
 import {
   BlogListPagination,
@@ -35,9 +39,15 @@ export function clientLoader({ request }: Route.ClientLoaderArgs) {
 
 export function HydrateFallback() {
   return (
-    <main className="h-full overflow-y-auto px-4 py-12" aria-busy="true">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
+    <main
+      className="h-full overflow-y-auto px-4 pb-10 pt-12 sm:px-6 sm:py-10"
+      aria-busy="true"
+    >
+      <div className="mx-auto max-w-4xl">
+        <PageHeader
+          title="アーカイブ"
+          description="生成されたブログ記事を検索して閲覧できます。"
+        />
         <BlogSearchForm />
         <BlogListSkeleton count={4} />
       </div>
@@ -53,17 +63,31 @@ function BlogPostList({
   keyword?: string
 }) {
   if (data.items.length === 0) {
+    if (keyword) {
+      return (
+        <EmptyState
+          icon={SearchXIcon}
+          title={`「${keyword}」に一致する記事が見つかりませんでした`}
+          description="別のキーワードでもう一度お試しください。"
+        />
+      )
+    }
     return (
-      <p className="text-muted-foreground">
-        {keyword
-          ? `「${keyword}」に一致するブログ記事が見つかりませんでした。`
-          : 'まだブログ記事がありません。'}
-      </p>
+      <EmptyState
+        icon={ArchiveIcon}
+        title="まだブログ記事がありません"
+        description="arXiv ID を入力すると、論文から読みやすいブログ記事を生成できます。"
+        action={
+          <Button asChild>
+            <Link to="/">arXiv から生成する</Link>
+          </Button>
+        }
+      />
     )
   }
   return (
     <>
-      <ul className="flex flex-col gap-4">
+      <ul className="grid gap-3 sm:grid-cols-2">
         {data.items.map(post => (
           <li key={post.paper_id}>
             <BlogPostCard post={post} />
@@ -82,9 +106,12 @@ function BlogPostList({
 
 export default function BlogList({ loaderData }: Route.ComponentProps) {
   return (
-    <main className="h-full overflow-y-auto px-4 py-12">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="mb-8 text-2xl font-bold text-foreground">アーカイブ</h1>
+    <main className="h-full overflow-y-auto px-4 pb-10 pt-12 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-4xl">
+        <PageHeader
+          title="アーカイブ"
+          description="生成されたブログ記事を検索して閲覧できます。"
+        />
         <BlogSearchForm />
         <Suspense fallback={<BlogListSkeleton count={4} />}>
           <Await resolve={loaderData.blogs}>
