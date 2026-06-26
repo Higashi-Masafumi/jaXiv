@@ -20,4 +20,21 @@ export default {
       cloudflare: { env, ctx },
     })
   },
+  // Render 無料プランは15分無アクセスでスピンダウンするため、
+  // backend のヘルスエンドポイントを定期 ping して常時ウォーム状態に保つ。
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(
+      (async () => {
+        try {
+          const res = await fetch(`${env.API_BASE_URL}/`, {
+            method: 'GET',
+            headers: { 'User-Agent': 'jaxiv-keepalive/1.0' },
+          })
+          console.log(`keepalive: backend responded ${res.status}`)
+        } catch (err) {
+          console.error('keepalive: backend ping failed', err)
+        }
+      })(),
+    )
+  },
 } satisfies ExportedHandler<Env>
