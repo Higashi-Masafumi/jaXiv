@@ -11,4 +11,8 @@
   },
   "main": "./workers/app.ts",
   "compatibility_flags": ["nodejs_compat"],
+  // Render 無料プランのスピンダウン(15分)対策。10分ごとに backend を ping してウォーム状態を維持する。
+  "triggers": {
+    "crons": ["*/10 * * * *"],
+  },
 }
