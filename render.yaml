@@ -29,6 +29,20 @@ services:
         value: https://jaxiv-tex-translation.onrender.com
       - key: FRONTEND_BASE_URL
         value: https://jaxiv-frontend.cruiseeast.workers.dev/
+      # オブジェクトストレージ (S3 互換 / Cloudflare R2)
+      # 機密値・アカウント固有値は Render ダッシュボードでシークレットとして設定する
+      - key: S3_REGION
+        value: auto
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: TRANSLATED_ARXIV_PUBLIC_BASE_URL
+        sync: false
+      - key: BLOG_FIGURES_PUBLIC_BASE_URL
+        sync: false
   # - name: jaxiv-frontend
   #   type: web
   #   plan: free
