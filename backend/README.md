@@ -40,6 +40,17 @@ Postgres / Qdrant / PDF 解析サービスはリポジトリルートの `docker
 | `TRANSLATED_ARXIV_PUBLIC_BASE_URL` | ✅ | 翻訳 PDF バケットの公開配信元 URL（例: `https://pdf.example.com`） |
 | `BLOG_FIGURES_PUBLIC_BASE_URL` | ✅ | 図表バケットの公開配信元 URL（例: `https://figures.example.com`） |
 
+### Cloudflare R2 本番構成
+
+| 用途 | バケット | 公開ドメイン |
+| --- | --- | --- |
+| 翻訳 PDF | `translated-arxiv-bucket` | `https://pdf.jaxiv.utstudent-scienceblog.com` |
+| ブログ図表 | `blog-figures` | `https://figures.jaxiv.utstudent-scienceblog.com` |
+
+両バケットは APAC / Standard で作成し、カスタムドメインの最小 TLS バージョンは 1.2 に設定します。`r2.dev` の公開URLは無効化し、CORS は本番フロントエンド、Workers デフォルトURL、ローカル開発元からの `GET` / `HEAD` のみ許可します。
+
+S3 認証情報は Cloudflare R2 で Object Read & Write 権限のAPIトークンを作成し、上記2バケットのみにスコープします。Access Key ID と Secret Access Key は `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` としてローカルと本番環境のシークレットに設定し、リポジトリへはコミットしません。
+
 > 既存ファイルの移行は別途。本変更は**新規書き込みのみ** S3 互換ストレージへ切り替えるものです（過去に Supabase Storage に保存済みの URL はそのまま有効）。
 
 ## `just` レシピ

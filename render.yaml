@@ -28,21 +28,25 @@ services:
         # Render private service: 同アカウント内から http://<service-name>:<port> で解決できる
         value: https://jaxiv-tex-translation.onrender.com
       - key: FRONTEND_BASE_URL
-        value: https://jaxiv-frontend.cruiseeast.workers.dev/
+        value: https://jaxiv.utstudent-scienceblog.com
       # オブジェクトストレージ (S3 互換 / Cloudflare R2)
-      # 機密値・アカウント固有値は Render ダッシュボードでシークレットとして設定する
+      # S3 認証情報のみ Render ダッシュボードでシークレットとして設定する
       - key: S3_REGION
         value: auto
       - key: S3_ENDPOINT_URL
-        sync: false
+        value: https://90cd97eda705f818e703a3af3d869d80.r2.cloudflarestorage.com
       - key: S3_ACCESS_KEY_ID
         sync: false
       - key: S3_SECRET_ACCESS_KEY
         sync: false
+      - key: TRANSLATED_ARXIV_BUCKET_NAME
+        value: translated-arxiv-bucket
+      - key: BLOG_FIGURES_BUCKET_NAME
+        value: blog-figures
       - key: TRANSLATED_ARXIV_PUBLIC_BASE_URL
-        sync: false
+        value: https://pdf.jaxiv.utstudent-scienceblog.com
       - key: BLOG_FIGURES_PUBLIC_BASE_URL
-        sync: false
+        value: https://figures.jaxiv.utstudent-scienceblog.com
   # - name: jaxiv-frontend
   #   type: web
   #   plan: free
