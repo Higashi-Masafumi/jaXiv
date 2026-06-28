@@ -7,6 +7,7 @@ arXiv 論文をダウンロードして日本語に翻訳・再コンパイル�
 - `backend/` — FastAPI（翻訳・TeX コンパイル）
 - `frontend/` — React Router v7
 - `pdf_analysis/` — PDF レイアウト解析サービス
+- `tokubai_mcp/` — スーパー特売・ポイントデー情報を提供する MCP サーバー（独立サービス）
 - `supabase/` — Supabase ローカルエミュレータ設定（DB / Auth / Storage）
 - `terraform/` — インフラ構成
 
