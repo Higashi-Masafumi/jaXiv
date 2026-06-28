@@ -83,6 +83,8 @@ services:
     restart: unless-stopped
     working_dir: /app
     depends_on:
+      minio-init:
+        condition: service_completed_successfully
       pdf-analysis:
         condition: service_started
       tex-translation:
@@ -97,17 +99,21 @@ services:
       POSTGRES_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
       SUPABASE_URL: http://host.docker.internal:54321
       JWKS_URL: http://host.docker.internal:54321/auth/v1/.well-known/jwks.json
-      # オブジェクトストレージ (S3 互換 / Cloudflare R2)。バケット名・リージョンは非機密のためここで固定。
-      # S3_ENDPOINT_URL / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY / *_PUBLIC_BASE_URL は
-      # アカウント固有のため ./backend/.env から注入する。
-      S3_REGION: auto
+      # ローカル開発では S3 互換の MinIO を使用する。本番環境は Render 側で Cloudflare R2 を設定する。
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_REGION: us-east-1
       TRANSLATED_ARXIV_BUCKET_NAME: translated-arxiv-bucket
       BLOG_FIGURES_BUCKET_NAME: blog-figures
+      # API が返す URL はブラウザからアクセスするため、Docker 内部名ではなくホスト側 URL を使う。
+      TRANSLATED_ARXIV_PUBLIC_BASE_URL: http://localhost:9000/translated-arxiv-bucket
+      BLOG_FIGURES_PUBLIC_BASE_URL: http://localhost:9000/blog-figures
       LAYOUT_ANALYSIS_URL: http://pdf-analysis:7860
       TEX_TRANSLATION_URL: http://tex-translation:8100
       OUTPUT_DIR: /app/output
       QDRANT_URL: http://qdrant:6333
-      # API キー等の機密値のみ env_file(./backend/.env) からコンテナ環境変数へ注入
+      # API キー等、上で固定していない値は env_file(./backend/.env) から注入する。
     volumes:
       - api-venv:/app/.venv
       - ./backend/output:/app/output
@@ -136,6 +142,47 @@ services:
           path: ./backend/pyproject.toml
         - action: rebuild
           path: ./backend/uv.lock
+
+  minio:
+    container_name: jaxiv-minio
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - jaxiv
+
+  minio-init:
+    container_name: jaxiv-minio-init
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        until /usr/bin/mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do
+          sleep 1
+        done
+        /usr/bin/mc mb --ignore-existing local/translated-arxiv-bucket
+        /usr/bin/mc mb --ignore-existing local/blog-figures
+        /usr/bin/mc anonymous set download local/translated-arxiv-bucket
+        /usr/bin/mc anonymous set download local/blog-figures
+    networks:
+      - jaxiv
+
   qdrant:
     container_name: jaxiv-qdrant
     image: qdrant/qdrant:latest
@@ -151,6 +198,7 @@ volumes:
   api-venv:
   pdf-analysis-venv:
   tex-translation-venv:
+  minio-data:
   qdrant-data:
 
 networks:

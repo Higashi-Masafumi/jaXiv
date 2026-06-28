@@ -7,7 +7,7 @@ arXiv 論文をダウンロードして日本語に翻訳・再コンパイル�
 - `backend/` — FastAPI（翻訳・TeX コンパイル）
 - `frontend/` — React Router v7
 - `pdf_analysis/` — PDF レイアウト解析サービス
-- `supabase/` — Supabase ローカルエミュレータ設定（DB / Auth / Storage）
+- `supabase/` — Supabase ローカルエミュレータ設定（DB / Auth）
 - `terraform/` — インフラ構成
 
 ## 前提ツール
@@ -18,14 +18,13 @@ arXiv 論文をダウンロードして日本語に翻訳・再コンパイル�
 
 ## ローカル起動
 
-Supabase CLI（DB / Auth / Storage）、docker compose（API / PDF 解析 / Qdrant）、フロントエンドを別々に起動します。
+Supabase CLI（DB / Auth）、docker compose（API / PDF 解析 / MinIO / Qdrant）、フロントエンドを別々に起動します。
 
 ```bash
 # 1. Supabase ローカルエミュレータ
 supabase start
-supabase seed buckets --local   # 初回のみ: バケット作成
 
-# 2. アプリケーション（API / PDF 解析 / Qdrant）
+# 2. アプリケーション（API / PDF 解析 / MinIO / Qdrant）
 docker compose up --build --watch
 
 # 3. フロントエンド
@@ -39,6 +38,8 @@ cd frontend && npm install && npm run dev
 | フロントエンド | http://localhost:5173 |
 | API | http://localhost:8001 |
 | PDF 解析 | http://localhost:7860 |
+| MinIO (S3 API) | http://localhost:9000 |
+| MinIO Console | http://localhost:9001 |
 | Qdrant | http://localhost:6333 |
 | Supabase Studio | http://127.0.0.1:54323 |
 | Supabase Postgres | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` |
@@ -54,7 +55,7 @@ cp backend/.env.template backend/.env
 cp frontend/.env.template frontend/.env
 ```
 
-- `backend/.env` には API キー等の **機密値のみ** を置きます。URL 系（`POSTGRES_URL` / `SUPABASE_URL` / `JWKS_URL` 等）は `docker-compose.yml` で固定済みです。
+- `backend/.env` には API キーと、Compose を使わずバックエンドを直接起動する場合のローカル設定を置きます。Compose 起動時の URL 系（`POSTGRES_URL` / `SUPABASE_URL` / `JWKS_URL` / `S3_ENDPOINT_URL` 等）は `docker-compose.yml` で固定済みです。
 - `frontend/.env` には `VITE_` プレフィックス付きの公開設定を置きます。`VITE_SUPABASE_ANON_KEY` は `supabase status` で確認できます。
 - `supabase/.env.local`（gitignore 済み）に Google OAuth クレデンシャルを置きます:
 
@@ -91,10 +92,9 @@ cp frontend/.env.template frontend/.env
 | --- | --- |
 | 起動 / 停止 | `supabase start` / `supabase stop` |
 | `config.toml` の反映 | `supabase stop && supabase start` |
-| Storage バケット定義の反映 | `supabase seed buckets --local` |
 | DB を完全初期化 | `supabase stop --no-backup && supabase start` |
 
-スキーマ変更は **Alembic**（`backend/alembic/versions/`）で管理し、`docker compose up` 時に `alembic upgrade head` が自動実行されます。
+スキーマ変更は **Alembic**（`backend/alembic/versions/`）で管理し、`docker compose up` 時に `alembic upgrade head` が自動実行されます。MinIO のバケット作成と読み取り公開設定も Compose 起動時に自動で行われます。
 
 ## ホットリロード
 
