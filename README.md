@@ -55,7 +55,7 @@ cp backend/.env.template backend/.env
 cp frontend/.env.template frontend/.env
 ```
 
-- `backend/.env` には API キーと、Compose を使わずバックエンドを直接起動する場合のローカル設定を置きます。Compose 起動時の URL 系（`POSTGRES_URL` / `SUPABASE_URL` / `JWKS_URL` / `S3_ENDPOINT_URL` 等）は `docker-compose.yml` で固定済みです。
+- `backend/.env` には API キーと、Compose を使わずバックエンドを直接起動する場合のローカル設定を置きます。Compose 起動時の URL 系（`POSTGRES_URL` / `JWKS_URL` / `S3_ENDPOINT_URL` 等）は `docker-compose.yml` で固定済みです。
 - `frontend/.env` には `VITE_` プレフィックス付きの公開設定を置きます。`VITE_SUPABASE_ANON_KEY` は `supabase status` で確認できます。
 - `supabase/.env.local`（gitignore 済み）に Google OAuth クレデンシャルを置きます:
 

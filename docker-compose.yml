@@ -95,9 +95,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      # Supabase ローカルエミュレータ（ホスト側で `supabase start` したもの）へ接続
+      # Supabase ローカル環境（DB / Auth、ホスト側で `supabase start` したもの）へ接続
       POSTGRES_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
-      SUPABASE_URL: http://host.docker.internal:54321
       JWKS_URL: http://host.docker.internal:54321/auth/v1/.well-known/jwks.json
       # ローカル開発では S3 互換の MinIO を使用する。本番環境は Render 側で Cloudflare R2 を設定する。
       S3_ENDPOINT_URL: http://minio:9000
