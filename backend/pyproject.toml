@@ -26,7 +26,6 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.41",
     "sqlmodel>=0.0.24",
     "sse-starlette>=2.4.1",
-    "supabase>=2.16.0",
     "types-requests>=2.32.4.20250611",
     "uvicorn>=0.35.0",
     "httpx>=0.28.0",
@@ -35,12 +34,14 @@ dependencies = [
     "qdrant-client>=1.17.1",
     "PyJWT>=2.10.0",
     "stripe>=15.1.0",
+    "aioboto3>=15.5.0",
 ]
 
 [dependency-groups]
 dev = [
     "mypy>=1.17.0",
     "ruff>=0.14.8",
+    "types-aioboto3[s3]>=15.5.0",
     "types-pyyaml>=6.0.12.20250915",
 ]
 

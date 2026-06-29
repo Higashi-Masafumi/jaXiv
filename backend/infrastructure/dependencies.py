@@ -92,8 +92,8 @@ from infrastructure.postgres.repositories import (
 	PostgresUserSubscriptionRepository,
 )
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
+from infrastructure.s3 import S3FigureStorageRepository, S3StorageRepository
 from infrastructure.stripe import StripeBillingGateway, StripeConfig, get_stripe_config
-from infrastructure.supabase import SupabaseFigureStorageRepository, SupabaseStorageRepository
 from infrastructure.tex_translation import HttpTexTranslationGateway
 from infrastructure.usage.role_based_usage_repository import RoleBasedUsageRepository
 
@@ -199,7 +199,7 @@ async def get_translated_arxiv_repository(
 
 
 def get_file_storage_repository() -> IFileStorageRepository:
-	return SupabaseStorageRepository()
+	return S3StorageRepository()
 
 
 async def get_blog_post_repository(
@@ -219,7 +219,7 @@ def get_sse_blog_post_unit_of_work() -> BlogPostUnitOfWork:
 
 
 def get_figure_storage_repository() -> IFigureStorageRepository:
-	return SupabaseFigureStorageRepository()
+	return S3FigureStorageRepository()
 
 
 def get_figure_chunk_repository() -> IFigureChunkRepository:

@@ -11,6 +11,12 @@
   },
   "main": "./workers/app.ts",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "jaxiv.utstudent-scienceblog.com",
+      "custom_domain": true,
+    },
+  ],
   // Render 無料プランのスピンダウン(15分)対策。10分ごとに backend を ping してウォーム状態を維持する。
   "triggers": {
     "crons": ["*/10 * * * *"],
