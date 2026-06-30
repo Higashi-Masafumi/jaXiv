@@ -1,5 +1,4 @@
 import markdownToHtml from 'zenn-markdown-html'
-import { BookOpenIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { useParams } from 'react-router'
 import { BlogPaperChat } from '~/components/blog-paper-chat'
@@ -13,8 +12,14 @@ import { useIsMobile } from '~/hooks/use-mobile'
 import { getBlogApiV1BlogPaperIdGet } from '~/api/sdk.gen'
 import type { Route } from './+types/blog.$paperId'
 
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
+
+// サーバーサイドでデータを取得することで、初期HTMLに本文とメタ情報が
+// 含まれるようにする（SEO / OGP 対応）。公開記事のため認証は不要なので、
+// ベースURLを明示して既定クライアントの認証コールバックに依存しない。
+export async function loader({ params }: Route.LoaderArgs) {
   const { data, error } = await getBlogApiV1BlogPaperIdGet({
+    baseUrl: import.meta.env.VITE_API_BASE_URL,
     path: { paper_id: params.paperId! },
     throwOnError: false,
   })
@@ -28,26 +33,44 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
   }
 }
 
-export function HydrateFallback() {
-  return (
-    <main
-      className="mx-auto flex min-h-[50vh] max-w-3xl items-center justify-center px-4 py-8"
-      aria-busy="true"
-    >
-      <p className="sr-only">読み込み中</p>
-      <BookOpenIcon
-        className="size-14 shrink-0 text-muted-foreground animate-pulse"
-        aria-hidden
-      />
-    </main>
-  )
-}
-
-export function meta({ loaderData }: Route.MetaArgs) {
+export function meta({ loaderData, location }: Route.MetaArgs) {
   if (!loaderData) return [{ title: 'Blog Post | jaXiv' }]
+
+  const url = `${SITE_ORIGIN}${location.pathname}`
+  const title = `${loaderData.title} | jaXiv`
+  const description = loaderData.summary
+
   return [
-    { title: loaderData.title },
-    { name: 'description', content: loaderData.summary },
+    { title },
+    { name: 'description', content: description },
+    // Open Graph
+    { property: 'og:type', content: 'article' },
+    { property: 'og:title', content: title },
+    { property: 'og:description', content: description },
+    { property: 'og:url', content: url },
+    { property: 'og:site_name', content: 'jaXiv' },
+    // Twitter Card
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: title },
+    { name: 'twitter:description', content: description },
+    // 正規URL
+    { tagName: 'link', rel: 'canonical', href: url },
+    // 構造化データ（学術記事）
+    {
+      'script:ld+json': {
+        '@context': 'https://schema.org',
+        '@type': 'ScholarlyArticle',
+        headline: loaderData.title,
+        abstract: description,
+        inLanguage: 'ja',
+        author:
+          loaderData.authors.length > 0
+            ? loaderData.authors.map(name => ({ '@type': 'Person', name }))
+            : undefined,
+        url,
+        sameAs: loaderData.source_url ?? undefined,
+      },
+    },
   ]
 }
 
