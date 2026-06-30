@@ -8,6 +8,11 @@ class GeminiConfig(BaseSettings):
 	gemini_api_key: SecretStr = Field(
 		default=SecretStr(''), description='The API key for the Gemini API'
 	)
+	blog_model: str = Field(
+		default='gemini-3-flash-preview',
+		description='Model used for blog post generation (override via GEMINI_BLOG_MODEL)',
+		alias='GEMINI_BLOG_MODEL',
+	)
 
 
 @lru_cache
