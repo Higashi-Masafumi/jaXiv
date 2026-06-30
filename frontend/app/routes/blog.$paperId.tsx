@@ -1,4 +1,5 @@
 import markdownToHtml from 'zenn-markdown-html'
+import { BookOpenIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { useParams } from 'react-router'
 import { BlogPaperChat } from '~/components/blog-paper-chat'
@@ -10,16 +11,53 @@ import {
 } from '~/components/ui/resizable'
 import { useIsMobile } from '~/hooks/use-mobile'
 import { getBlogApiV1BlogPaperIdGet } from '~/api/sdk.gen'
+import type { BlogPostResponseSchema } from '~/api/types.gen'
 import type { Route } from './+types/blog.$paperId'
 
 const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
 
+// 本文Markdownをレンダリングして表示用データに整形する。loader（サーバー）と
+// clientLoader（ブラウザ）の双方から利用する。
+async function toBlogPost(data: BlogPostResponseSchema) {
+  return {
+    ...data,
+    contentHtml: await markdownToHtml(data.content),
+    requiresAuth: false as const,
+  }
+}
+
 // サーバーサイドでデータを取得することで、初期HTMLに本文とメタ情報が
-// 含まれるようにする（SEO / OGP 対応）。公開記事のため認証は不要なので、
-// ベースURLを明示して既定クライアントの認証コールバックに依存しない。
+// 含まれるようにする（SEO / OGP 対応）。公開記事（arXiv）はこの経路で
+// SSR される。一方で非公開記事（PDF）はバックエンドがオーナーの Bearer
+// トークン付きリクエストにのみ 200 を返すため、セッションを持たない
+// サーバーでは 404 になる。その場合は例外を投げず requiresAuth センチネルを
+// 返し、ブラウザ側の clientLoader がユーザーの認証付きで再取得する。
 export async function loader({ params }: Route.LoaderArgs) {
-  const { data, error } = await getBlogApiV1BlogPaperIdGet({
+  const { data, response } = await getBlogApiV1BlogPaperIdGet({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
+    path: { paper_id: params.paperId! },
+    throwOnError: false,
+  })
+  if (data) return toBlogPost(data)
+  // 404 は「存在しない」と「非公開（オーナー限定）」を区別できないため、
+  // ブラウザ側で認証付き再取得に委ねる。それ以外は本当のエラー。
+  if (response.status === 404) return { requiresAuth: true as const }
+  throw new Response('Failed to load blog post', {
+    status: response.status || 500,
+  })
+}
+
+// ブラウザ側ではユーザーの Supabase セッションを注入する既定クライアントで
+// 取得する。公開記事はサーバーで取得済みなので、その結果をそのまま使う。
+export async function clientLoader({
+  serverLoader,
+  params,
+}: Route.ClientLoaderArgs) {
+  const serverData = await serverLoader()
+  if (!serverData.requiresAuth) return serverData
+
+  // 非公開記事（PDF）: オーナーの認証付きで再取得する。
+  const { data, error } = await getBlogApiV1BlogPaperIdGet({
     path: { paper_id: params.paperId! },
     throwOnError: false,
   })
@@ -27,14 +65,14 @@ export async function loader({ params }: Route.LoaderArgs) {
     throw new Response('Blog post not found', {
       status: error ? 404 : 500,
     })
-  return {
-    ...data,
-    contentHtml: await markdownToHtml(data.content),
-  }
+  return toBlogPost(data)
 }
+clientLoader.hydrate = true as const
 
 export function meta({ loaderData, location }: Route.MetaArgs) {
-  if (!loaderData) return [{ title: 'Blog Post | jaXiv' }]
+  // データ未取得、または非公開記事（SEO 不要）の場合は汎用タイトルのみ。
+  if (!loaderData || loaderData.requiresAuth)
+    return [{ title: 'Blog Post | jaXiv' }]
 
   const url = `${SITE_ORIGIN}${location.pathname}`
   const title = `${loaderData.title} | jaXiv`
@@ -81,6 +119,23 @@ export default function BlogPage({ loaderData }: Route.ComponentProps) {
   useEffect(() => {
     import('zenn-embed-elements')
   }, [])
+
+  // 非公開記事（PDF）はサーバーでは取得できず、ハイドレーション後に
+  // clientLoader が認証付きで再取得する。その間のフォールバック表示。
+  if (loaderData.requiresAuth) {
+    return (
+      <main
+        className="mx-auto flex min-h-[50vh] max-w-3xl items-center justify-center px-4 py-8"
+        aria-busy="true"
+      >
+        <p className="sr-only">読み込み中</p>
+        <BookOpenIcon
+          className="size-14 shrink-0 text-muted-foreground animate-pulse"
+          aria-hidden
+        />
+      </main>
+    )
+  }
 
   const blogPanel = (
     <div className="mx-auto max-w-3xl">
