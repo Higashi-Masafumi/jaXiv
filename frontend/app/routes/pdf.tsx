@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { ArrowRightIcon, FileUpIcon } from 'lucide-react'
 
 import { useAuth } from '~/contexts/auth-context'
+import { blogPostPath } from '~/lib/blog-path'
 import { useBlogStream } from '../hooks/use-blog-stream'
 import { GenerationHero } from '../components/generation-hero'
 import { GenerationSteps } from '../components/generation-steps'
@@ -26,7 +27,7 @@ export default function Pdf() {
 
   useEffect(() => {
     if (status === 'complete' && paperId) {
-      navigate(`/blog/${paperId}`)
+      navigate(blogPostPath(paperId))
     }
   }, [status, paperId, navigate])
 
