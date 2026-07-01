@@ -27,7 +27,7 @@ export default function Pdf() {
 
   useEffect(() => {
     if (status === 'complete' && paperId) {
-      navigate(blogPostPath(paperId))
+      navigate(blogPostPath(paperId, 'pdf'))
     }
   }, [status, paperId, navigate])
 

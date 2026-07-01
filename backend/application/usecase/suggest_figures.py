@@ -6,6 +6,7 @@ from domain.gateways.i_figure_query_generator import IFigureQueryGenerator
 from domain.gateways.i_query_embedding_gateway import IQueryEmbeddingGateway
 from domain.repositories.i_blog_post_repository import IBlogPostRepository
 from domain.repositories.i_figure_chunk_repository import GlobalFigureHit, IFigureChunkRepository
+from domain.value_objects.blog_source_type import BlogSourceType
 from domain.value_objects.user_id import UserId
 
 
@@ -17,6 +18,7 @@ class FigureSuggestionItem(BaseModel):
 	page_number: int
 	paper_id: str
 	paper_title: str | None
+	source_type: BlogSourceType
 	score: float
 	matched_query: str
 
@@ -80,12 +82,12 @@ class SuggestFiguresUseCase:
 					best[hit.image_url] = (hit, query)
 
 		# Drop figures the requester may not access (other users' private PDFs).
-		# This also yields the title map for the accessible papers.
-		titles = await self._blog_post_repository.find_accessible_titles_by_paper_ids(
+		# This also yields the title / source type for the accessible papers.
+		papers = await self._blog_post_repository.find_accessible_papers_by_paper_ids(
 			list({hit.paper_id for hit, _ in best.values()}),
 			requester_user_id,
 		)
-		accessible = [pair for pair in best.values() if pair[0].paper_id in titles]
+		accessible = [pair for pair in best.values() if pair[0].paper_id in papers]
 		ranked = sorted(accessible, key=lambda pair: pair[0].score, reverse=True)[:limit]
 
 		return SuggestFiguresResult(
@@ -96,7 +98,8 @@ class SuggestFiguresUseCase:
 					caption=hit.caption,
 					page_number=hit.page_number,
 					paper_id=hit.paper_id,
-					paper_title=titles.get(hit.paper_id) or None,
+					paper_title=papers[hit.paper_id].title or None,
+					source_type=papers[hit.paper_id].source_type,
 					score=hit.score,
 					matched_query=query,
 				)

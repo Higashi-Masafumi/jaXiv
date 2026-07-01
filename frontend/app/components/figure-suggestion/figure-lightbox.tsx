@@ -46,7 +46,7 @@ export function FigureLightbox({ item, onClose }: FigureLightboxProps) {
             )}
 
             <Link
-              to={blogPostPath(item.paper_id)}
+              to={blogPostPath(item.paper_id, item.source_type)}
               className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
               <ExternalLinkIcon className="size-3.5" />

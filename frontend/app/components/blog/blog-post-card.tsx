@@ -13,7 +13,7 @@ export function BlogPostCard({
 }) {
   return (
     <Link
-      to={blogPostPath(post.paper_id)}
+      to={blogPostPath(post.paper_id, post.source_type)}
       className="group flex h-full flex-col rounded-xl border border-border bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     >
       {showPaperId && (

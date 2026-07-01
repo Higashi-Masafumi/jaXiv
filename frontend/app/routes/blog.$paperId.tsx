@@ -1,5 +1,4 @@
 import markdownToHtml from 'zenn-markdown-html'
-import { redirect } from 'react-router'
 import { getBlogApiV1BlogPaperIdGet } from '~/api/sdk.gen'
 import { BlogPostView } from '~/components/blog/blog-post-view'
 import type { Route } from './+types/blog.$paperId'
@@ -7,13 +6,9 @@ import type { Route } from './+types/blog.$paperId'
 const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
 
 // arXiv記事（公開）用ルート。サーバーサイドで取得して初期HTMLに本文と
-// メタ情報を含めることで SEO / OGP に対応する。PDF記事（非公開）はオーナーの
-// 認証が必要なため、専用ルート `/blog/pdf/:paperId` にリダイレクトする。
+// メタ情報を含めることで SEO / OGP に対応する。PDF記事（非公開）は認証が必要な
+// 専用ルート `/blog/pdf/:paperId` で扱い、遷移リンクは `source_type` で振り分ける。
 export async function loader({ params }: Route.LoaderArgs) {
-  if (params.paperId.startsWith('pdf-')) {
-    throw redirect(`/blog/pdf/${params.paperId}`)
-  }
-
   const { data, error } = await getBlogApiV1BlogPaperIdGet({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
     path: { paper_id: params.paperId },
