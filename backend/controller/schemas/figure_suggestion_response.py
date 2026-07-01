@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from application.usecase.suggest_figures import SuggestFiguresResult
@@ -20,6 +22,7 @@ class FigureSuggestionItemSchema(BaseModel):
 	page_number: int
 	paper_id: str
 	paper_title: str | None
+	source_type: Literal['arxiv', 'pdf']
 	score: float
 	matched_query: str
 
@@ -41,6 +44,7 @@ class FigureSuggestionResponseSchema(BaseModel):
 					page_number=i.page_number,
 					paper_id=i.paper_id,
 					paper_title=i.paper_title,
+					source_type='pdf' if i.source_type.is_pdf else 'arxiv',
 					score=i.score,
 					matched_query=i.matched_query,
 				)

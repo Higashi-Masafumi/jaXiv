@@ -10,6 +10,7 @@ export default [
     index('routes/arxiv.tsx'),
     route('pdf', 'routes/pdf.tsx'),
     route('blog', 'routes/blog.tsx'),
+    route('blog/pdf/:paperId', 'routes/blog.pdf.$paperId.tsx'),
     route('blog/:paperId', 'routes/blog.$paperId.tsx'),
     route('figures', 'routes/figures.tsx'),
     route('my-blogs', 'routes/my-blogs.tsx'),

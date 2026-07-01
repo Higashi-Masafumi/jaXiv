@@ -1,8 +1,20 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
+from pydantic import BaseModel, ConfigDict
+
 from domain.entities.blog import BlogPost
+from domain.value_objects.blog_source_type import BlogSourceType
 from domain.value_objects.user_id import UserId
+
+
+class AccessiblePaper(BaseModel):
+	"""Lightweight read model for a paper the requester may access."""
+
+	model_config = ConfigDict(frozen=True)
+
+	title: str
+	source_type: BlogSourceType
 
 
 class IBlogPostRepository(ABC):
@@ -14,10 +26,10 @@ class IBlogPostRepository(ABC):
 		...
 
 	@abstractmethod
-	async def find_accessible_titles_by_paper_ids(
+	async def find_accessible_papers_by_paper_ids(
 		self, paper_ids: list[str], user_id: UserId
-	) -> dict[str, str]:
-		"""Return paper_id -> title for papers the given user may access.
+	) -> dict[str, AccessiblePaper]:
+		"""Return paper_id -> accessible paper info for papers the user may access.
 
 		A paper is accessible when it is a public arXiv post, or a PDF post owned
 		by ``user_id``. Inaccessible papers (e.g. other users' private PDFs) and

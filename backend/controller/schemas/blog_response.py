@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -15,6 +16,7 @@ class BlogPostResponseSchema(BaseModel):
 	summary: str
 	authors: list[str]
 	source_url: str | None
+	source_type: Literal['arxiv', 'pdf']
 	content: str
 	created_at: datetime
 	updated_at: datetime
@@ -27,6 +29,7 @@ class BlogPostResponseSchema(BaseModel):
 			summary=blog_post.summary,
 			authors=blog_post.authors,
 			source_url=blog_post.source_url,
+			source_type='pdf' if blog_post.source_type.is_pdf else 'arxiv',
 			content=blog_post.content,
 			created_at=blog_post.created_at,
 			updated_at=blog_post.updated_at,

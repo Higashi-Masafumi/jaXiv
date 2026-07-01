@@ -951,6 +951,14 @@
             ],
             "title": "Source Url"
           },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "arxiv",
+              "pdf"
+            ],
+            "title": "Source Type"
+          },
           "content": {
             "type": "string",
             "title": "Content"
@@ -973,6 +981,7 @@
           "summary",
           "authors",
           "source_url",
+          "source_type",
           "content",
           "created_at",
           "updated_at"
@@ -1246,6 +1255,14 @@
             ],
             "title": "Paper Title"
           },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "arxiv",
+              "pdf"
+            ],
+            "title": "Source Type"
+          },
           "score": {
             "type": "number",
             "title": "Score"
@@ -1262,6 +1279,7 @@
           "page_number",
           "paper_id",
           "paper_title",
+          "source_type",
           "score",
           "matched_query"
         ],

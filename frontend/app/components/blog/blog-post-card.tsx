@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { FileTextIcon } from 'lucide-react'
 
 import type { BlogPostResponseSchema } from '~/api/types.gen'
+import { blogPostPath } from '~/lib/blog-path'
 
 export function BlogPostCard({
   post,
@@ -12,7 +13,7 @@ export function BlogPostCard({
 }) {
   return (
     <Link
-      to={`/blog/${post.paper_id}`}
+      to={blogPostPath(post.paper_id, post.source_type)}
       className="group flex h-full flex-col rounded-xl border border-border bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     >
       {showPaperId && (

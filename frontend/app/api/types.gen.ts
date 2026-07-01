@@ -29,6 +29,10 @@ export type BlogPostResponseSchema = {
    */
   source_url: string | null
   /**
+   * Source Type
+   */
+  source_type: 'arxiv' | 'pdf'
+  /**
    * Content
    */
   content: string
@@ -220,6 +224,10 @@ export type FigureSuggestionItemSchema = {
    * Paper Title
    */
   paper_title: string | null
+  /**
+   * Source Type
+   */
+  source_type: 'arxiv' | 'pdf'
   /**
    * Score
    */

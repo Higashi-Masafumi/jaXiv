@@ -7,6 +7,7 @@ from sqlmodel import col
 
 from domain.entities.blog import BlogPost
 from domain.repositories import IBlogPostRepository
+from domain.repositories.i_blog_post_repository import AccessiblePaper
 from domain.value_objects.blog_source_type import BlogSourceType
 from domain.value_objects.user_id import UserId
 
@@ -125,10 +126,10 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		result = await self._session.execute(statement)
 		return result.scalar_one()
 
-	async def find_accessible_titles_by_paper_ids(
+	async def find_accessible_papers_by_paper_ids(
 		self, paper_ids: list[str], user_id: UserId
-	) -> dict[str, str]:
-		"""Return paper_id -> title for papers the given user may access.
+	) -> dict[str, AccessiblePaper]:
+		"""Return paper_id -> accessible paper info for papers the given user may access.
 
 		Accessible papers are public arXiv posts or PDF posts owned by ``user_id``.
 		Other users' private PDF posts and unknown paper IDs are omitted.
@@ -136,7 +137,9 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		if not paper_ids:
 			return {}
 		statement = select(
-			col(BlogPostContentModel.paper_id), col(BlogPostContentModel.title)
+			col(BlogPostContentModel.paper_id),
+			col(BlogPostContentModel.title),
+			col(BlogPostContentModel.source_type),
 		).where(
 			col(BlogPostContentModel.paper_id).in_(paper_ids),
 			or_(
@@ -145,7 +148,12 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 			),
 		)
 		result = await self._session.execute(statement)
-		return {paper_id: (title or '') for paper_id, title in result.all()}
+		return {
+			paper_id: AccessiblePaper(
+				title=title or '', source_type=BlogSourceType(source_type)
+			)
+			for paper_id, title, source_type in result.all()
+		}
 
 	async def find_by_paper_id(self, paper_id: str) -> BlogPost | None:
 		statement = select(BlogPostContentModel).where(
