@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Suspense, useEffect } from 'react'
+import { Await, Link, useNavigate } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -10,6 +10,7 @@ import { useBlogStream } from '../hooks/use-blog-stream'
 import { listBlogsApiV1BlogGet } from '~/api/sdk.gen'
 import { GenerationHero } from '../components/generation-hero'
 import { GenerationSteps } from '../components/generation-steps'
+import { BlogCardSkeleton } from '~/components/blog/blog-card-skeleton'
 import { BlogPostCard } from '~/components/blog/blog-post-card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -44,16 +45,19 @@ export function meta() {
   ]
 }
 
-// ホーム（公開）。最近の記事一覧をサーバーサイドで取得して初期HTMLに含めることで、
-// クローラが各記事への内部リンクを辿れるようにする（公開APIなので認証不要）。
-export async function loader() {
-  const { data, error } = await listBlogsApiV1BlogGet({
+// ホーム（公開）。最近の記事一覧をサーバー loader で取得するが、Promise を await せず
+// 返すことでストリーミングSSRとして扱う。初期HTMLにスケルトンを即flushしつつ、解決後の
+// 各記事リンク入りHTMLを同一レスポンスにストリームするためSEOも維持される。
+// アプリ内遷移では即座にスケルトンが表示され体感が速い。
+export function loader() {
+  const recent = listBlogsApiV1BlogGet({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
     query: { page: 1, page_size: RECENT_COUNT },
-    throwOnError: false,
+  }).then(({ data, error }) => {
+    if (error || !data) throw new Response('Failed to load recent blogs')
+    return data.items
   })
-  if (error || !data) throw new Response('Failed to load recent blogs')
-  return { recent: data.items }
+  return { recent }
 }
 
 export default function Arxiv({ loaderData }: Route.ComponentProps) {
@@ -195,21 +199,38 @@ export default function Arxiv({ loaderData }: Route.ComponentProps) {
           </Link>
         </div>
 
-        {loaderData.recent.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border px-6 py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              まだブログがありません。上の入力から最初の 1 本を生成しましょう。
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {loaderData.recent.map(post => (
-              <li key={post.paper_id}>
-                <BlogPostCard post={post} />
-              </li>
-            ))}
-          </ul>
-        )}
+        <Suspense
+          fallback={
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }, (_, i) => (
+                <li key={i}>
+                  <BlogCardSkeleton />
+                </li>
+              ))}
+            </ul>
+          }
+        >
+          <Await resolve={loaderData.recent} errorElement={null}>
+            {items =>
+              items.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    まだブログがありません。上の入力から最初の 1
+                    本を生成しましょう。
+                  </p>
+                </div>
+              ) : (
+                <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map(post => (
+                    <li key={post.paper_id}>
+                      <BlogPostCard post={post} />
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+          </Await>
+        </Suspense>
       </div>
     </main>
   )

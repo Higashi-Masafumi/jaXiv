@@ -1,10 +1,12 @@
-import { Link } from 'react-router'
+import { Suspense } from 'react'
+import { Await, Link } from 'react-router'
 import { ArchiveIcon, SearchXIcon } from 'lucide-react'
 
 import { listBlogsApiV1BlogGet } from '~/api/sdk.gen'
 import { Button } from '~/components/ui/button'
 import { EmptyState } from '~/components/empty-state'
 import { PageHeader } from '~/components/page-header'
+import { BlogListSkeleton } from '~/components/blog/blog-card-skeleton'
 import {
   BlogListPagination,
   parsePageParams,
@@ -21,21 +23,22 @@ export function meta() {
   ]
 }
 
-// 記事一覧（公開）。サーバーサイドで取得して初期HTMLに各記事への内部リンクと
-// タイトルを含めることで、クローラが記事ページを辿れるようにする（公開APIなので
-// 認証不要、baseUrlを明示）。
-export async function loader({ request }: Route.LoaderArgs) {
+// 記事一覧（公開）。サーバー loader で取得するが、Promise を await せずに返すことで
+// ストリーミングSSRとして扱う。初期HTMLはスケルトンを即flushし、解決後の
+// 各記事リンク入りHTMLを同一レスポンスにストリームするためSEOも維持される。
+// アプリ内遷移では即座にナビゲーションが完了しSuspenseのスケルトンが表示される。
+export function loader({ request }: Route.LoaderArgs) {
   const { page, pageSize, keyword } = parsePageParams(new URL(request.url))
 
-  const { data, error } = await listBlogsApiV1BlogGet({
+  const blogs = listBlogsApiV1BlogGet({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
     query: { page, page_size: pageSize, keyword },
-    throwOnError: false,
+  }).then(({ data, error }) => {
+    if (error || !data)
+      throw new Response('Failed to load archive', { status: 500 })
+    return data
   })
-  if (error || !data)
-    throw new Response('Failed to load archive', { status: 500 })
-
-  return { blogs: data, keyword }
+  return { blogs, keyword }
 }
 
 function BlogPostList({
@@ -96,7 +99,11 @@ export default function BlogList({ loaderData }: Route.ComponentProps) {
           description="生成されたブログ記事を検索して閲覧できます。"
         />
         <BlogSearchForm />
-        <BlogPostList data={loaderData.blogs} keyword={loaderData.keyword} />
+        <Suspense fallback={<BlogListSkeleton count={4} />}>
+          <Await resolve={loaderData.blogs}>
+            {data => <BlogPostList data={data} keyword={loaderData.keyword} />}
+          </Await>
+        </Suspense>
       </div>
     </main>
   )
