@@ -24,7 +24,7 @@ export function meta() {
 }
 
 export default function Figures() {
-  const { isAnonymous } = useAuth()
+  const { isAnonymous, signInWithGoogle } = useAuth()
   const { items, error, submitted, isPending, submit } = useFigureSuggestion()
   const [selected, setSelected] = useState<FigureSuggestionItem | null>(null)
 
@@ -50,6 +50,20 @@ export default function Figures() {
             onSubmit={submit}
           />
 
+          {isAnonymous && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              図面検索を利用するには
+              <button
+                type="button"
+                onClick={signInWithGoogle}
+                className="mx-1 cursor-pointer font-semibold text-primary underline underline-offset-2"
+              >
+                Googleでログイン
+              </button>
+              してください。
+            </p>
+          )}
+
           {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
         </div>
       </GenerationHero>
@@ -60,6 +74,16 @@ export default function Figures() {
             <FigureGallery items={[]} isLoading onSelect={setSelected} />
           ) : (
             <div className="flex flex-col gap-5">
+              <div className="flex items-baseline justify-between">
+                <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                  検索結果
+                </h2>
+                {items.length > 0 && (
+                  <span className="text-sm text-muted-foreground">
+                    {items.length}件
+                  </span>
+                )}
+              </div>
               <FigureQueryChips queries={queries} />
               <FigureGallery
                 items={items}

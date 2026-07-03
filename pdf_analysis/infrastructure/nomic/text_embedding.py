@@ -1,3 +1,5 @@
+import threading
+
 import torch
 import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
@@ -10,6 +12,10 @@ class NomicTextEmbeddingGateway(TextEmbeddingGateway):
     def __init__(self, model: AutoModel, tokenizer: AutoTokenizer) -> None:
         self._model = model
         self._tokenizer = tokenizer
+        # nomic-bert の custom modeling は forward 中に rotary embedding の
+        # cos/sin キャッシュをシーケンス長に応じて書き換えるためスレッドセーフでない。
+        # FastAPI の同期エンドポイントはスレッドプールで並行実行されるので直列化する
+        self._lock = threading.Lock()
 
     def embed_text_batch(self, texts: list[str]) -> list[Embedding]:
         # nomic-embed-text requires task prefix for document embedding
@@ -25,7 +31,7 @@ class NomicTextEmbeddingGateway(TextEmbeddingGateway):
         encoded = self._tokenizer(
             prefixed, padding=True, truncation=True, return_tensors="pt"
         )
-        with torch.no_grad():
+        with self._lock, torch.no_grad():
             output = self._model(**encoded)
         token_emb = output.last_hidden_state
         mask = encoded["attention_mask"].unsqueeze(-1).expand(token_emb.size()).float()
