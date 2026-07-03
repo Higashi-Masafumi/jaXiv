@@ -1,5 +1,4 @@
 import { listBlogsApiV1BlogGet } from '~/api/sdk.gen'
-import type { Route } from './+types/sitemap.xml'
 
 const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
 
@@ -22,7 +21,7 @@ function escapeXml(value: string): string {
 // sitemap.xml リソースルート。default コンポーネントを持たず loader だけで
 // XMLを返す。公開されている全arXiv記事（/blog/:paperId）と主要静的ページを列挙し、
 // 記事の増減が自動で反映されるようAPIをページングして全件取得する。
-export async function loader(_: Route.LoaderArgs) {
+export async function loader() {
   const baseUrl = import.meta.env.VITE_API_BASE_URL
   const paperIds: string[] = []
 
