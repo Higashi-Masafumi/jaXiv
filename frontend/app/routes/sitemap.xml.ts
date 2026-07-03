@@ -34,7 +34,10 @@ export async function loader() {
       query: { page, page_size: PAGE_SIZE },
       throwOnError: false,
     })
-    if (error || !data) break
+    // 取得失敗時は部分的なsitemapを200で返す（1時間キャッシュされる）のではなく
+    // 5xxを返してクローラに再試行させる。
+    if (error || !data)
+      throw new Response('Failed to build sitemap', { status: 503 })
     for (const item of data.items) paperIds.push(item.paper_id)
     totalPages = data.total_pages
     page += 1
