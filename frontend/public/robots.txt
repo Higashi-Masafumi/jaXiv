@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# 認証必須・非公開系のパスは検索結果に出す必要がないためクロール除外する。
+Disallow: /my-blogs
+Disallow: /billing/
+Disallow: /auth/
+Disallow: /blog/pdf/
+
+Sitemap: https://jaxiv.utstudent-scienceblog.com/sitemap.xml

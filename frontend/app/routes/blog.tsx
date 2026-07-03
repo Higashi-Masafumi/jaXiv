@@ -23,7 +23,7 @@ export function meta() {
   ]
 }
 
-export function clientLoader({ request }: Route.ClientLoaderArgs) {
+export function loader({ request }: Route.LoaderArgs) {
   const { page, pageSize, keyword } = parsePageParams(new URL(request.url))
 
   const blogs = listBlogsApiV1BlogGet({
@@ -35,24 +35,6 @@ export function clientLoader({ request }: Route.ClientLoaderArgs) {
     return data
   })
   return { blogs, keyword }
-}
-
-export function HydrateFallback() {
-  return (
-    <main
-      className="h-full overflow-y-auto px-4 pb-10 pt-12 sm:px-6 sm:py-10"
-      aria-busy="true"
-    >
-      <div className="mx-auto max-w-4xl">
-        <PageHeader
-          title="アーカイブ"
-          description="生成されたブログ記事を検索して閲覧できます。"
-        />
-        <BlogSearchForm />
-        <BlogListSkeleton count={4} />
-      </div>
-    </main>
-  )
 }
 
 function BlogPostList({

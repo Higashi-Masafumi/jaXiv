@@ -45,7 +45,7 @@ export function meta() {
   ]
 }
 
-export function clientLoader() {
+export function loader() {
   const recent = listBlogsApiV1BlogGet({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
     query: { page: 1, page_size: RECENT_COUNT },
