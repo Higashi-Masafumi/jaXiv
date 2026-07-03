@@ -23,10 +23,6 @@ export function meta() {
   ]
 }
 
-// 記事一覧（公開）。サーバー loader で取得するが、Promise を await せずに返すことで
-// ストリーミングSSRとして扱う。初期HTMLはスケルトンを即flushし、解決後の
-// 各記事リンク入りHTMLを同一レスポンスにストリームするためSEOも維持される。
-// アプリ内遷移では即座にナビゲーションが完了しSuspenseのスケルトンが表示される。
 export function loader({ request }: Route.LoaderArgs) {
   const { page, pageSize, keyword } = parsePageParams(new URL(request.url))
 

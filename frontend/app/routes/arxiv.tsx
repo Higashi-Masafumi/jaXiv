@@ -45,10 +45,6 @@ export function meta() {
   ]
 }
 
-// ホーム（公開）。最近の記事一覧をサーバー loader で取得するが、Promise を await せず
-// 返すことでストリーミングSSRとして扱う。初期HTMLにスケルトンを即flushしつつ、解決後の
-// 各記事リンク入りHTMLを同一レスポンスにストリームするためSEOも維持される。
-// アプリ内遷移では即座にスケルトンが表示され体感が速い。
 export function loader() {
   const recent = listBlogsApiV1BlogGet({
     baseUrl: import.meta.env.VITE_API_BASE_URL,
