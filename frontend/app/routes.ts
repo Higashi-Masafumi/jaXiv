@@ -23,4 +23,5 @@ export default [
   ]),
   route('login', 'routes/login.tsx'),
   route('auth/callback', 'routes/auth.callback.tsx'),
+  route('sitemap.xml', 'routes/sitemap.xml.tsx'),
 ] satisfies RouteConfig
