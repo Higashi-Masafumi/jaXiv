@@ -14,6 +14,8 @@ class NomicTextEmbeddingGateway(TextEmbeddingGateway):
         self._tokenizer = tokenizer
         # nomic-bert の custom modeling は forward 中に rotary embedding の
         # cos/sin キャッシュをシーケンス長に応じて書き換えるためスレッドセーフでない。
+        # 高速トークナイザ(Rust実装)も内部状態を持ち並行呼び出しに耐えないため
+        # 同じロックでトークナイズとforwardの両方を直列化する。
         # FastAPI の同期エンドポイントはスレッドプールで並行実行されるので直列化する
         self._lock = threading.Lock()
 
@@ -28,10 +30,10 @@ class NomicTextEmbeddingGateway(TextEmbeddingGateway):
         return self._embed_prefixed(prefixed)
 
     def _embed_prefixed(self, prefixed: list[str]) -> list[Embedding]:
-        encoded = self._tokenizer(
-            prefixed, padding=True, truncation=True, return_tensors="pt"
-        )
         with self._lock, torch.no_grad():
+            encoded = self._tokenizer(
+                prefixed, padding=True, truncation=True, return_tensors="pt"
+            )
             output = self._model(**encoded)
         token_emb = output.last_hidden_state
         mask = encoded["attention_mask"].unsqueeze(-1).expand(token_emb.size()).float()
