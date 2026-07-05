@@ -5,6 +5,15 @@ import type { Route } from './+types/blog.$paperId'
 
 const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
 
+// 記事本文（Markdown）中に埋め込まれた最初の図版URLを抽出する。生成時に
+// `![caption](https://...)` 形式で挿入されているため、それをそのまま
+// og:image / twitter:image に使うことでXなどのカードに論文の図が表示される。
+const MARKDOWN_IMAGE_RE = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/
+
+function extractFirstImageUrl(markdown: string): string | undefined {
+  return MARKDOWN_IMAGE_RE.exec(markdown)?.[1]
+}
+
 // arXiv記事（公開）用ルート。サーバーサイドで取得して初期HTMLに本文と
 // メタ情報を含めることで SEO / OGP に対応する。PDF記事（非公開）は認証が必要な
 // 専用ルート `/blog/pdf/:paperId` で扱い、遷移リンクは `source_type` で振り分ける。
@@ -21,6 +30,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   return {
     ...data,
     contentHtml: await markdownToHtml(data.content),
+    ogImageUrl: extractFirstImageUrl(data.content),
   }
 }
 
@@ -30,6 +40,7 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
   const url = `${SITE_ORIGIN}${location.pathname}`
   const title = `${loaderData.title} | jaXiv`
   const description = loaderData.summary
+  const imageUrl = loaderData.ogImageUrl
 
   return [
     { title },
@@ -40,10 +51,15 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
     { property: 'og:description', content: description },
     { property: 'og:url', content: url },
     { property: 'og:site_name', content: 'jaXiv' },
+    ...(imageUrl ? [{ property: 'og:image', content: imageUrl }] : []),
     // Twitter Card
-    { name: 'twitter:card', content: 'summary_large_image' },
+    {
+      name: 'twitter:card',
+      content: imageUrl ? 'summary_large_image' : 'summary',
+    },
     { name: 'twitter:title', content: title },
     { name: 'twitter:description', content: description },
+    ...(imageUrl ? [{ name: 'twitter:image', content: imageUrl }] : []),
     // 正規URL
     { tagName: 'link', rel: 'canonical', href: url },
     // 構造化データ（学術記事）
@@ -53,6 +69,7 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
         '@type': 'ScholarlyArticle',
         headline: loaderData.title,
         abstract: description,
+        image: imageUrl ?? undefined,
         inLanguage: 'ja',
         author:
           loaderData.authors.length > 0
