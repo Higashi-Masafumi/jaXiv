@@ -5,13 +5,20 @@ import type { Route } from './+types/blog.$paperId'
 
 const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
 
-// 記事本文（Markdown）中に埋め込まれた最初の図版URLを抽出する。生成時に
-// `![caption](https://...)` 形式で挿入されているため、それをそのまま
-// og:image / twitter:image に使うことでXなどのカードに論文の図が表示される。
-const MARKDOWN_IMAGE_RE = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/
+// 記事本文（Markdown）中に埋め込まれた図版URLのうち、OGP/Twitterカードで
+// レンダリング可能な形式の最初の1枚を抽出する。図はarXivのソースからアップ
+// ロードされたものをそのまま使うため、`.eps`/`.svg`のようにXやFacebookの
+// クローラーが画像として展開できない形式が混ざりうる（`.pdf`のみバックエンドで
+// PNGに変換済み）。対応形式以外はスキップし、後続の図にフォールバックする。
+const MARKDOWN_IMAGE_RE = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g
+const SUPPORTED_CARD_IMAGE_EXTENSIONS = /\.(?:png|jpe?g|gif|webp)(?:[?#]|$)/i
 
 function extractFirstImageUrl(markdown: string): string | undefined {
-  return MARKDOWN_IMAGE_RE.exec(markdown)?.[1]
+  const urls = markdown.matchAll(MARKDOWN_IMAGE_RE)
+  for (const [, url] of urls) {
+    if (SUPPORTED_CARD_IMAGE_EXTENSIONS.test(url)) return url
+  }
+  return undefined
 }
 
 // arXiv記事（公開）用ルート。サーバーサイドで取得して初期HTMLに本文と
