@@ -1,25 +1,10 @@
 import markdownToHtml from 'zenn-markdown-html'
 import { getBlogApiV1BlogPaperIdGet } from '~/api/sdk.gen'
 import { BlogPostView } from '~/components/blog/blog-post-view'
+import { extractFirstImageUrl } from '~/lib/blog-content'
 import type { Route } from './+types/blog.$paperId'
 
 const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
-
-// 記事本文（Markdown）中に埋め込まれた図版URLのうち、OGP/Twitterカードで
-// レンダリング可能な形式の最初の1枚を抽出する。図はarXivのソースからアップ
-// ロードされたものをそのまま使うため、`.eps`/`.svg`のようにXやFacebookの
-// クローラーが画像として展開できない形式が混ざりうる（`.pdf`のみバックエンドで
-// PNGに変換済み）。対応形式以外はスキップし、後続の図にフォールバックする。
-const MARKDOWN_IMAGE_RE = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g
-const SUPPORTED_CARD_IMAGE_EXTENSIONS = /\.(?:png|jpe?g|gif|webp)(?:[?#]|$)/i
-
-function extractFirstImageUrl(markdown: string): string | undefined {
-  const urls = markdown.matchAll(MARKDOWN_IMAGE_RE)
-  for (const [, url] of urls) {
-    if (SUPPORTED_CARD_IMAGE_EXTENSIONS.test(url)) return url
-  }
-  return undefined
-}
 
 // arXiv記事（公開）用ルート。サーバーサイドで取得して初期HTMLに本文と
 // メタ情報を含めることで SEO / OGP に対応する。PDF記事（非公開）は認証が必要な
