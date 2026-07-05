@@ -1,6 +1,7 @@
 import markdownToHtml from 'zenn-markdown-html'
 import { getBlogApiV1BlogPaperIdGet } from '~/api/sdk.gen'
 import { BlogPostView } from '~/components/blog/blog-post-view'
+import { extractFirstImageUrl } from '~/lib/blog-content'
 import type { Route } from './+types/blog.$paperId'
 
 const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
@@ -21,6 +22,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   return {
     ...data,
     contentHtml: await markdownToHtml(data.content),
+    ogImageUrl: extractFirstImageUrl(data.content),
   }
 }
 
@@ -30,6 +32,7 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
   const url = `${SITE_ORIGIN}${location.pathname}`
   const title = `${loaderData.title} | jaXiv`
   const description = loaderData.summary
+  const imageUrl = loaderData.ogImageUrl
 
   return [
     { title },
@@ -40,10 +43,15 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
     { property: 'og:description', content: description },
     { property: 'og:url', content: url },
     { property: 'og:site_name', content: 'jaXiv' },
+    ...(imageUrl ? [{ property: 'og:image', content: imageUrl }] : []),
     // Twitter Card
-    { name: 'twitter:card', content: 'summary_large_image' },
+    {
+      name: 'twitter:card',
+      content: imageUrl ? 'summary_large_image' : 'summary',
+    },
     { name: 'twitter:title', content: title },
     { name: 'twitter:description', content: description },
+    ...(imageUrl ? [{ name: 'twitter:image', content: imageUrl }] : []),
     // 正規URL
     { tagName: 'link', rel: 'canonical', href: url },
     // 構造化データ（学術記事）
@@ -53,6 +61,7 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
         '@type': 'ScholarlyArticle',
         headline: loaderData.title,
         abstract: description,
+        image: imageUrl ?? undefined,
         inLanguage: 'ja',
         author:
           loaderData.authors.length > 0
