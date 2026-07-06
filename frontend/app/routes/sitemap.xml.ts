@@ -1,22 +1,12 @@
 import { listBlogsApiV1BlogGet } from '~/api/sdk.gen'
-
-const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
+import { SITE_ORIGIN } from '~/lib/site'
+import { escapeXml } from '~/lib/xml'
 
 // 静的に載せたい主要ページ（公開ページのみ）
 const STATIC_PATHS = ['/', '/blog', '/pricing']
 
 // sitemap取得時の1ページあたり件数。総数が多くてもページングで全件巡回する。
 const PAGE_SIZE = 100
-
-// XMLの特殊文字をエスケープする。paper_idに特殊文字が入る想定は低いが安全のため。
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-}
 
 // sitemap.xml リソースルート。default コンポーネントを持たず loader だけで
 // XMLを返す。公開されている全arXiv記事（/blog/:paperId）と主要静的ページを列挙し、

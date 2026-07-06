@@ -22,6 +22,12 @@ export const links: Route.LinksFunction = () => [
   { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16.png' },
   { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
   { rel: 'manifest', href: '/manifest.json' },
+  {
+    rel: 'alternate',
+    type: 'application/rss+xml',
+    title: 'jaXiv',
+    href: '/feed.xml',
+  },
   { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
   {
     rel: 'preconnect',
