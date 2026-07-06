@@ -2,9 +2,8 @@ import markdownToHtml from 'zenn-markdown-html'
 import { getBlogApiV1BlogPaperIdGet } from '~/api/sdk.gen'
 import { BlogPostView } from '~/components/blog/blog-post-view'
 import { extractFirstImageUrl } from '~/lib/blog-content'
+import { SITE_ORIGIN } from '~/lib/site'
 import type { Route } from './+types/blog.$paperId'
-
-const SITE_ORIGIN = 'https://jaxiv.utstudent-scienceblog.com'
 
 // arXiv記事（公開）用ルート。サーバーサイドで取得して初期HTMLに本文と
 // メタ情報を含めることで SEO / OGP に対応する。PDF記事（非公開）は認証が必要な
