@@ -1,47 +1,28 @@
 import { listBlogsApiV1BlogGet } from '~/api/sdk.gen'
-import type { BlogPostResponseSchema } from '~/api/types.gen'
 import { SITE_ORIGIN } from '~/lib/site'
 import { escapeXml } from '~/lib/xml'
 
 const FEED_TITLE = 'jaXiv'
 const FEED_DESCRIPTION = 'arXiv論文をやさしく解説するブログの新着記事'
 
-// feed取得時の1ページあたり件数。総数が多くてもページングで全件巡回する。
-const PAGE_SIZE = 100
-
-// フィードに載せる最大件数。RSSは新着中心で良いため上限を設ける。
-const MAX_ITEMS = 50
+// フィードに載せる件数。一覧APIは公開arXiv記事をcreated_at降順で返すため、先頭ページを
+// この件数だけ取得すれば新着順のフィードになる（page_sizeの上限は100）。
+const FEED_SIZE = 50
 
 // feed.xml リソースルート。default コンポーネントを持たず loader だけで RSS 2.0 を
-// 返す。公開されているarXiv記事（/blog/:paperId）を新着順で配信する。PDF記事は
-// 認証必須（/blog/pdf/:paperId）のため除外する。
+// 返す。一覧APIが公開arXiv記事をcreated_at降順で返す（PDF記事は認証必須で含まれない）
+// ため、先頭1ページのみ取得してそのまま配信する。
 export async function loader() {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL
-  const posts: BlogPostResponseSchema[] = []
+  const { data, error } = await listBlogsApiV1BlogGet({
+    baseUrl: import.meta.env.VITE_API_BASE_URL,
+    query: { page: 1, page_size: FEED_SIZE },
+    throwOnError: false,
+  })
+  // 取得失敗時は部分的なfeedを200で返さず、5xxでリーダーに再試行させる。
+  if (error || !data)
+    throw new Response('Failed to build feed', { status: 503 })
 
-  // 1ページ目で total_pages を確認しつつ全ページを巡回する。
-  let page = 1
-  let totalPages = 1
-  do {
-    const { data, error } = await listBlogsApiV1BlogGet({
-      baseUrl,
-      query: { page, page_size: PAGE_SIZE },
-      throwOnError: false,
-    })
-    // 取得失敗時は部分的なfeedを200で返さず、5xxでリーダーに再試行させる。
-    if (error || !data)
-      throw new Response('Failed to build feed', { status: 503 })
-    for (const item of data.items) posts.push(item)
-    totalPages = data.total_pages
-    page += 1
-  } while (page <= totalPages)
-
-  // arXiv記事のみを新着順（created_at降順）で最大MAX_ITEMS件配信する。
-  // 一覧APIの並び順に依存しないよう、ここで明示的にソートする。
-  const items = posts
-    .filter(post => post.source_type === 'arxiv')
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    .slice(0, MAX_ITEMS)
+  const items = data.items
 
   const itemsXml = items
     .map(post => {
