@@ -20,7 +20,12 @@ def create_async_session_factory() -> async_sessionmaker[AsyncSession]:
 	elif postgres_url.startswith('postgres://'):
 		postgres_url = postgres_url.replace('postgres://', 'postgresql+asyncpg://', 1)
 
-	engine = create_async_engine(postgres_url, echo=False)
+	engine = create_async_engine(
+		postgres_url,
+		echo=False,
+		pool_pre_ping=True,
+		pool_recycle=1800,
+	)
 	return async_sessionmaker(engine, expire_on_commit=False)
 
 
