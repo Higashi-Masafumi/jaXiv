@@ -31,7 +31,8 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
   const url = `${SITE_ORIGIN}${location.pathname}`
   const title = `${loaderData.title} | jaXiv`
   const description = loaderData.summary
-  const imageUrl = loaderData.ogImageUrl
+  // 図がない記事はブランドロゴをサムネイルにして、画像なしカードを避ける
+  const imageUrl = loaderData.ogImageUrl ?? `${SITE_ORIGIN}/icon-512.png`
 
   return [
     { title },
@@ -42,15 +43,13 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
     { property: 'og:description', content: description },
     { property: 'og:url', content: url },
     { property: 'og:site_name', content: 'jaXiv' },
-    ...(imageUrl ? [{ property: 'og:image', content: imageUrl }] : []),
-    // Twitter Card
-    {
-      name: 'twitter:card',
-      content: imageUrl ? 'summary_large_image' : 'summary',
-    },
+    { property: 'og:image', content: imageUrl },
+    // Twitter Card: 左サムネイル+右テキストの summary 形式に固定する。
+    // summary_large_image はX上でタイトル・説明文が表示されないため使わない。
+    { name: 'twitter:card', content: 'summary' },
     { name: 'twitter:title', content: title },
     { name: 'twitter:description', content: description },
-    ...(imageUrl ? [{ name: 'twitter:image', content: imageUrl }] : []),
+    { name: 'twitter:image', content: imageUrl },
     // 正規URL
     { tagName: 'link', rel: 'canonical', href: url },
     // 構造化データ（学術記事）
@@ -60,7 +59,8 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
         '@type': 'ScholarlyArticle',
         headline: loaderData.title,
         abstract: description,
-        image: imageUrl ?? undefined,
+        // 構造化データには記事本来の図版のみを載せる（ロゴは記事画像ではない）
+        image: loaderData.ogImageUrl,
         inLanguage: 'ja',
         author:
           loaderData.authors.length > 0
