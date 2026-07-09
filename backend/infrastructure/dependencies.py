@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from typing import Annotated
 
@@ -64,6 +65,7 @@ from domain.value_objects.user_id import UserId
 from domain.value_objects.user_role import UserRole
 from infrastructure.arxiv_api import ArxivSourceFetcher
 from infrastructure.auth import (
+	get_auth_config,
 	get_user_id_from_payload,
 	verify_supabase_jwt,
 )
@@ -101,6 +103,28 @@ from infrastructure.usage.role_based_usage_repository import RoleBasedUsageRepos
 # --------------------------------------
 # Auth dependencies
 # --------------------------------------
+# System user for admin-triggered blog generation; bypasses per-user usage limits.
+SYSTEM_USER_ID = UserId(uuid.UUID('00000000-0000-0000-0000-000000000000'))
+
+
+async def verify_job_admin_token(
+	credentials: Annotated[
+		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
+	],
+) -> None:
+	"""Guard admin-only job endpoints with the JOB_ADMIN_TOKEN bearer token."""
+	expected = get_auth_config().job_admin_token
+	if not expected:
+		raise HTTPException(status_code=503, detail='Admin token is not configured.')
+	if credentials is None or not secrets.compare_digest(credentials.credentials, expected):
+		raise HTTPException(status_code=401, detail='Invalid admin token.')
+
+
+def get_system_auth_user() -> AuthUser:
+	"""AuthUser used for system-triggered generation (unlimited usage)."""
+	return AuthUser(user_id=SYSTEM_USER_ID, role=UserRole.SYSTEM)
+
+
 async def get_optional_user_id(
 	credentials: Annotated[
 		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
