@@ -15,20 +15,5 @@
       "mcp__playwright",
       "mcp__playwright__*"
     ]
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "FILE=$(jq -r '.tool_input.file_path // .tool_response.filePath // empty'); echo \"$FILE\" | grep -q '/backend/' && (cd /Users/higa4/dev/jaxiv/backend && uv run ruff check . --fix && uv run mypy .) 2>/dev/null || true",
-            "statusMessage": "Running backend checks...",
-            "async": true
-          }
-        ]
-      }
-    ]
   }
 }

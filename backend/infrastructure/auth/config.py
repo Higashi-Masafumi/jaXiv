@@ -6,6 +6,9 @@ from functools import lru_cache
 class AuthConfig(BaseSettings):
 	model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 	jwks_url: StrictStr = Field(default='', description='The URL of the JWKs endpoint')
+	job_admin_token: StrictStr = Field(
+		default='', description='Bearer token for admin-only job endpoints'
+	)
 
 
 @lru_cache

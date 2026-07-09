@@ -262,6 +262,53 @@
         }
       }
     },
+    "/api/v1/blog/admin/arxiv/{arxiv_paper_id}": {
+      "post": {
+        "summary": "Generate Blog Admin",
+        "description": "Generate and publish a blog post from an arXiv paper as the system user.\n\nIntended for automated jobs (e.g. a local Claude tool selecting trending\npapers). Authenticated via JOB_ADMIN_TOKEN and exempt from per-user monthly\ngeneration limits. Idempotent: returns the cached post if it already exists.",
+        "operationId": "generate_blog_admin_api_v1_blog_admin_arxiv__arxiv_paper_id__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "arxiv_paper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The arXiv paper ID",
+              "title": "Arxiv Paper Id"
+            },
+            "description": "The arXiv paper ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlogPostResponseSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/blog/arxiv/{arxiv_paper_id}/stream": {
       "get": {
         "summary": "Generate Blog Stream",

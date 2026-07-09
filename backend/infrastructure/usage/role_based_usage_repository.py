@@ -8,6 +8,8 @@ class RoleBasedUsageRepository(IUsageRepository):
 	"""Usage limit repository with hardcoded per-role limits per feature."""
 
 	async def get_blog_monthly_limit(self, auth_user: AuthUser) -> UsageLimit:
+		if auth_user.role == UserRole.SYSTEM:
+			return UsageLimit.unlimited()
 		if auth_user.role == UserRole.PAID:
 			return UsageLimit.of(100)
 		if auth_user.role == UserRole.FREE:

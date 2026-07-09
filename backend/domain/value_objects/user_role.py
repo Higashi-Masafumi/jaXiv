@@ -5,3 +5,4 @@ class UserRole(str, Enum):
 	ANONYMOUS = 'anonymous'
 	FREE = 'free'
 	PAID = 'paid'
+	SYSTEM = 'system'
