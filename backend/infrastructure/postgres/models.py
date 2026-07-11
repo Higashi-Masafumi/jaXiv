@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Text
+from sqlalchemy import Boolean, DateTime, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import ARRAY, Column, Field, SQLModel, String
@@ -138,3 +138,21 @@ class UserTopicSubscriptionModel(SQLModel, table=True):
 	)
 	created_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
 	updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+
+
+class DigestDeliveryLogModel(SQLModel, table=True):
+	__tablename__ = 'digest_delivery_log'  # type: ignore[assignment]
+	__table_args__ = (
+		UniqueConstraint('user_id', 'blog_post_id', name='uq_digest_delivery_user_blog'),
+	)
+
+	id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+	user_id: uuid.UUID = Field(
+		sa_column=Column(PG_UUID(as_uuid=True), nullable=False, index=True),
+		description='Supabase auth.users.id',
+	)
+	blog_post_id: uuid.UUID = Field(
+		sa_column=Column(PG_UUID(as_uuid=True), nullable=False),
+		description='blogpostcontentmodel.id that was delivered',
+	)
+	sent_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))

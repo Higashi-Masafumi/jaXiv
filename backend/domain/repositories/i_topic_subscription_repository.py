@@ -13,6 +13,11 @@ class ITopicSubscriptionRepository(ABC):
 		raise NotImplementedError
 
 	@abstractmethod
+	async def list_active(self) -> list[TopicSubscription]:
+		"""Return all active subscriptions (for the weekly digest job)."""
+		raise NotImplementedError
+
+	@abstractmethod
 	async def upsert(self, subscription: TopicSubscription) -> TopicSubscription:
 		"""Create or update a user's topic subscription and return the persisted entity."""
 		raise NotImplementedError

@@ -995,6 +995,30 @@
         ]
       }
     },
+    "/api/v1/subscriptions/internal/send-weekly-digests": {
+      "post": {
+        "summary": "Send Weekly Digests",
+        "description": "Trigger the weekly digest send for all active subscribers (job-token protected).",
+        "operationId": "send_weekly_digests_api_v1_subscriptions_internal_send_weekly_digests_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DigestRunResultResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -1329,6 +1353,29 @@
           "title"
         ],
         "title": "ChatThreadSummaryResponse"
+      },
+      "DigestRunResultResponse": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent",
+          "skipped",
+          "failed"
+        ],
+        "title": "DigestRunResultResponse"
       },
       "FigureSuggestionItemSchema": {
         "properties": {

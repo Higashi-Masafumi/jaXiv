@@ -13,6 +13,7 @@ from .i_chat_llm_gateway import (
 	LLMToolUse,
 	ToolDefinition,
 )
+from .i_email_gateway import DigestItem, IEmailGateway
 from .i_figure_query_generator import IFigureQueryGenerator
 from .i_image_embedder import IImageEmbedder, ImageEmbedItem, ImageWithEmbedding
 from .i_pdf_blog_post_generator import IPdfBlogPostGenerator
@@ -24,10 +25,12 @@ from .i_tex_translation_gateway import ITexTranslationGateway
 
 __all__ = [
 	'CheckoutSession',
+	'DigestItem',
 	'IArxivSourceFetcher',
 	'IBillingGateway',
 	'IBlogPostGenerator',
 	'IChatLLMGateway',
+	'IEmailGateway',
 	'IFigureQueryGenerator',
 	'IImageEmbedder',
 	'IPdfBlogPostGenerator',

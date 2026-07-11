@@ -18,6 +18,7 @@ from .list_my_blog_posts import ListMyBlogPostsUseCase
 from .rag_search_image import RagSearchImageUseCase
 from .rag_search_text import RagSearchTextUseCase
 from .save_translated_arxiv import SaveTranslatedArxivUseCase
+from .send_weekly_digests import DigestRunResult, SendWeeklyDigestsUseCase
 from .start_checkout import StartCheckoutUseCase
 from .start_customer_portal import StartCustomerPortalUseCase
 from .suggest_figures import (
@@ -34,6 +35,7 @@ __all__ = [
 	'ChatThreadSummary',
 	'ChatWithPaperUseCase',
 	'DeleteChatThreadUseCase',
+	'DigestRunResult',
 	'FigureSuggestionItem',
 	'GenerateBlogPostFromPdfSSEUseCase',
 	'GenerateBlogPostFromPdfUseCase',
@@ -53,6 +55,7 @@ __all__ = [
 	'RagSearchImageUseCase',
 	'RagSearchTextUseCase',
 	'SaveTranslatedArxivUseCase',
+	'SendWeeklyDigestsUseCase',
 	'StartCheckoutUseCase',
 	'StartCustomerPortalUseCase',
 	'SuggestFiguresResult',
