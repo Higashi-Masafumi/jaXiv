@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from .admin import router as admin_router
 from .billing import router as billing_router
 from .blog import router as blog_router
 from .chat import router as chat_router
@@ -14,5 +15,6 @@ router.include_router(chat_router)
 router.include_router(billing_router)
 router.include_router(figure_suggestion_router)
 router.include_router(subscription_router)
+router.include_router(admin_router)
 
 __all__ = ['router']

@@ -39,6 +39,13 @@ class PostgresTopicSubscriptionRepository(ITopicSubscriptionRepository):
 		row = result.scalars().one_or_none()
 		return self._to_entity(row) if row is not None else None
 
+	async def list_active(self) -> list[TopicSubscription]:
+		stmt = select(UserTopicSubscriptionModel).where(
+			col(UserTopicSubscriptionModel.is_active).is_(True)
+		)
+		result = await self._session.execute(stmt)
+		return [self._to_entity(row) for row in result.scalars().all()]
+
 	async def upsert(self, subscription: TopicSubscription) -> TopicSubscription:
 		now = datetime.now(UTC)
 		values = {

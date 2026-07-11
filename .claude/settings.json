@@ -12,6 +12,7 @@
       "Bash",
       "Write",
       "Edit",
+      "Bash(curl:*)",
       "mcp__playwright",
       "mcp__playwright__*"
     ]

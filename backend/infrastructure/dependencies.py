@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.unit_of_works import (
 	BlogPostUnitOfWork,
 	ChatThreadUnitOfWork,
+	DigestUnitOfWork,
 )
 from application.usecase import (
 	ArxivRedirector,
@@ -31,6 +32,7 @@ from application.usecase import (
 	RagSearchImageUseCase,
 	RagSearchTextUseCase,
 	SaveTranslatedArxivUseCase,
+	SendWeeklyDigestsUseCase,
 	StartCheckoutUseCase,
 	StartCustomerPortalUseCase,
 	SuggestFiguresUseCase,
@@ -43,6 +45,7 @@ from domain.gateways import (
 	IBillingGateway,
 	IBlogPostGenerator,
 	IChatLLMGateway,
+	IEmailGateway,
 	IFigureQueryGenerator,
 	IImageEmbedder,
 	IPdfBlogPostGenerator,
@@ -87,6 +90,7 @@ from infrastructure.pdf import (
 from infrastructure.postgres import (
 	PostgresBlogPostUnitOfWork,
 	PostgresChatThreadUnitOfWork,
+	PostgresDigestUnitOfWork,
 	create_async_session_factory,
 	get_async_session,
 )
@@ -98,6 +102,7 @@ from infrastructure.postgres.repositories import (
 	PostgresUserSubscriptionRepository,
 )
 from infrastructure.qdrant import QdrantFigureChunkRepository, QdrantTextChunkRepository
+from infrastructure.resend import ResendEmailGateway
 from infrastructure.s3 import S3FigureStorageRepository, S3StorageRepository
 from infrastructure.stripe import StripeBillingGateway, StripeConfig, get_stripe_config
 from infrastructure.tex_translation import HttpTexTranslationGateway
@@ -626,3 +631,28 @@ def get_upsert_topic_subscription_use_case(
 	repo: Annotated[ITopicSubscriptionRepository, Depends(get_topic_subscription_repository)],
 ) -> UpsertTopicSubscriptionUseCase:
 	return UpsertTopicSubscriptionUseCase(repo=repo)
+
+
+# --------------------------------------
+# Weekly digest providers
+# --------------------------------------
+def get_digest_unit_of_work() -> DigestUnitOfWork:
+	return PostgresDigestUnitOfWork(session_factory=create_async_session_factory())
+
+
+def get_email_gateway() -> IEmailGateway:
+	return ResendEmailGateway()
+
+
+def get_send_weekly_digests_use_case(
+	topic_subscription_repository: Annotated[
+		ITopicSubscriptionRepository, Depends(get_topic_subscription_repository)
+	],
+	digest_unit_of_work: Annotated[DigestUnitOfWork, Depends(get_digest_unit_of_work)],
+	email_gateway: Annotated[IEmailGateway, Depends(get_email_gateway)],
+) -> SendWeeklyDigestsUseCase:
+	return SendWeeklyDigestsUseCase(
+		topic_subscription_repository=topic_subscription_repository,
+		digest_unit_of_work=digest_unit_of_work,
+		email_gateway=email_gateway,
+	)

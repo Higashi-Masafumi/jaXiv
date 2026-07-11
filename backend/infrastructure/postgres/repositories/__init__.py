@@ -1,12 +1,16 @@
+from .postgres_auth_user_repository import PostgresAuthUserRepository
 from .postgres_blog_post_repository import PostgresBlogPostRepository
 from .postgres_chat_thread_repository import PostgresChatThreadRepository
+from .postgres_digest_delivery_repository import PostgresDigestDeliveryRepository
 from .postgres_topic_subscription_repository import PostgresTopicSubscriptionRepository
 from .postgres_translated_arxiv_repository import PostgresTranslatedArxivRepository
 from .postgres_user_subscription_repository import PostgresUserSubscriptionRepository
 
 __all__ = [
+	'PostgresAuthUserRepository',
 	'PostgresBlogPostRepository',
 	'PostgresChatThreadRepository',
+	'PostgresDigestDeliveryRepository',
 	'PostgresTopicSubscriptionRepository',
 	'PostgresTranslatedArxivRepository',
 	'PostgresUserSubscriptionRepository',

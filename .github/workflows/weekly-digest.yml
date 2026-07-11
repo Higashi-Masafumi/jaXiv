@@ -1,0 +1,22 @@
+name: Weekly digest
+
+# 手動実行: GitHub の Actions タブ → "Weekly digest" → Run workflow で今すぐ配信を叩けます。
+# 定期自動化したくなったら下の schedule のコメントを外してください（毎週月曜 09:00 JST = 00:00 UTC）。
+# 事前に repo の Settings → Secrets に JOB_ADMIN_TOKEN を登録してください（backend の値と一致させる）。
+on:
+  workflow_dispatch: {}
+  # schedule:
+  #   - cron: '0 0 * * 1'
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger weekly digest send
+        env:
+          API_BASE_URL: https://arxiv-translation-service.onrender.com
+          JOB_ADMIN_TOKEN: ${{ secrets.JOB_ADMIN_TOKEN }}
+        run: |
+          curl -fsS --max-time 300 -X POST \
+            "${API_BASE_URL}/api/v1/subscriptions/internal/send-weekly-digests" \
+            -H "Authorization: Bearer ${JOB_ADMIN_TOKEN}"

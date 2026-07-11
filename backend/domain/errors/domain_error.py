@@ -78,3 +78,10 @@ class InvalidStripeSignatureError(DomainBadRequestError):
 
 	def __init__(self, detail: str = ''):
 		super().__init__(f'Invalid Stripe signature: {detail}')
+
+
+class EmailDeliveryError(DomainUnexpectedError):
+	"""Raised when an email provider rejects or fails a send."""
+
+	def __init__(self, detail: str = ''):
+		super().__init__(f'Email delivery failed: {detail}')

@@ -47,10 +47,15 @@ services:
         value: https://pdf.jaxiv.utstudent-scienceblog.com
       - key: BLOG_FIGURES_PUBLIC_BASE_URL
         value: https://figures.jaxiv.utstudent-scienceblog.com
-      # 管理用ブログ生成API (トレンド論文の自動ブログ化) の Bearer トークン
+      # 管理用ブログ生成API (トレンド論文の自動ブログ化) / 週次ダイジェスト配信ジョブ の Bearer トークン
       # Render ダッシュボードでシークレットとして設定する (未設定だと当該APIは503)
       - key: JOB_ADMIN_TOKEN
         sync: false
+      # 週次ダイジェスト配信メール (Resend)。API キーはダッシュボードでシークレット設定する
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_ADDRESS
+        value: jaXiv <noreply@mail.utstudent-scienceblog.com>
   # - name: jaxiv-frontend
   #   type: web
   #   plan: free

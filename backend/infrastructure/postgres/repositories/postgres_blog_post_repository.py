@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from logging import getLogger
 
@@ -149,9 +150,7 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		)
 		result = await self._session.execute(statement)
 		return {
-			paper_id: AccessiblePaper(
-				title=title or '', source_type=BlogSourceType(source_type)
-			)
+			paper_id: AccessiblePaper(title=title or '', source_type=BlogSourceType(source_type))
 			for paper_id, title, source_type in result.all()
 		}
 
@@ -164,6 +163,30 @@ class PostgresBlogPostRepository(IBlogPostRepository):
 		if row is None:
 			return None
 		return self._to_entity(row)
+
+	async def find_matching_arxiv(
+		self, keywords: list[str], exclude_ids: set[uuid.UUID], limit: int
+	) -> list[BlogPost]:
+		"""Return public arXiv posts matching any keyword, excluding given ids."""
+		conditions = [
+			condition
+			for keyword in keywords
+			if (condition := self._keyword_condition(keyword)) is not None
+		]
+		if not conditions:
+			return []
+		statement = (
+			select(BlogPostContentModel)
+			.where(col(BlogPostContentModel.source_type) == 'arxiv')
+			.where(or_(*conditions))
+			.order_by(col(BlogPostContentModel.created_at).desc())
+			.limit(limit)
+		)
+		if exclude_ids:
+			statement = statement.where(col(BlogPostContentModel.id).notin_(exclude_ids))
+		result = await self._session.execute(statement)
+		rows = result.scalars().all()
+		return [self._to_entity(row) for row in rows]
 
 	async def save(self, blog_post: BlogPost) -> BlogPost:
 		statement = select(BlogPostContentModel).where(
