@@ -5,8 +5,8 @@ name: Weekly digest
 # 事前に repo の Settings → Secrets に JOB_ADMIN_TOKEN を登録してください（backend の値と一致させる）。
 on:
   workflow_dispatch: {}
-  # schedule:
-  #   - cron: '0 0 * * 1'
+  schedule:
+    - cron: '0 0 * * 1'
 
 jobs:
   send:
