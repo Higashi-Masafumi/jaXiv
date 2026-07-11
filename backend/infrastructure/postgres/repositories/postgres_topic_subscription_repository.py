@@ -24,7 +24,6 @@ class PostgresTopicSubscriptionRepository(ITopicSubscriptionRepository):
 		return TopicSubscription(
 			id=row.id,
 			user_id=UserId(row.user_id),
-			email=row.email,
 			keywords=row.keywords or [],
 			is_active=row.is_active,
 			created_at=row.created_at,
@@ -36,7 +35,8 @@ class PostgresTopicSubscriptionRepository(ITopicSubscriptionRepository):
 			col(UserTopicSubscriptionModel.user_id) == user_id.root
 		)
 		result = await self._session.execute(stmt)
-		row = result.scalars().first()
+		# user_id is unique, so there is at most one row.
+		row = result.scalars().one_or_none()
 		return self._to_entity(row) if row is not None else None
 
 	async def upsert(self, subscription: TopicSubscription) -> TopicSubscription:
@@ -44,7 +44,6 @@ class PostgresTopicSubscriptionRepository(ITopicSubscriptionRepository):
 		values = {
 			'id': subscription.id,
 			'user_id': subscription.user_id.root,
-			'email': subscription.email,
 			'keywords': subscription.keywords,
 			'is_active': subscription.is_active,
 			'created_at': now,
@@ -55,14 +54,11 @@ class PostgresTopicSubscriptionRepository(ITopicSubscriptionRepository):
 		stmt = stmt.on_conflict_do_update(
 			index_elements=['user_id'],
 			set_={
-				'email': stmt.excluded.email,
 				'keywords': stmt.excluded.keywords,
 				'is_active': stmt.excluded.is_active,
 				'updated_at': stmt.excluded.updated_at,
 			},
 		)
-		await self._session.execute(stmt)
-
-		refreshed = await self.find_by_user_id(subscription.user_id)
-		assert refreshed is not None
-		return refreshed
+		result = await self._session.execute(stmt.returning(UserTopicSubscriptionModel))
+		row = result.scalars().one()
+		return self._to_entity(row)

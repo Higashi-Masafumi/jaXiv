@@ -13,6 +13,6 @@ class UpsertTopicSubscriptionUseCase:
 	def __init__(self, repo: ITopicSubscriptionRepository) -> None:
 		self._repo = repo
 
-	async def execute(self, user_id: UserId, email: str, keywords: list[str]) -> TopicSubscription:
-		subscription = TopicSubscription(user_id=user_id, email=email, keywords=keywords)
+	async def execute(self, user_id: UserId, keywords: list[str]) -> TopicSubscription:
+		subscription = TopicSubscription(user_id=user_id, keywords=keywords)
 		return await self._repo.upsert(subscription)

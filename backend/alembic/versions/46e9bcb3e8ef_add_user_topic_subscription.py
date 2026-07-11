@@ -27,7 +27,6 @@ def upgrade() -> None:
 		TABLE,
 		sa.Column('id', sa.Uuid(), nullable=False),
 		sa.Column('user_id', sa.UUID(), nullable=False),
-		sa.Column('email', sa.Text(), nullable=False),
 		sa.Column('keywords', sa.ARRAY(sa.String()), server_default='{}', nullable=False),
 		sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False),
 		sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),

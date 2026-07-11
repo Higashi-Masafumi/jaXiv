@@ -21,7 +21,6 @@ class TopicSubscription(BaseModel):
 
 	id: uuid.UUID = Field(default_factory=uuid.uuid4)
 	user_id: UserId
-	email: str = Field(description='Email address to deliver the digest to')
 	keywords: list[str] = Field(
 		default_factory=list, description='Keywords to match papers against'
 	)

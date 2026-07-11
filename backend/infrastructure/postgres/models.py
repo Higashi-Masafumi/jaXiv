@@ -127,10 +127,6 @@ class UserTopicSubscriptionModel(SQLModel, table=True):
 		sa_column=Column(PG_UUID(as_uuid=True), nullable=False, unique=True, index=True),
 		description='Supabase auth.users.id',
 	)
-	email: str = Field(
-		sa_column=Column(Text, nullable=False),
-		description='Email address to deliver the digest to',
-	)
 	keywords: list[str] = Field(
 		sa_column=Column(ARRAY(String), nullable=False, server_default='{}'),
 		description='Keywords to match papers against',

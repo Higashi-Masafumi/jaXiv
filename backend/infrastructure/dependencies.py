@@ -4,7 +4,6 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.unit_of_works import (
@@ -216,40 +215,6 @@ async def get_required_user_id(
 			detail='Full authentication is required. Please sign in with Google.',
 		)
 	return get_user_id_from_payload(payload)
-
-
-class SubscriberIdentity(BaseModel):
-	"""Authenticated identity for digest-subscription endpoints (user_id + email)."""
-
-	model_config = ConfigDict(frozen=True)
-
-	user_id: UserId
-	email: str
-
-
-async def get_subscriber_identity(
-	credentials: Annotated[
-		HTTPAuthorizationCredentials | None, Security(HTTPBearer(auto_error=False))
-	],
-) -> SubscriberIdentity:
-	"""Build a SubscriberIdentity from Bearer JWT; 401 if missing, 403 if anonymous.
-
-	Captures the ``email`` claim so the background digest job can send without a
-	live token.
-	"""
-	if credentials is None:
-		raise HTTPException(status_code=401, detail='Authentication required.')
-	payload = verify_supabase_jwt(credentials.credentials)
-	if payload.get('is_anonymous', False):
-		raise HTTPException(
-			status_code=403,
-			detail='Full authentication is required. Please sign in with Google.',
-		)
-	user_id = get_user_id_from_payload(payload)
-	email = payload.get('email')
-	if not email:
-		raise HTTPException(status_code=400, detail='Email is not available on the token.')
-	return SubscriberIdentity(user_id=UserId(user_id), email=email)
 
 
 # --------------------------------------
