@@ -18,6 +18,9 @@ import type {
   DeleteChatThreadApiV1ChatThreadsThreadIdDeleteData,
   DeleteChatThreadApiV1ChatThreadsThreadIdDeleteErrors,
   DeleteChatThreadApiV1ChatThreadsThreadIdDeleteResponses,
+  GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostData,
+  GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostErrors,
+  GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostResponses,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostData,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostErrors,
   GenerateBlogApiV1BlogArxivArxivPaperIdPostResponses,
@@ -42,6 +45,8 @@ import type {
   GetMyGenerationCountApiV1BlogMyGenerationCountGetResponses,
   GetMySubscriptionApiV1BillingMeGetData,
   GetMySubscriptionApiV1BillingMeGetResponses,
+  GetMyTopicSubscriptionApiV1SubscriptionsMeGetData,
+  GetMyTopicSubscriptionApiV1SubscriptionsMeGetResponses,
   ListBlogsApiV1BlogGetData,
   ListBlogsApiV1BlogGetErrors,
   ListBlogsApiV1BlogGetResponses,
@@ -59,6 +64,8 @@ import type {
   RagSearchTextApiV1BlogPaperIdRagTextPostResponses,
   RootGetData,
   RootGetResponses,
+  SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostData,
+  SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostResponses,
   StripeWebhookApiV1BillingWebhookPostData,
   StripeWebhookApiV1BillingWebhookPostErrors,
   StripeWebhookApiV1BillingWebhookPostResponses,
@@ -70,6 +77,9 @@ import type {
   TranslateSyncApiV1TranslateArxivArxivPaperIdPostResponses,
   TriggerErrorSentryDebugGetData,
   TriggerErrorSentryDebugGetResponses,
+  UpsertMyTopicSubscriptionApiV1SubscriptionsMePutData,
+  UpsertMyTopicSubscriptionApiV1SubscriptionsMePutErrors,
+  UpsertMyTopicSubscriptionApiV1SubscriptionsMePutResponses,
 } from './types.gen'
 
 export type Options<
@@ -512,6 +522,101 @@ export const suggestFiguresApiV1FiguresSuggestPost = <
       ...options.headers,
     },
   })
+
+/**
+ * Get My Topic Subscription
+ */
+export const getMyTopicSubscriptionApiV1SubscriptionsMeGet = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<
+    GetMyTopicSubscriptionApiV1SubscriptionsMeGetData,
+    ThrowOnError
+  >,
+) =>
+  (options?.client ?? client).get<
+    GetMyTopicSubscriptionApiV1SubscriptionsMeGetResponses,
+    unknown,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/subscriptions/me',
+    ...options,
+  })
+
+/**
+ * Upsert My Topic Subscription
+ */
+export const upsertMyTopicSubscriptionApiV1SubscriptionsMePut = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<
+    UpsertMyTopicSubscriptionApiV1SubscriptionsMePutData,
+    ThrowOnError
+  >,
+) =>
+  (options.client ?? client).put<
+    UpsertMyTopicSubscriptionApiV1SubscriptionsMePutResponses,
+    UpsertMyTopicSubscriptionApiV1SubscriptionsMePutErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/subscriptions/me',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+/**
+ * Generate Blog Admin
+ *
+ * Generate and publish a blog post from an arXiv paper as the system user.
+ *
+ * Intended for automated jobs (e.g. a local Claude tool selecting trending papers).
+ * Exempt from per-user monthly generation limits. Idempotent: returns the cached
+ * post if it already exists.
+ */
+export const generateBlogAdminApiV1BlogAdminArxivArxivPaperIdPost = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<
+    GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostData,
+    ThrowOnError
+  >,
+) =>
+  (options.client ?? client).post<
+    GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostResponses,
+    GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/api/v1/blog/admin/arxiv/{arxiv_paper_id}',
+    ...options,
+  })
+
+/**
+ * Send Weekly Digests
+ *
+ * Send the weekly digest to all active subscribers.
+ */
+export const sendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPost =
+  <ThrowOnError extends boolean = false>(
+    options?: Options<
+      SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostData,
+      ThrowOnError
+    >,
+  ) =>
+    (options?.client ?? client).post<
+      SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostResponses,
+      unknown,
+      ThrowOnError
+    >({
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/api/v1/subscriptions/internal/send-weekly-digests',
+      ...options,
+    })
 
 /**
  * Root

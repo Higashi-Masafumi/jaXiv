@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router'
 import {
   ArchiveIcon,
+  BellIcon,
   BookmarkIcon,
   ChevronRightIcon,
   CrownIcon,
@@ -113,6 +114,22 @@ function AppSidebar() {
                     <NavLink to="/my-blogs" end>
                       <BookmarkIcon />
                       <span>マイブログ</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {!isAnonymous && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isNavActive(pathname, '/settings/topics')}
+                    tooltip="トピック設定"
+                    className={NAV_ACTIVE_CLASS}
+                  >
+                    <NavLink to="/settings/topics" end>
+                      <BellIcon />
+                      <span>トピック設定</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

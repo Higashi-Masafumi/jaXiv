@@ -14,6 +14,7 @@ export default [
     route('blog/:paperId', 'routes/blog.$paperId.tsx'),
     route('figures', 'routes/figures.tsx'),
     route('my-blogs', 'routes/my-blogs.tsx'),
+    route('settings/topics', 'routes/settings.topics.tsx'),
     route('pricing', 'routes/pricing.tsx'),
     route('billing/success', 'routes/billing.success.tsx'),
     route('billing/cancel', 'routes/billing.cancel.tsx'),

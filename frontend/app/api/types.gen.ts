@@ -201,6 +201,24 @@ export type ChatThreadSummaryResponse = {
 }
 
 /**
+ * DigestRunResultResponse
+ */
+export type DigestRunResultResponse = {
+  /**
+   * Sent
+   */
+  sent: number
+  /**
+   * Skipped
+   */
+  skipped: number
+  /**
+   * Failed
+   */
+  failed: number
+}
+
+/**
  * FigureSuggestionItemSchema
  */
 export type FigureSuggestionItemSchema = {
@@ -497,6 +515,20 @@ export type ToolUseBlock = {
 }
 
 /**
+ * TopicSubscriptionResponse
+ */
+export type TopicSubscriptionResponse = {
+  /**
+   * Keywords
+   */
+  keywords: Array<string>
+  /**
+   * Is Active
+   */
+  is_active: boolean
+}
+
+/**
  * TranslateResponseSchema
  */
 export type TranslateResponseSchema = {
@@ -512,6 +544,18 @@ export type TranslateResponseSchema = {
    * Translated Language
    */
   translated_language: string
+}
+
+/**
+ * UpsertTopicSubscriptionRequest
+ */
+export type UpsertTopicSubscriptionRequest = {
+  /**
+   * Keywords
+   *
+   * Keywords to match papers against (normalized server-side)
+   */
+  keywords?: Array<string>
 }
 
 /**
@@ -1150,6 +1194,103 @@ export type SuggestFiguresApiV1FiguresSuggestPostResponses = {
 
 export type SuggestFiguresApiV1FiguresSuggestPostResponse =
   SuggestFiguresApiV1FiguresSuggestPostResponses[keyof SuggestFiguresApiV1FiguresSuggestPostResponses]
+
+export type GetMyTopicSubscriptionApiV1SubscriptionsMeGetData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/api/v1/subscriptions/me'
+}
+
+export type GetMyTopicSubscriptionApiV1SubscriptionsMeGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicSubscriptionResponse
+}
+
+export type GetMyTopicSubscriptionApiV1SubscriptionsMeGetResponse =
+  GetMyTopicSubscriptionApiV1SubscriptionsMeGetResponses[keyof GetMyTopicSubscriptionApiV1SubscriptionsMeGetResponses]
+
+export type UpsertMyTopicSubscriptionApiV1SubscriptionsMePutData = {
+  body: UpsertTopicSubscriptionRequest
+  path?: never
+  query?: never
+  url: '/api/v1/subscriptions/me'
+}
+
+export type UpsertMyTopicSubscriptionApiV1SubscriptionsMePutErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type UpsertMyTopicSubscriptionApiV1SubscriptionsMePutError =
+  UpsertMyTopicSubscriptionApiV1SubscriptionsMePutErrors[keyof UpsertMyTopicSubscriptionApiV1SubscriptionsMePutErrors]
+
+export type UpsertMyTopicSubscriptionApiV1SubscriptionsMePutResponses = {
+  /**
+   * Successful Response
+   */
+  200: TopicSubscriptionResponse
+}
+
+export type UpsertMyTopicSubscriptionApiV1SubscriptionsMePutResponse =
+  UpsertMyTopicSubscriptionApiV1SubscriptionsMePutResponses[keyof UpsertMyTopicSubscriptionApiV1SubscriptionsMePutResponses]
+
+export type GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostData = {
+  body?: never
+  path: {
+    /**
+     * Arxiv Paper Id
+     *
+     * The arXiv paper ID
+     */
+    arxiv_paper_id: string
+  }
+  query?: never
+  url: '/api/v1/blog/admin/arxiv/{arxiv_paper_id}'
+}
+
+export type GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostError =
+  GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostErrors[keyof GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostErrors]
+
+export type GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: BlogPostResponseSchema
+}
+
+export type GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostResponse =
+  GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostResponses[keyof GenerateBlogAdminApiV1BlogAdminArxivArxivPaperIdPostResponses]
+
+export type SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostData =
+  {
+    body?: never
+    path?: never
+    query?: never
+    url: '/api/v1/subscriptions/internal/send-weekly-digests'
+  }
+
+export type SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostResponses =
+  {
+    /**
+     * Successful Response
+     */
+    200: DigestRunResultResponse
+  }
+
+export type SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostResponse =
+  SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostResponses[keyof SendWeeklyDigestsApiV1SubscriptionsInternalSendWeeklyDigestsPostResponses]
 
 export type RootGetData = {
   body?: never
