@@ -23,6 +23,7 @@ from application.usecase import (
 	GetMyChatDailyCountUseCase,
 	GetMyGenerationCountUseCase,
 	GetMySubscriptionUseCase,
+	GetMyTopicSubscriptionUseCase,
 	HandleStripeWebhookUseCase,
 	ListBlogPostsUseCase,
 	ListChatThreadsUseCase,
@@ -34,6 +35,7 @@ from application.usecase import (
 	StartCustomerPortalUseCase,
 	SuggestFiguresUseCase,
 	TranslateArxivPaper,
+	UpsertTopicSubscriptionUseCase,
 )
 from domain.entities.auth_user import AuthUser
 from domain.gateways import (
@@ -57,6 +59,7 @@ from domain.repositories import (
 	IFigureStorageRepository,
 	IFileStorageRepository,
 	ITextChunkRepository,
+	ITopicSubscriptionRepository,
 	ITranslatedArxivRepository,
 	IUsageRepository,
 	IUserSubscriptionRepository,
@@ -90,6 +93,7 @@ from infrastructure.postgres import (
 from infrastructure.postgres.repositories import (
 	PostgresBlogPostRepository,
 	PostgresChatThreadRepository,
+	PostgresTopicSubscriptionRepository,
 	PostgresTranslatedArxivRepository,
 	PostgresUserSubscriptionRepository,
 )
@@ -601,3 +605,24 @@ def get_handle_stripe_webhook_use_case(
 	repo: Annotated[IUserSubscriptionRepository, Depends(get_user_subscription_repository)],
 ) -> HandleStripeWebhookUseCase:
 	return HandleStripeWebhookUseCase(billing=billing, repo=repo)
+
+
+# --------------------------------------
+# Topic subscription providers
+# --------------------------------------
+async def get_topic_subscription_repository(
+	session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> ITopicSubscriptionRepository:
+	return PostgresTopicSubscriptionRepository(session=session)
+
+
+def get_get_my_topic_subscription_use_case(
+	repo: Annotated[ITopicSubscriptionRepository, Depends(get_topic_subscription_repository)],
+) -> GetMyTopicSubscriptionUseCase:
+	return GetMyTopicSubscriptionUseCase(repo=repo)
+
+
+def get_upsert_topic_subscription_use_case(
+	repo: Annotated[ITopicSubscriptionRepository, Depends(get_topic_subscription_repository)],
+) -> UpsertTopicSubscriptionUseCase:
+	return UpsertTopicSubscriptionUseCase(repo=repo)
