@@ -3,13 +3,11 @@ from domain.repositories import (
 	IAuthUserRepository,
 	IBlogPostRepository,
 	IDigestDeliveryRepository,
-	ITopicSubscriptionRepository,
 )
 from infrastructure.postgres.repositories import (
 	PostgresAuthUserRepository,
 	PostgresBlogPostRepository,
 	PostgresDigestDeliveryRepository,
-	PostgresTopicSubscriptionRepository,
 )
 
 from ._base import SqlAlchemyUnitOfWorkBase
@@ -17,8 +15,8 @@ from ._base import SqlAlchemyUnitOfWorkBase
 
 class PostgresDigestUnitOfWork(SqlAlchemyUnitOfWorkBase, DigestUnitOfWork):
 	@property
-	def topic_subscriptions(self) -> ITopicSubscriptionRepository:
-		return PostgresTopicSubscriptionRepository(session=self._session)
+	def auth_users(self) -> IAuthUserRepository:
+		return PostgresAuthUserRepository(session=self._session)
 
 	@property
 	def digest_deliveries(self) -> IDigestDeliveryRepository:
@@ -27,7 +25,3 @@ class PostgresDigestUnitOfWork(SqlAlchemyUnitOfWorkBase, DigestUnitOfWork):
 	@property
 	def blog_posts(self) -> IBlogPostRepository:
 		return PostgresBlogPostRepository(session=self._session)
-
-	@property
-	def auth_users(self) -> IAuthUserRepository:
-		return PostgresAuthUserRepository(session=self._session)

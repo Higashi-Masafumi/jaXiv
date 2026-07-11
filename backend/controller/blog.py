@@ -49,8 +49,6 @@ from infrastructure.dependencies import (
 	get_required_user_id,
 	get_sse_generate_blog_post,
 	get_sse_generate_blog_post_from_pdf,
-	get_system_auth_user,
-	verify_job_admin_token,
 )
 
 router = APIRouter(prefix='/api/v1/blog')
@@ -104,32 +102,6 @@ async def generate_blog(
 	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
 	auth_user: Annotated[AuthUser, Depends(get_auth_user)],
 ) -> BlogPostResponseSchema:
-	output_dir = _get_output_dir()
-	paper_id = ArxivPaperId(arxiv_paper_id)
-	blog_post = await generate_blog_post.execute(
-		arxiv_paper_id=paper_id,
-		output_dir=output_dir,
-		auth_user=auth_user,
-	)
-	return BlogPostResponseSchema.from_entity(blog_post)
-
-
-@router.post(
-	'/admin/arxiv/{arxiv_paper_id}',
-	response_model=BlogPostResponseSchema,
-	dependencies=[Depends(verify_job_admin_token)],
-)
-async def generate_blog_admin(
-	arxiv_paper_id: Annotated[str, Path(description='The arXiv paper ID')],
-	generate_blog_post: Annotated[GenerateBlogPostUseCase, Depends(get_generate_blog_post)],
-	auth_user: Annotated[AuthUser, Depends(get_system_auth_user)],
-) -> BlogPostResponseSchema:
-	"""Generate and publish a blog post from an arXiv paper as the system user.
-
-	Intended for automated jobs (e.g. a local Claude tool selecting trending
-	papers). Authenticated via JOB_ADMIN_TOKEN and exempt from per-user monthly
-	generation limits. Idempotent: returns the cached post if it already exists.
-	"""
 	output_dir = _get_output_dir()
 	paper_id = ArxivPaperId(arxiv_paper_id)
 	blog_post = await generate_blog_post.execute(

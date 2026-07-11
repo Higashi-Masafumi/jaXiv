@@ -6,7 +6,12 @@ from domain.value_objects.user_id import UserId
 
 
 class PostgresAuthUserRepository(IAuthUserRepository):
-	"""Reads user email from Supabase's ``auth.users`` table."""
+	"""Reads user email from Supabase's ``auth.users`` table.
+
+	Requires the backend's DB role to have SELECT on the ``auth`` schema. Supabase's
+	``postgres`` / ``service_role`` roles do (the same privileged connection that lets
+	the backend bypass RLS for blog writes), so this works with the app's connection.
+	"""
 
 	def __init__(self, session: AsyncSession):
 		self._session = session

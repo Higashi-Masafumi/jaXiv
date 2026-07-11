@@ -645,7 +645,14 @@ def get_email_gateway() -> IEmailGateway:
 
 
 def get_send_weekly_digests_use_case(
-	uow: Annotated[DigestUnitOfWork, Depends(get_digest_unit_of_work)],
+	topic_subscription_repository: Annotated[
+		ITopicSubscriptionRepository, Depends(get_topic_subscription_repository)
+	],
+	digest_unit_of_work: Annotated[DigestUnitOfWork, Depends(get_digest_unit_of_work)],
 	email_gateway: Annotated[IEmailGateway, Depends(get_email_gateway)],
 ) -> SendWeeklyDigestsUseCase:
-	return SendWeeklyDigestsUseCase(uow=uow, email_gateway=email_gateway)
+	return SendWeeklyDigestsUseCase(
+		topic_subscription_repository=topic_subscription_repository,
+		digest_unit_of_work=digest_unit_of_work,
+		email_gateway=email_gateway,
+	)

@@ -4,18 +4,17 @@ from domain.repositories import (
 	IAuthUserRepository,
 	IBlogPostRepository,
 	IDigestDeliveryRepository,
-	ITopicSubscriptionRepository,
 )
 
 from ._base import UnitOfWork
 
 
 class DigestUnitOfWork(UnitOfWork):
-	"""UoW bundling the repositories needed to build and record weekly digests."""
+	"""UoW for the per-subscriber delivery step: read matches then record in one transaction."""
 
 	@property
 	@abstractmethod
-	def topic_subscriptions(self) -> ITopicSubscriptionRepository:
+	def auth_users(self) -> IAuthUserRepository:
 		raise NotImplementedError
 
 	@property
@@ -26,9 +25,4 @@ class DigestUnitOfWork(UnitOfWork):
 	@property
 	@abstractmethod
 	def blog_posts(self) -> IBlogPostRepository:
-		raise NotImplementedError
-
-	@property
-	@abstractmethod
-	def auth_users(self) -> IAuthUserRepository:
 		raise NotImplementedError

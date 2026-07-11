@@ -5,11 +5,9 @@ from fastapi import APIRouter, Depends
 
 from application.usecase import (
 	GetMyTopicSubscriptionUseCase,
-	SendWeeklyDigestsUseCase,
 	UpsertTopicSubscriptionUseCase,
 )
 from controller.schemas.subscription import (
-	DigestRunResultResponse,
 	TopicSubscriptionResponse,
 	UpsertTopicSubscriptionRequest,
 )
@@ -17,9 +15,7 @@ from domain.value_objects.user_id import UserId
 from infrastructure.dependencies import (
 	get_get_my_topic_subscription_use_case,
 	get_required_user_id,
-	get_send_weekly_digests_use_case,
 	get_upsert_topic_subscription_use_case,
-	verify_job_admin_token,
 )
 
 router = APIRouter(prefix='/api/v1/subscriptions')
@@ -48,16 +44,3 @@ async def upsert_my_topic_subscription(
 ) -> TopicSubscriptionResponse:
 	subscription = await use_case.execute(user_id=UserId(user_id), keywords=body.keywords)
 	return TopicSubscriptionResponse.from_entity(subscription)
-
-
-@router.post(
-	'/internal/send-weekly-digests',
-	response_model=DigestRunResultResponse,
-	dependencies=[Depends(verify_job_admin_token)],
-)
-async def send_weekly_digests(
-	use_case: Annotated[SendWeeklyDigestsUseCase, Depends(get_send_weekly_digests_use_case)],
-) -> DigestRunResultResponse:
-	"""Trigger the weekly digest send for all active subscribers (job-token protected)."""
-	result = await use_case.execute()
-	return DigestRunResultResponse.from_result(result)

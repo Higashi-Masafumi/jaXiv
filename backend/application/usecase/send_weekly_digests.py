@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from application.unit_of_works import DigestUnitOfWork
 from domain.gateways import DigestItem, IEmailGateway
+from domain.repositories import ITopicSubscriptionRepository
 
 
 class DigestRunResult(BaseModel):
@@ -18,23 +19,28 @@ class DigestRunResult(BaseModel):
 class SendWeeklyDigestsUseCase:
 	"""Emails each active subscriber the new arXiv posts matching their keywords.
 
-	Each subscriber is processed in its own UoW block so a failure mid-run does not
-	roll back deliveries already committed for earlier subscribers. Emails are sent
-	before deliveries are recorded, so a crash between the two only risks a duplicate
-	next run (never a silently skipped paper).
+	The active subscriptions are read up front (plain read, no transaction). Each
+	subscriber's delivery — read matches, send, record — runs in its own UoW block
+	so it commits atomically and one failure does not roll back earlier subscribers.
+	The email is sent before the delivery is recorded, so a crash between the two
+	only risks a duplicate next run (never a silently skipped paper).
 	"""
 
 	MAX_ITEMS_PER_DIGEST: ClassVar[int] = 5
 
-	def __init__(self, uow: DigestUnitOfWork, email_gateway: IEmailGateway) -> None:
-		self._uow = uow
+	def __init__(
+		self,
+		topic_subscription_repository: ITopicSubscriptionRepository,
+		digest_unit_of_work: DigestUnitOfWork,
+		email_gateway: IEmailGateway,
+	) -> None:
+		self._subscriptions = topic_subscription_repository
+		self._uow = digest_unit_of_work
 		self._email = email_gateway
 		self._logger = getLogger(__name__)
 
 	async def execute(self) -> DigestRunResult:
-		async with self._uow as uow:
-			subscriptions = await uow.topic_subscriptions.list_active()
-
+		subscriptions = await self._subscriptions.list_active()
 		sent = 0
 		skipped = 0
 		failed = 0

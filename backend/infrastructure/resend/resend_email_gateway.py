@@ -17,12 +17,9 @@ class ResendEmailGateway(IEmailGateway):
 
 	def __init__(self, config: ResendConfig | None = None) -> None:
 		self._config = config or get_resend_config()
+		resend.api_key = self._config.resend_api_key.get_secret_value()
 
 	async def send_weekly_digest(self, to: str, items: list[DigestItem]) -> None:
-		api_key = self._config.resend_api_key.get_secret_value()
-		if not api_key:
-			raise EmailDeliveryError('RESEND_API_KEY is not configured.')
-
 		settings_url = f'{self._config.frontend_base_url}/settings/topics'
 		cards = ''.join(self._render_card(item) for item in items)
 		body = (
@@ -40,8 +37,6 @@ class ResendEmailGateway(IEmailGateway):
 			'html': body,
 			'headers': {'List-Unsubscribe': f'<{settings_url}>'},
 		}
-
-		resend.api_key = api_key
 		try:
 			await asyncio.to_thread(resend.Emails.send, params)
 		except ResendError as e:
