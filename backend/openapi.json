@@ -931,6 +931,70 @@
         ]
       }
     },
+    "/api/v1/subscriptions/me": {
+      "get": {
+        "summary": "Get My Topic Subscription",
+        "operationId": "get_my_topic_subscription_api_v1_subscriptions_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicSubscriptionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "summary": "Upsert My Topic Subscription",
+        "operationId": "upsert_my_topic_subscription_api_v1_subscriptions_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertTopicSubscriptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -1708,6 +1772,27 @@
         ],
         "title": "ToolUseBlock"
       },
+      "TopicSubscriptionResponse": {
+        "properties": {
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keywords",
+          "is_active"
+        ],
+        "title": "TopicSubscriptionResponse"
+      },
       "TranslateResponseSchema": {
         "properties": {
           "message": {
@@ -1733,6 +1818,20 @@
           "translated_language"
         ],
         "title": "TranslateResponseSchema"
+      },
+      "UpsertTopicSubscriptionRequest": {
+        "properties": {
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords",
+            "description": "Keywords to match papers against (normalized server-side)"
+          }
+        },
+        "type": "object",
+        "title": "UpsertTopicSubscriptionRequest"
       },
       "ValidationError": {
         "properties": {

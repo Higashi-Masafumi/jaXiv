@@ -4,6 +4,7 @@ from .i_figure_chunk_repository import GlobalFigureHit, IFigureChunkRepository
 from .i_figure_storage_repository import IFigureStorageRepository
 from .i_file_storage_repository import IFileStorageRepository
 from .i_text_chunk_repository import ITextChunkRepository
+from .i_topic_subscription_repository import ITopicSubscriptionRepository
 from .i_translated_arxiv_repository import ITranslatedArxivRepository
 from .i_usage_repository import IUsageRepository
 from .i_user_subscription_repository import IUserSubscriptionRepository
@@ -16,6 +17,7 @@ __all__ = [
 	'IFigureStorageRepository',
 	'IFileStorageRepository',
 	'ITextChunkRepository',
+	'ITopicSubscriptionRepository',
 	'ITranslatedArxivRepository',
 	'IUsageRepository',
 	'IUserSubscriptionRepository',

@@ -10,6 +10,7 @@ from .get_chat_thread import GetChatThreadUseCase
 from .get_my_chat_daily_count import ChatDailyCount, GetMyChatDailyCountUseCase
 from .get_my_generation_count import GetMyGenerationCountUseCase
 from .get_my_subscription import GetMySubscriptionUseCase, MySubscriptionView
+from .get_my_topic_subscription import GetMyTopicSubscriptionUseCase
 from .handle_stripe_webhook import HandleStripeWebhookUseCase
 from .list_blog_posts import ListBlogPostsUseCase
 from .list_chat_threads import ChatThreadSummary, ListChatThreadsUseCase
@@ -25,6 +26,7 @@ from .suggest_figures import (
 	SuggestFiguresUseCase,
 )
 from .translate_arxiv_paper import TranslateArxivPaper
+from .upsert_topic_subscription import UpsertTopicSubscriptionUseCase
 
 __all__ = [
 	'ArxivRedirector',
@@ -42,6 +44,7 @@ __all__ = [
 	'GetMyChatDailyCountUseCase',
 	'GetMyGenerationCountUseCase',
 	'GetMySubscriptionUseCase',
+	'GetMyTopicSubscriptionUseCase',
 	'HandleStripeWebhookUseCase',
 	'ListBlogPostsUseCase',
 	'ListChatThreadsUseCase',
@@ -55,4 +58,5 @@ __all__ = [
 	'SuggestFiguresResult',
 	'SuggestFiguresUseCase',
 	'TranslateArxivPaper',
+	'UpsertTopicSubscriptionUseCase',
 ]

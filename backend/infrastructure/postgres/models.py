@@ -117,3 +117,28 @@ class UserSubscriptionModel(SQLModel, table=True):
 	)
 	created_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
 	updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+
+
+class UserTopicSubscriptionModel(SQLModel, table=True):
+	__tablename__ = 'user_topic_subscription'  # type: ignore[assignment]
+
+	id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+	user_id: uuid.UUID = Field(
+		sa_column=Column(PG_UUID(as_uuid=True), nullable=False, unique=True, index=True),
+		description='Supabase auth.users.id',
+	)
+	email: str = Field(
+		sa_column=Column(Text, nullable=False),
+		description='Email address to deliver the digest to',
+	)
+	keywords: list[str] = Field(
+		sa_column=Column(ARRAY(String), nullable=False, server_default='{}'),
+		description='Keywords to match papers against',
+	)
+	is_active: bool = Field(
+		sa_column=Column(Boolean, nullable=False, server_default='true'),
+		default=True,
+		description='Whether the weekly digest is enabled',
+	)
+	created_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+	updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
