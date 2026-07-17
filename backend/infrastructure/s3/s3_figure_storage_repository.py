@@ -4,39 +4,45 @@ from logging import getLogger
 from pathlib import Path
 from typing import ClassVar
 
-from pdf2image import convert_from_path
-from PIL import Image, ImageChops
+import fitz
 
 from domain.repositories import IFigureStorageRepository
 from infrastructure.s3.client import build_public_url, create_s3_client
 from infrastructure.s3.config import get_s3_storage_config
 
+# 図PNGのレンダリング解像度。トリミングの閾値ではなく出力画質の設定。
+FIGURE_RENDER_DPI = 150
 
-def trim_whitespace(image: Image.Image, tolerance: int = 12, padding: int = 6) -> Image.Image:
-	"""Trim the near-white margins around a rasterized figure.
 
-	arXiv の LaTeX ソースに含まれる PDF 図はページ全面のキャンバスに小さく図が
-	配置されていることがあり、そのまま PNG 化すると周囲に大きな空白が残る。白背景
-	との差分から実際に内容のある領域の外接矩形を求め、その外側の余白のみを削る。
-	サブ図の間などの内側の空白は getbbox が全非背景ピクセルの外接矩形を返すため
-	保持される。全面が背景色（差分なし）の場合は元画像をそのまま返す。
+def render_pdf_figure_to_png(pdf_path: Path) -> bytes:
+	"""Render a figure PDF's first page to PNG, cropped to its actual content.
+
+	LaTeX の ``\\includegraphics`` が図PDFの内容領域だけを表示するのに倣い、ページ
+	全面ではなく実際に描画されている内容(テキスト・ベクター・埋め込み画像)の外接
+	矩形だけをラスタライズする。余白除去はピクセルの明度閾値ではなく内容のベクター
+	座標から厳密に決めるため(pdfcrop 相当)、tolerance や padding といった決め打ちの
+	定数を持たない。内容が検出できない場合はページ全体を描画する。
 	"""
-	rgb = image.convert('RGB')
-	background = Image.new('RGB', rgb.size, (255, 255, 255))
-	diff = ImageChops.difference(rgb, background)
-	if tolerance > 0:
-		# アンチエイリアス由来のほぼ白なピクセルを背景として扱う。
-		diff = diff.point(lambda p: 0 if p <= tolerance else p)
-	bbox = diff.getbbox()
-	if bbox is None:
-		return image
+	with fitz.open(pdf_path) as doc:
+		page = doc[0]
 
-	left, top, right, bottom = bbox
-	left = max(0, left - padding)
-	top = max(0, top - padding)
-	right = min(image.width, right + padding)
-	bottom = min(image.height, bottom + padding)
-	return image.crop((left, top, right, bottom))
+		content: fitz.Rect | None = None
+		rects = [drawing['rect'] for drawing in page.get_drawings()]
+		rects += [block['bbox'] for block in page.get_text('dict')['blocks']]
+		rects += [image['bbox'] for image in page.get_image_info()]
+		for raw_rect in rects:
+			rect = fitz.Rect(raw_rect)
+			if rect.is_empty or rect.is_infinite:
+				continue
+			content = rect if content is None else content | rect
+
+		clip = page.rect if content is None else content & page.rect
+		if clip.is_empty:
+			clip = page.rect
+
+		zoom = FIGURE_RENDER_DPI / 72.0
+		pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), clip=clip, colorspace=fitz.csRGB)
+		return pix.tobytes('png')
 
 
 class S3FigureStorageRepository(IFigureStorageRepository):
@@ -88,11 +94,10 @@ class S3FigureStorageRepository(IFigureStorageRepository):
 
 				if figure_file.suffix.lower() == '.pdf':
 					try:
-						images = convert_from_path(figure_file, dpi=150, first_page=1, last_page=1)
-						if not images:
-							raise RuntimeError(f'pdf2image returned no pages for {figure_file}')
+						png_bytes = render_pdf_figure_to_png(figure_file)
 						tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-						trim_whitespace(images[0]).save(tmp.name, format='PNG')
+						tmp.write(png_bytes)
+						tmp.close()
 						upload_file = Path(tmp.name)
 						storage_filename = f'{figure_file.stem}.png'
 						is_tmp = True
