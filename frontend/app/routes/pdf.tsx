@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ArrowRightIcon, FileUpIcon } from 'lucide-react'
 
 import { useAuth } from '~/contexts/auth-context'
 import { blogPostPath } from '~/lib/blog-path'
+import { cn } from '~/lib/utils'
 import { useBlogStream } from '../hooks/use-blog-stream'
 import { GenerationHero } from '../components/generation-hero'
 import { GenerationSteps } from '../components/generation-steps'
@@ -24,6 +25,9 @@ export default function Pdf() {
   const navigate = useNavigate()
   const { isAnonymous, isPaid } = useAuth()
   const { status, steps, error, paperId, startPdfStream } = useBlogStream()
+  const [file, setFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     if (status === 'complete' && paperId) {
@@ -31,15 +35,30 @@ export default function Pdf() {
     }
   }, [status, paperId, navigate])
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const file = new FormData(e.currentTarget).get('file')
-    if (!(file instanceof File)) return
-    startPdfStream(file)
-  }
+  // 選択した PDF の Blob URL を作り、iframe でプレビューする
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
 
   const isStreaming = status === 'streaming'
   const isDisabled = isStreaming || isAnonymous
+
+  function selectFile(files: FileList | null) {
+    const selected = files?.[0]
+    if (!selected) return
+    if (
+      selected.type !== 'application/pdf' &&
+      !selected.name.toLowerCase().endsWith('.pdf')
+    )
+      return
+    setFile(selected)
+  }
 
   return (
     <main className="h-full overflow-y-auto bg-background">
@@ -71,37 +90,91 @@ export default function Pdf() {
         )}
 
         <div className="mt-7">
-          <form
-            onSubmit={handleSubmit}
-            className="rounded-2xl border border-border/80 bg-white/90 p-5 shadow-lg shadow-indigo-100/40 backdrop-blur-sm dark:bg-card/90 dark:shadow-none"
-          >
-            <div className="flex flex-col gap-2.5 sm:flex-row">
-              <Input
-                type="file"
-                name="file"
-                accept=".pdf"
-                disabled={isDisabled}
-                className="h-11 rounded-xl border-border/70 bg-background shadow-sm sm:flex-1"
-              />
-              <Button
-                type="submit"
-                disabled={isDisabled}
-                size="lg"
-                className="h-11 gap-1.5 rounded-xl px-6 font-semibold sm:w-44"
-              >
-                {isStreaming ? (
-                  <>
-                    <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    生成中...
-                  </>
-                ) : (
-                  <>
-                    ブログを生成
-                    <ArrowRightIcon className="size-4" />
-                  </>
+          <div className="rounded-2xl border border-border/80 bg-white/90 p-5 shadow-lg shadow-indigo-100/40 backdrop-blur-sm dark:bg-card/90 dark:shadow-none">
+            {!file ? (
+              <label
+                onDragOver={e => {
+                  e.preventDefault()
+                  if (!isDisabled) setIsDragging(true)
+                }}
+                onDragLeave={e => {
+                  e.preventDefault()
+                  setIsDragging(false)
+                }}
+                onDrop={e => {
+                  e.preventDefault()
+                  setIsDragging(false)
+                  if (!isDisabled) selectFile(e.dataTransfer.files)
+                }}
+                className={cn(
+                  'flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-14 text-center transition-colors',
+                  isDragging ? 'border-primary bg-primary/5' : 'border-border',
+                  isDisabled && 'pointer-events-none opacity-60',
                 )}
-              </Button>
-            </div>
+              >
+                <FileUpIcon className="size-8 text-primary" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    ここに PDF をドラッグ＆ドロップ
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    またはクリックして選択（.pdf ファイル）
+                  </p>
+                </div>
+                <Input
+                  type="file"
+                  accept=".pdf"
+                  disabled={isDisabled}
+                  className="hidden"
+                  onChange={e => selectFile(e.target.files)}
+                />
+              </label>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm text-muted-foreground">
+                    {file.name}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isStreaming}
+                    onClick={() => setFile(null)}
+                  >
+                    別の PDF を選択
+                  </Button>
+                </div>
+
+                {previewUrl && (
+                  <iframe
+                    src={previewUrl}
+                    title="PDF プレビュー"
+                    className="h-[70vh] w-full rounded-xl border border-border bg-muted/30"
+                  />
+                )}
+
+                <Button
+                  type="button"
+                  onClick={() => file && startPdfStream(file)}
+                  disabled={isDisabled}
+                  size="lg"
+                  className="h-11 gap-1.5 rounded-xl px-6 font-semibold"
+                >
+                  {isStreaming ? (
+                    <>
+                      <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      ブログを生成
+                      <ArrowRightIcon className="size-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
 
             <GenerationSteps steps={steps} />
 
@@ -127,7 +200,7 @@ export default function Pdf() {
             ) : error ? (
               <p className="mt-3 text-sm text-destructive">{error}</p>
             ) : null}
-          </form>
+          </div>
         </div>
       </GenerationHero>
     </main>
