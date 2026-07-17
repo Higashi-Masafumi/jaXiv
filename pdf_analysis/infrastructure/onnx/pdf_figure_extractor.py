@@ -8,7 +8,7 @@ import cv2
 import fitz
 import numpy as np
 import onnxruntime as ort
-from PIL import Image, ImageChops
+from PIL import Image
 
 from domain.entities.figure import ExtractedFigure
 from domain.errors.extraction_error import FigureExtractionError
@@ -17,34 +17,6 @@ from domain.gateways.figure_extractor import FigureExtractorGateway
 FIGURE_NUMBER_RE: re.Pattern[str] = re.compile(
     r"(?:Fig(?:ure)?|図)\s*\.?\s*(\d+)", re.IGNORECASE
 )
-
-
-def trim_whitespace(
-    image: Image.Image, tolerance: int = 12, padding: int = 6
-) -> Image.Image:
-    """Trim the near-white margins around a figure crop.
-
-    DocLayout-YOLO の bbox はページ余白を含んで緩めに出ることがあり、その結果
-    図の周囲に空白が残る。白背景との差分から実際に内容のある領域の外接矩形を求め、
-    その外側の余白だけを削る。サブ図の間などの内側の空白は getbbox が全非背景
-    ピクセルの外接矩形を返すため保持される。全面が背景色の場合は元画像を返す。
-    """
-    rgb = image.convert("RGB")
-    background = Image.new("RGB", rgb.size, (255, 255, 255))
-    diff = ImageChops.difference(rgb, background)
-    if tolerance > 0:
-        # アンチエイリアス由来のほぼ白なピクセルを背景として扱う。
-        diff = diff.point(lambda p: 0 if p <= tolerance else p)
-    bbox = diff.getbbox()
-    if bbox is None:
-        return image
-
-    left, top, right, bottom = bbox
-    left = max(0, left - padding)
-    top = max(0, top - padding)
-    right = min(image.width, right + padding)
-    bottom = min(image.height, bottom + padding)
-    return image.crop((left, top, right, bottom))
 
 
 class PdfFigureExtractor(FigureExtractorGateway):
@@ -147,15 +119,14 @@ class PdfFigureExtractor(FigureExtractorGateway):
                         break
 
                     buf = io.BytesIO()
-                    cropped = page_img.crop(
+                    page_img.crop(
                         (
                             int(fig_bbox[0]),
                             int(fig_bbox[1]),
                             int(fig_bbox[2]),
                             int(fig_bbox[3]),
                         )
-                    )
-                    trim_whitespace(cropped).save(buf, format="PNG")
+                    ).save(buf, format="PNG")
 
                     caption_text = ""
                     figure_number = None

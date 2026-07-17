@@ -5,10 +5,38 @@ from pathlib import Path
 from typing import ClassVar
 
 from pdf2image import convert_from_path
+from PIL import Image, ImageChops
 
 from domain.repositories import IFigureStorageRepository
 from infrastructure.s3.client import build_public_url, create_s3_client
 from infrastructure.s3.config import get_s3_storage_config
+
+
+def trim_whitespace(image: Image.Image, tolerance: int = 12, padding: int = 6) -> Image.Image:
+	"""Trim the near-white margins around a rasterized figure.
+
+	arXiv の LaTeX ソースに含まれる PDF 図はページ全面のキャンバスに小さく図が
+	配置されていることがあり、そのまま PNG 化すると周囲に大きな空白が残る。白背景
+	との差分から実際に内容のある領域の外接矩形を求め、その外側の余白のみを削る。
+	サブ図の間などの内側の空白は getbbox が全非背景ピクセルの外接矩形を返すため
+	保持される。全面が背景色（差分なし）の場合は元画像をそのまま返す。
+	"""
+	rgb = image.convert('RGB')
+	background = Image.new('RGB', rgb.size, (255, 255, 255))
+	diff = ImageChops.difference(rgb, background)
+	if tolerance > 0:
+		# アンチエイリアス由来のほぼ白なピクセルを背景として扱う。
+		diff = diff.point(lambda p: 0 if p <= tolerance else p)
+	bbox = diff.getbbox()
+	if bbox is None:
+		return image
+
+	left, top, right, bottom = bbox
+	left = max(0, left - padding)
+	top = max(0, top - padding)
+	right = min(image.width, right + padding)
+	bottom = min(image.height, bottom + padding)
+	return image.crop((left, top, right, bottom))
 
 
 class S3FigureStorageRepository(IFigureStorageRepository):
@@ -64,7 +92,7 @@ class S3FigureStorageRepository(IFigureStorageRepository):
 						if not images:
 							raise RuntimeError(f'pdf2image returned no pages for {figure_file}')
 						tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-						images[0].save(tmp.name, format='PNG')
+						trim_whitespace(images[0]).save(tmp.name, format='PNG')
 						upload_file = Path(tmp.name)
 						storage_filename = f'{figure_file.stem}.png'
 						is_tmp = True
