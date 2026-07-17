@@ -1,23 +1,19 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowRightIcon, FileTextIcon, FileUpIcon, XIcon } from 'lucide-react'
+import { ArrowRightIcon, FileUpIcon } from 'lucide-react'
 
 import { useAuth } from '~/contexts/auth-context'
 import { blogPostPath } from '~/lib/blog-path'
+import { cn } from '~/lib/utils'
 import { useBlogStream } from '../hooks/use-blog-stream'
 import { GenerationHero } from '../components/generation-hero'
 import { GenerationSteps } from '../components/generation-steps'
-import { PdfDropzone } from '../components/pdf-dropzone'
 import { Button } from '../components/ui/button'
-
-// react-pdf(pdf.js) はブラウザ専用のため、クライアントでのみ動的に読み込む
-const PdfPreview = lazy(() =>
-  import('../components/pdf-preview').then(m => ({ default: m.PdfPreview })),
-)
+import { Input } from '../components/ui/input'
 
 export function meta() {
   return [
-    { title: 'PDFから作成 | jaXiv' },
+    { title: 'PDF → ブログ生成 | jaXiv' },
     {
       name: 'description',
       content: 'PDF ファイルからブログ記事を生成します。',
@@ -25,29 +21,13 @@ export function meta() {
   ]
 }
 
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function PreviewSkeleton() {
-  return (
-    <div className="flex h-64 items-center justify-center rounded-xl border border-border/70 bg-muted/30 text-sm text-muted-foreground">
-      プレビューを準備中...
-    </div>
-  )
-}
-
 export default function Pdf() {
   const navigate = useNavigate()
   const { isAnonymous, isPaid } = useAuth()
   const { status, steps, error, paperId, startPdfStream } = useBlogStream()
   const [file, setFile] = useState<File | null>(null)
-  // クライアントでのみ react-pdf を描画するためのマウント判定
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => setMounted(true), [])
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     if (status === 'complete' && paperId) {
@@ -55,25 +35,43 @@ export default function Pdf() {
     }
   }, [status, paperId, navigate])
 
+  // 選択した PDF の Blob URL を作り、iframe でプレビューする
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
   const isStreaming = status === 'streaming'
   const isDisabled = isStreaming || isAnonymous
 
-  function handleGenerate() {
-    if (file) startPdfStream(file)
+  function selectFile(files: FileList | null) {
+    const selected = files?.[0]
+    if (!selected) return
+    if (
+      selected.type !== 'application/pdf' &&
+      !selected.name.toLowerCase().endsWith('.pdf')
+    )
+      return
+    setFile(selected)
   }
 
   return (
     <main className="h-full overflow-y-auto bg-background">
       <GenerationHero
         icon={FileUpIcon}
-        badge="PDF をドラッグするだけでブログ記事に"
-        titleLead="論文 PDF を、"
+        badge="PDF を貼るだけでブログ記事に"
+        titleLead="PDF 論文を、"
         titleHighlight="読みやすいブログに。"
         description="PDF ファイルをアップロードするだけで、AI が論文の内容を日本語ブログ記事に変換します。"
       >
         {isAnonymous && (
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-            PDFからの生成には
+            PDF生成には
             <Link
               to="/login"
               className="mx-1 font-semibold underline underline-offset-2"
@@ -94,45 +92,71 @@ export default function Pdf() {
         <div className="mt-7">
           <div className="rounded-2xl border border-border/80 bg-white/90 p-5 shadow-lg shadow-indigo-100/40 backdrop-blur-sm dark:bg-card/90 dark:shadow-none">
             {!file ? (
-              <PdfDropzone onSelect={setFile} disabled={isDisabled} />
+              <label
+                onDragOver={e => {
+                  e.preventDefault()
+                  if (!isDisabled) setIsDragging(true)
+                }}
+                onDragLeave={e => {
+                  e.preventDefault()
+                  setIsDragging(false)
+                }}
+                onDrop={e => {
+                  e.preventDefault()
+                  setIsDragging(false)
+                  if (!isDisabled) selectFile(e.dataTransfer.files)
+                }}
+                className={cn(
+                  'flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-14 text-center transition-colors',
+                  isDragging ? 'border-primary bg-primary/5' : 'border-border',
+                  isDisabled && 'pointer-events-none opacity-60',
+                )}
+              >
+                <FileUpIcon className="size-8 text-primary" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    ここに PDF をドラッグ＆ドロップ
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    またはクリックして選択（.pdf ファイル）
+                  </p>
+                </div>
+                <Input
+                  type="file"
+                  accept=".pdf"
+                  disabled={isDisabled}
+                  className="hidden"
+                  onChange={e => selectFile(e.target.files)}
+                />
+              </label>
             ) : (
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/30 px-3.5 py-2.5">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <FileTextIcon className="size-4.5 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm text-muted-foreground">
+                    {file.name}
+                  </p>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-muted-foreground"
+                    size="sm"
                     disabled={isStreaming}
                     onClick={() => setFile(null)}
-                    aria-label="選択を解除"
                   >
-                    <XIcon className="size-4" />
+                    別の PDF を選択
                   </Button>
                 </div>
 
-                {mounted ? (
-                  <Suspense fallback={<PreviewSkeleton />}>
-                    <PdfPreview file={file} />
-                  </Suspense>
-                ) : (
-                  <PreviewSkeleton />
+                {previewUrl && (
+                  <iframe
+                    src={previewUrl}
+                    title="PDF プレビュー"
+                    className="h-[70vh] w-full rounded-xl border border-border bg-muted/30"
+                  />
                 )}
 
                 <Button
                   type="button"
-                  onClick={handleGenerate}
+                  onClick={() => file && startPdfStream(file)}
                   disabled={isDisabled}
                   size="lg"
                   className="h-11 gap-1.5 rounded-xl px-6 font-semibold"
