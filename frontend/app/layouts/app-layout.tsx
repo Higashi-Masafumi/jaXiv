@@ -5,7 +5,7 @@ import {
   BookmarkIcon,
   ChevronRightIcon,
   CrownIcon,
-  FileTextIcon,
+  FileUpIcon,
   ImagesIcon,
   LogInIcon,
   LogOutIcon,
@@ -41,7 +41,7 @@ import { Button } from '~/components/ui/button'
 
 const NAV_ITEMS = [
   { title: 'arXiv', url: '/', icon: SparklesIcon },
-  { title: 'PDF', url: '/pdf', icon: FileTextIcon },
+  { title: 'PDFから作成', url: '/pdf', icon: FileUpIcon },
   { title: 'ブログ一覧', url: '/blog', icon: ArchiveIcon },
   { title: '図面提案', url: '/figures', icon: ImagesIcon },
 ] as const
