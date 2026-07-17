@@ -4,11 +4,45 @@ from logging import getLogger
 from pathlib import Path
 from typing import ClassVar
 
-from pdf2image import convert_from_path
+import fitz
 
 from domain.repositories import IFigureStorageRepository
 from infrastructure.s3.client import build_public_url, create_s3_client
 from infrastructure.s3.config import get_s3_storage_config
+
+# 図PNGのレンダリング解像度。トリミングの閾値ではなく出力画質の設定。
+FIGURE_RENDER_DPI = 150
+
+
+def render_pdf_figure_to_png(pdf_path: Path) -> bytes:
+	"""Render a figure PDF's first page to PNG, cropped to its actual content.
+
+	LaTeX の ``\\includegraphics`` が図PDFの内容領域だけを表示するのに倣い、ページ
+	全面ではなく実際に描画されている内容(テキスト・ベクター・埋め込み画像)の外接
+	矩形だけをラスタライズする。余白除去はピクセルの明度閾値ではなく内容のベクター
+	座標から厳密に決めるため(pdfcrop 相当)、tolerance や padding といった決め打ちの
+	定数を持たない。内容が検出できない場合はページ全体を描画する。
+	"""
+	with fitz.open(pdf_path) as doc:
+		page = doc[0]
+
+		content: fitz.Rect | None = None
+		rects = [drawing['rect'] for drawing in page.get_drawings()]
+		rects += [block['bbox'] for block in page.get_text('dict')['blocks']]
+		rects += [image['bbox'] for image in page.get_image_info()]
+		for raw_rect in rects:
+			rect = fitz.Rect(raw_rect)
+			if rect.is_empty or rect.is_infinite:
+				continue
+			content = rect if content is None else content | rect
+
+		clip = page.rect if content is None else content & page.rect
+		if clip.is_empty:
+			clip = page.rect
+
+		zoom = FIGURE_RENDER_DPI / 72.0
+		pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), clip=clip, colorspace=fitz.csRGB)
+		return pix.tobytes('png')
 
 
 class S3FigureStorageRepository(IFigureStorageRepository):
@@ -60,11 +94,10 @@ class S3FigureStorageRepository(IFigureStorageRepository):
 
 				if figure_file.suffix.lower() == '.pdf':
 					try:
-						images = convert_from_path(figure_file, dpi=150, first_page=1, last_page=1)
-						if not images:
-							raise RuntimeError(f'pdf2image returned no pages for {figure_file}')
+						png_bytes = render_pdf_figure_to_png(figure_file)
 						tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-						images[0].save(tmp.name, format='PNG')
+						tmp.write(png_bytes)
+						tmp.close()
 						upload_file = Path(tmp.name)
 						storage_filename = f'{figure_file.stem}.png'
 						is_tmp = True
