@@ -17,7 +17,9 @@ services:
     runtime: python
     repo: https://github.com/Higashi-Masafumi/jaXiv
     rootDir: ./backend
-    buildCommand: pip install uv && uv sync
+    # uv は Render のビルド環境に最初から入っているので、pip で入れ直さない
+    # (PyPI が不調なとき pip install uv だけで落ちるのを避ける)
+    buildCommand: uv sync
     startCommand: uv run uvicorn main:app --host 0.0.0.0 --port 8000
     envVars:
       - key: NIXPACKS_APT_PKGS
