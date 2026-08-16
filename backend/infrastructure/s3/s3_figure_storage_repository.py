@@ -1,5 +1,7 @@
+import math
 import mimetypes
 import tempfile
+from asyncio import to_thread
 from logging import getLogger
 from pathlib import Path
 from typing import ClassVar
@@ -12,6 +14,12 @@ from infrastructure.s3.config import get_s3_storage_config
 
 # 図PNGのレンダリング解像度。トリミングの閾値ではなく出力画質の設定。
 FIGURE_RENDER_DPI = 150
+# 1枚あたりに許すピクセル数の上限。Pixmap は RGB 3バイト/px を一括で確保するうえ、
+# PNG 化のワークバッファも同時に載るため、実測でこの数倍が瞬間的な使用量になる。
+# 論文の図PDFにはページサイズが 6754x1866pt (≒94インチ幅) といった巨大なものがあり、
+# 150DPI をそのまま適用すると 1枚で 160MB超の Pixmap になって 512MB のコンテナが落ちる。
+# 上限を超える図は解像度を落として描画し、ピーク使用量をページサイズから独立させる。
+FIGURE_MAX_PIXELS = 4_000_000
 
 
 def render_pdf_figure_to_png(pdf_path: Path, dest_path: Path) -> None:
@@ -23,14 +31,18 @@ def render_pdf_figure_to_png(pdf_path: Path, dest_path: Path) -> None:
 	座標から厳密に決めるため(pdfcrop 相当)、tolerance や padding といった決め打ちの
 	定数を持たない。内容が検出できない場合はページ全体を描画する。
 
-	PNG はメモリ上のバイト列ではなく直接ファイルへ書き出す。
+	解像度は ``FIGURE_RENDER_DPI`` を上限としつつ、出力が ``FIGURE_MAX_PIXELS`` を
+	超える場合はそこに収まるよう縮小する。PNG はメモリ上のバイト列ではなく直接
+	ファイルへ書き出す。
 	"""
 	with fitz.open(pdf_path) as doc:
 		page = doc[0]
 
 		content: fitz.Rect | None = None
+		# get_text('dict') は画像ブロックの実バイト列まで返すため 'blocks' を使う。
+		# 必要なのは外接矩形だけで、写真を貼った図では実バイト列がそのまま無駄な常駐になる。
 		rects = [drawing['rect'] for drawing in page.get_drawings()]
-		rects += [block['bbox'] for block in page.get_text('dict')['blocks']]
+		rects += [block[:4] for block in page.get_text('blocks')]
 		rects += [image['bbox'] for image in page.get_image_info()]
 		for raw_rect in rects:
 			rect = fitz.Rect(raw_rect)
@@ -42,7 +54,10 @@ def render_pdf_figure_to_png(pdf_path: Path, dest_path: Path) -> None:
 		if clip.is_empty:
 			clip = page.rect
 
-		zoom = FIGURE_RENDER_DPI / 72.0
+		zoom = min(
+			FIGURE_RENDER_DPI / 72.0,
+			math.sqrt(FIGURE_MAX_PIXELS / (clip.width * clip.height)),
+		)
 		pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), clip=clip, colorspace=fitz.csRGB)
 		pix.save(dest_path)
 
@@ -100,7 +115,10 @@ class S3FigureStorageRepository(IFigureStorageRepository):
 					upload_file = Path(tmp.name)
 					is_tmp = True
 					try:
-						render_pdf_figure_to_png(figure_file, upload_file)
+						# ラスタライズは数秒かかる CPU 処理なので、イベントループを
+						# 止めないようスレッドへ逃がす。逐次実行のままなので同時に
+						# 載る Pixmap は 1枚だけで、ピーク使用量は増えない。
+						await to_thread(render_pdf_figure_to_png, figure_file, upload_file)
 						storage_filename = f'{figure_file.stem}.png'
 					except Exception:
 						self._logger.warning(
