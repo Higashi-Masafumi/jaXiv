@@ -36,6 +36,7 @@ dependencies = [
     "stripe>=15.1.0",
     "aioboto3>=15.5.0",
     "resend>=2.32.2",
+    "ijson>=3.5.1",
 ]
 
 [dependency-groups]
@@ -51,5 +52,5 @@ python_version = "3.13"
 exclude = ["alembic/"]
 
 [[tool.mypy.overrides]]
-module = ["uuid6", "uuid6.*", "fitz", "fitz.*"]
+module = ["uuid6", "uuid6.*", "fitz", "fitz.*", "ijson", "ijson.*"]
 ignore_missing_imports = true

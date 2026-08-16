@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from domain.value_objects import ArxivPaperId, TargetLanguage
 
@@ -16,8 +17,12 @@ class ITexTranslationGateway(ABC):
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		target_language: TargetLanguage,
-	) -> bytes:
-		"""Translate ``arxiv_paper_id`` and return the compiled PDF as bytes.
+		dest_path: Path,
+	) -> None:
+		"""Translate ``arxiv_paper_id`` and write the compiled PDF to ``dest_path``.
+
+		The PDF is written to disk rather than returned as bytes so that a whole
+		translated paper never has to fit in memory.
 
 		Raises:
 		    ArxivPaperNotFoundError: If the remote service reports 404.

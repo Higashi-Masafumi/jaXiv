@@ -19,14 +19,18 @@ class IFigureStorageRepository(ABC):
 		...
 
 	@abstractmethod
-	async def upload_figure_bytes(
+	async def upload_figure_file(
 		self,
 		paper_id: str,
 		filename: str,
-		data: bytes,
+		image_path: Path,
 		content_type: str = 'image/png',
 	) -> str:
-		"""Upload raw image bytes to storage and return the public URL."""
+		"""Upload an image file to storage and return the public URL.
+
+		Takes a path rather than bytes so the image is streamed from disk instead
+		of being held in memory for the duration of the upload.
+		"""
 		...
 
 	@abstractmethod

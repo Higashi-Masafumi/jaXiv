@@ -14,14 +14,16 @@ from infrastructure.s3.config import get_s3_storage_config
 FIGURE_RENDER_DPI = 150
 
 
-def render_pdf_figure_to_png(pdf_path: Path) -> bytes:
-	"""Render a figure PDF's first page to PNG, cropped to its actual content.
+def render_pdf_figure_to_png(pdf_path: Path, dest_path: Path) -> None:
+	"""Render a figure PDF's first page to a PNG at ``dest_path``, cropped to its content.
 
 	LaTeX の ``\\includegraphics`` が図PDFの内容領域だけを表示するのに倣い、ページ
 	全面ではなく実際に描画されている内容(テキスト・ベクター・埋め込み画像)の外接
 	矩形だけをラスタライズする。余白除去はピクセルの明度閾値ではなく内容のベクター
 	座標から厳密に決めるため(pdfcrop 相当)、tolerance や padding といった決め打ちの
 	定数を持たない。内容が検出できない場合はページ全体を描画する。
+
+	PNG はメモリ上のバイト列ではなく直接ファイルへ書き出す。
 	"""
 	with fitz.open(pdf_path) as doc:
 		page = doc[0]
@@ -42,7 +44,7 @@ def render_pdf_figure_to_png(pdf_path: Path) -> bytes:
 
 		zoom = FIGURE_RENDER_DPI / 72.0
 		pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), clip=clip, colorspace=fitz.csRGB)
-		return pix.tobytes('png')
+		pix.save(dest_path)
 
 
 class S3FigureStorageRepository(IFigureStorageRepository):
@@ -93,20 +95,20 @@ class S3FigureStorageRepository(IFigureStorageRepository):
 				is_tmp = False
 
 				if figure_file.suffix.lower() == '.pdf':
+					tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+					tmp.close()
+					upload_file = Path(tmp.name)
+					is_tmp = True
 					try:
-						png_bytes = render_pdf_figure_to_png(figure_file)
-						tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-						tmp.write(png_bytes)
-						tmp.close()
-						upload_file = Path(tmp.name)
+						render_pdf_figure_to_png(figure_file, upload_file)
 						storage_filename = f'{figure_file.stem}.png'
-						is_tmp = True
 					except Exception:
 						self._logger.warning(
 							'Failed to convert PDF figure %s; skipping',
 							figure_file,
 							exc_info=True,
 						)
+						upload_file.unlink(missing_ok=True)
 						continue
 
 				storage_path = f'{paper_id}/{storage_filename}'
@@ -114,13 +116,16 @@ class S3FigureStorageRepository(IFigureStorageRepository):
 					mimetypes.guess_type(upload_file.name)[0] or 'application/octet-stream'
 				)
 				try:
-					await s3.put_object(
-						Bucket=self._bucket_name,
-						Key=storage_path,
-						Body=upload_file.read_bytes(),
-						ContentType=content_type,
-						CacheControl='3600',
-					)
+					# ファイルオブジェクトを渡すと botocore/aiohttp が逐次読み出すため、
+					# 図の実体がメモリに丸ごと載らない。
+					with upload_file.open('rb') as body:
+						await s3.put_object(
+							Bucket=self._bucket_name,
+							Key=storage_path,
+							Body=body,
+							ContentType=content_type,
+							CacheControl='3600',
+						)
 					public_url = build_public_url(self._public_base_url, storage_path)
 					figure_urls[storage_filename] = public_url
 					self._logger.info('Uploaded figure %s → %s', storage_filename, public_url)
@@ -134,38 +139,40 @@ class S3FigureStorageRepository(IFigureStorageRepository):
 
 		return figure_urls
 
-	async def upload_figure_bytes(
+	async def upload_figure_file(
 		self,
 		paper_id: str,
 		filename: str,
-		data: bytes,
+		image_path: Path,
 		content_type: str = 'image/png',
 	) -> str:
-		"""Upload raw image bytes to S3-compatible storage and return the public URL."""
+		"""Stream an image file to S3-compatible storage and return the public URL."""
 		storage_path = f'{paper_id}/{filename}'
 		async with create_s3_client(self._config) as s3:
-			await s3.put_object(
-				Bucket=self._bucket_name,
-				Key=storage_path,
-				Body=data,
-				ContentType=content_type,
-				CacheControl='3600',
-			)
+			with image_path.open('rb') as body:
+				await s3.put_object(
+					Bucket=self._bucket_name,
+					Key=storage_path,
+					Body=body,
+					ContentType=content_type,
+					CacheControl='3600',
+				)
 		public_url = build_public_url(self._public_base_url, storage_path)
-		self._logger.info('Uploaded figure bytes %s → %s', filename, public_url)
+		self._logger.info('Uploaded figure %s → %s', filename, public_url)
 		return public_url
 
 	async def upload_pdf(self, paper_id: str, pdf_path: Path) -> str:
-		"""Upload a PDF file to S3-compatible storage and return the public URL."""
+		"""Stream a PDF file to S3-compatible storage and return the public URL."""
 		storage_path = f'{paper_id}/source.pdf'
 		async with create_s3_client(self._config) as s3:
-			await s3.put_object(
-				Bucket=self._bucket_name,
-				Key=storage_path,
-				Body=pdf_path.read_bytes(),
-				ContentType='application/pdf',
-				CacheControl='3600',
-			)
+			with pdf_path.open('rb') as body:
+				await s3.put_object(
+					Bucket=self._bucket_name,
+					Key=storage_path,
+					Body=body,
+					ContentType='application/pdf',
+					CacheControl='3600',
+				)
 		public_url = build_public_url(self._public_base_url, storage_path)
 		self._logger.info('Uploaded PDF %s → %s', pdf_path.name, public_url)
 		return public_url

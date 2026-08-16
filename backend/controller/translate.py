@@ -1,3 +1,5 @@
+import tempfile
+from pathlib import Path as FilePath
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query
@@ -38,14 +40,18 @@ async def translate_sync(
 			translated_language=target_language.value,
 		)
 
-	pdf_bytes = await translate_arxiv_paper.execute(
-		arxiv_paper_id=paper_id,
-		target_language=target_language,
-	)
-	metadata = await save_translated_arxiv.execute(
-		arxiv_paper_id=paper_id,
-		translated_pdf_bytes=pdf_bytes,
-	)
+	# 翻訳済みPDFはバイト列で持ち回さず一時ファイルに置き、そのままS3へ流す。
+	with tempfile.TemporaryDirectory(prefix='translated-') as tmp_dir:
+		pdf_path = FilePath(tmp_dir) / f'{paper_id.root}_translated.pdf'
+		await translate_arxiv_paper.execute(
+			arxiv_paper_id=paper_id,
+			target_language=target_language,
+			dest_path=pdf_path,
+		)
+		metadata = await save_translated_arxiv.execute(
+			arxiv_paper_id=paper_id,
+			translated_pdf_path=pdf_path,
+		)
 
 	return TranslateResponseSchema(
 		message=f'Arxiv {arxiv_paper_id} translated successfully.',

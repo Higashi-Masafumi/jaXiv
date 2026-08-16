@@ -1,4 +1,5 @@
 import asyncio
+import tempfile
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from logging import getLogger
@@ -80,34 +81,37 @@ class GenerateBlogPostFromPdfSSEUseCase:
 				source_url = None
 
 			yield IntermediateBlogChunk(message='テキスト・図を並列解析中...')
-			figures_with_embedding, text_chunks = await asyncio.gather(
-				self._figure_analyzer.analyze_figures(pdf_path),
-				self._chunk_analyzer.analyze_chunks(pdf_path),
-			)
+			# 抽出した図はメモリではなくこのディレクトリに置き、アップロード後に破棄する。
+			# 以降は caption と embedding しか使わないので、画像の実体は残さない。
+			with tempfile.TemporaryDirectory(prefix='figures-') as image_dir:
+				figures_with_embedding, text_chunks = await asyncio.gather(
+					self._figure_analyzer.analyze_figures(pdf_path, Path(image_dir)),
+					self._chunk_analyzer.analyze_chunks(pdf_path),
+				)
 
-			yield IntermediateBlogChunk(message='図をアップロードしています...')
-			uploaded_figures: list[UploadedFigure] = []
-			for idx, fig in enumerate(figures_with_embedding):
-				fig_label = fig.figure_number if fig.figure_number is not None else idx
-				filename = f'fig_p{fig.page_number}_{fig_label}.png'
-				try:
-					url = await self._figure_storage_repository.upload_figure_bytes(
-						paper_id=paper_id.root,
-						filename=filename,
-						data=fig.image_bytes,
-					)
-					uploaded_figures.append(
-						UploadedFigure(
-							url=url,
-							caption=fig.caption,
-							figure_number=fig.figure_number,
-							page_number=fig.page_number,
+				yield IntermediateBlogChunk(message='図をアップロードしています...')
+				uploaded_figures: list[UploadedFigure] = []
+				for idx, fig in enumerate(figures_with_embedding):
+					fig_label = fig.figure_number if fig.figure_number is not None else idx
+					filename = f'fig_p{fig.page_number}_{fig_label}.png'
+					try:
+						url = await self._figure_storage_repository.upload_figure_file(
+							paper_id=paper_id.root,
+							filename=filename,
+							image_path=fig.image_path,
 						)
-					)
-				except Exception:
-					self._logger.warning(
-						'Failed to upload figure %s; skipping', filename, exc_info=True
-					)
+						uploaded_figures.append(
+							UploadedFigure(
+								url=url,
+								caption=fig.caption,
+								figure_number=fig.figure_number,
+								page_number=fig.page_number,
+							)
+						)
+					except Exception:
+						self._logger.warning(
+							'Failed to upload figure %s; skipping', filename, exc_info=True
+						)
 
 			self._logger.info(
 				'Uploaded %d/%d figures for paper %s',
