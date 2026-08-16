@@ -1,4 +1,5 @@
 from logging import getLogger
+from pathlib import Path
 
 from domain.gateways import ITexTranslationGateway
 from domain.value_objects import ArxivPaperId, TargetLanguage
@@ -15,14 +16,16 @@ class TranslateArxivPaper:
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		target_language: TargetLanguage,
-	) -> bytes:
-		"""Return the translated PDF bytes produced by the remote service."""
+		dest_path: Path,
+	) -> None:
+		"""Write the translated PDF produced by the remote service to ``dest_path``."""
 		self._logger.info(
 			'Translating %s to %s via tex_translation service',
 			arxiv_paper_id.root,
 			target_language,
 		)
-		return await self._tex_translation_gateway.translate_to_pdf(
+		await self._tex_translation_gateway.translate_to_pdf(
 			arxiv_paper_id=arxiv_paper_id,
 			target_language=target_language,
+			dest_path=dest_path,
 		)

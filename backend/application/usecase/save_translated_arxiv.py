@@ -1,4 +1,5 @@
 from logging import getLogger
+from pathlib import Path
 
 from pydantic import HttpUrl
 
@@ -28,7 +29,7 @@ class SaveTranslatedArxivUseCase:
 	async def execute(
 		self,
 		arxiv_paper_id: ArxivPaperId,
-		translated_pdf_bytes: bytes,
+		translated_pdf_path: Path,
 	) -> ArxivPaperMetadataWithTranslatedUrl:
 		self._logger.info('Saving translated arxiv paper %s', arxiv_paper_id.root)
 
@@ -39,7 +40,7 @@ class SaveTranslatedArxivUseCase:
 		storage_path = f'{arxiv_paper_id.root}_translated.pdf'
 		translated_pdf_url = await self._file_storage_repository.save_translated_file_and_get_url(
 			storage_path=storage_path,
-			content=translated_pdf_bytes,
+			file_path=translated_pdf_path,
 		)
 
 		metadata_with_url = arxiv_paper_metadata.with_translated_url(

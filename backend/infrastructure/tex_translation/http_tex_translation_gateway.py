@@ -1,4 +1,5 @@
 from logging import getLogger
+from pathlib import Path
 
 import httpx
 
@@ -10,6 +11,8 @@ from domain.errors import (
 )
 from domain.gateways import ITexTranslationGateway
 from domain.value_objects import ArxivPaperId, TargetLanguage
+from libs import DOWNLOAD_CHUNK_SIZE
+
 from infrastructure.tex_translation.config import get_tex_translation_config
 
 
@@ -36,7 +39,8 @@ class HttpTexTranslationGateway(ITexTranslationGateway):
 		self,
 		arxiv_paper_id: ArxivPaperId,
 		target_language: TargetLanguage,
-	) -> bytes:
+		dest_path: Path,
+	) -> None:
 		url = f'{self._base_url}/api/v1/translate/arxiv/{arxiv_paper_id.root}'
 		params = {'target_language': target_language.value}
 
@@ -44,23 +48,29 @@ class HttpTexTranslationGateway(ITexTranslationGateway):
 			'Calling tex_translation service: POST %s (timeout=%ss)', url, self._timeout
 		)
 		try:
-			async with httpx.AsyncClient(timeout=self._timeout) as client:
-				response = await client.post(url, params=params)
+			async with (
+				httpx.AsyncClient(timeout=self._timeout) as client,
+				client.stream('POST', url, params=params) as response,
+			):
+				if response.status_code >= 400:
+					# エラー本文は小さいのでメモリに読んでよい。
+					await response.aread()
+					if response.status_code == 404:
+						detail = _extract_detail(response)
+						if 'No tex file found' in detail:
+							raise TexFileNotFoundError(arxiv_paper_id.root, detail=detail)
+						raise ArxivPaperNotFoundError(arxiv_paper_id.root)
+					if response.status_code == 504:
+						raise LatexCompilationTimeoutError(arxiv_paper_id.root)
+					raise TranslationFailedError(
+						f'tex_translation returned {response.status_code}: '
+						f'{_extract_detail(response)}'
+					)
+				# 翻訳済みPDFは数十MBになりうるため、メモリに載せずそのままディスクへ流す。
+				with dest_path.open('wb') as pdf_file:
+					async for chunk in response.aiter_bytes(chunk_size=DOWNLOAD_CHUNK_SIZE):
+						pdf_file.write(chunk)
 		except httpx.TimeoutException as e:
 			raise LatexCompilationTimeoutError(arxiv_paper_id.root) from e
 		except httpx.HTTPError as e:
 			raise TranslationFailedError(f'tex_translation request failed: {e}') from e
-
-		if response.status_code == 404:
-			detail = _extract_detail(response)
-			if 'No tex file found' in detail:
-				raise TexFileNotFoundError(arxiv_paper_id.root, detail=detail)
-			raise ArxivPaperNotFoundError(arxiv_paper_id.root)
-		if response.status_code == 504:
-			raise LatexCompilationTimeoutError(arxiv_paper_id.root)
-		if response.status_code >= 400:
-			raise TranslationFailedError(
-				f'tex_translation returned {response.status_code}: {_extract_detail(response)}'
-			)
-
-		return response.content

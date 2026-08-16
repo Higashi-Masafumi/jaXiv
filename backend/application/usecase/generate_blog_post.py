@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import os
 from datetime import UTC, datetime
 from logging import getLogger
@@ -28,6 +27,10 @@ from domain.value_objects import ArxivPaperId
 from domain.value_objects.image_url import ImageUrl
 
 _EMBED_EXTENSIONS: frozenset[str] = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp'})
+# 埋め込み対象にする画像の上限サイズ。base64 化した本体がリクエストボディとして
+# メモリに載るため、極端に大きな図はインデックスから外して OOM を避ける
+# (ストレージへのアップロードとブログ本文への掲載は従来どおり行われる)。
+_MAX_EMBED_IMAGE_BYTES: int = 8 * 1024 * 1024
 
 
 class GenerateBlogPostUseCase:
@@ -90,15 +93,12 @@ class GenerateBlogPostUseCase:
 			)
 
 			image_files = sorted(
-				f for f in source_dir.rglob('*') if f.suffix.lower() in _EMBED_EXTENSIONS
+				f
+				for f in source_dir.rglob('*')
+				if f.suffix.lower() in _EMBED_EXTENSIONS
+				and f.stat().st_size <= _MAX_EMBED_IMAGE_BYTES
 			)
-			image_items = [
-				ImageEmbedItem(
-					image_base64=base64.b64encode(f.read_bytes()).decode(),
-					caption=None,
-				)
-				for f in image_files
-			]
+			image_items = [ImageEmbedItem(image_path=f, caption=None) for f in image_files]
 
 			figure_urls, text_chunks, image_embeddings = await asyncio.gather(
 				self._figure_storage_repository.upload_figures(

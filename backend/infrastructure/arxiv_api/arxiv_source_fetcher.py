@@ -1,7 +1,7 @@
 import json
 import os
 import tarfile
-from io import BytesIO
+import tempfile
 from logging import getLogger
 from pathlib import Path
 from typing import Final
@@ -15,6 +15,7 @@ from domain.entities.arxiv import ArxivPaperAuthor, ArxivPaperMetadata
 from domain.errors import ArxivPaperNotFoundError, TexFileNotFoundError
 from domain.gateways import IArxivSourceFetcher
 from domain.value_objects import ArxivPaperId, CompileSetting
+from libs import DOWNLOAD_CHUNK_SIZE
 
 
 class ArxivSourceFetcher(IArxivSourceFetcher):
@@ -33,10 +34,15 @@ class ArxivSourceFetcher(IArxivSourceFetcher):
 			os.makedirs(source_dir)
 
 		self._logger.info('Downloading tar source from %s', tar_src_url)
-		response = requests.get(tar_src_url)
-		response.raise_for_status()
-		with tarfile.open(fileobj=BytesIO(response.content), mode='r|gz') as tar:
-			tar.extractall(path=source_dir)
+		# ソース一式は数十MBになることがあるため、メモリではなく一時ファイルに受ける。
+		with requests.get(tar_src_url, stream=True) as response:
+			response.raise_for_status()
+			with tempfile.TemporaryFile() as archive:
+				for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+					archive.write(chunk)
+				archive.seek(0)
+				with tarfile.open(fileobj=archive, mode='r|gz') as tar:
+					tar.extractall(path=source_dir)
 
 		bibtex_file_candidates = list(source_dir.rglob('*.bib'))
 		readme_file_candidates = list(source_dir.glob('00README.*'))

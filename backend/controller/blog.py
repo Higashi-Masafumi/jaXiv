@@ -2,7 +2,7 @@ import os
 import tempfile
 import uuid
 from pathlib import Path as FilePath
-from typing import Annotated
+from typing import IO, Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile
 from sse_starlette import ServerSentEvent
@@ -34,6 +34,7 @@ from controller.schemas.rag_response import (
 	RagSearchTextResponseSchema,
 )
 from domain.value_objects.arxiv_paper_id import ArxivPaperId
+from libs import DOWNLOAD_CHUNK_SIZE
 from infrastructure.dependencies import (
 	get_auth_user,
 	get_generate_blog_post,
@@ -59,6 +60,17 @@ def _get_output_dir() -> str:
 	if not os.path.exists(output_dir):
 		os.makedirs(output_dir)
 	return output_dir
+
+
+async def _spool_to_disk(upload: UploadFile, dest: IO[bytes]) -> None:
+	"""Copy an upload into ``dest`` in chunks and close it.
+
+	``await upload.read()`` would pull the entire PDF into memory, undoing the
+	spooling Starlette already does for large uploads.
+	"""
+	while chunk := await upload.read(DOWNLOAD_CHUNK_SIZE):
+		dest.write(chunk)
+	dest.close()
 
 
 @router.get('/', response_model=PaginatedBlogPostResponseSchema)
@@ -198,9 +210,7 @@ async def generate_blog_from_pdf(
 	tmp = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
 	pdf_path = FilePath(tmp.name)
 	try:
-		content = await file.read()
-		tmp.write(content)
-		tmp.close()
+		await _spool_to_disk(file, tmp)
 
 		blog_post = await generate_blog_post_from_pdf.execute(
 			pdf_path=pdf_path, auth_user=auth_user
@@ -223,9 +233,7 @@ async def generate_blog_from_pdf_stream(
 
 	tmp = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
 	pdf_path = FilePath(tmp.name)
-	content = await file.read()
-	tmp.write(content)
-	tmp.close()
+	await _spool_to_disk(file, tmp)
 
 	async def run_workflow():
 		try:
