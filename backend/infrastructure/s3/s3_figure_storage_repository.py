@@ -1,10 +1,13 @@
 import math
 import mimetypes
 import tempfile
-from asyncio import to_thread
+from asyncio import get_running_loop
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack, contextmanager
 from logging import getLogger
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Final
 
 import fitz
 
@@ -20,6 +23,30 @@ FIGURE_RENDER_DPI = 150
 # 150DPI をそのまま適用すると 1枚で 160MB超の Pixmap になって 512MB のコンテナが落ちる。
 # 上限を超える図は解像度を落として描画し、ピーク使用量をページサイズから独立させる。
 FIGURE_MAX_PIXELS = 4_000_000
+# ラスタライズ専用のワーカー。プロセス全体で1枚ずつに直列化するため max_workers=1 で
+# 固定する。asyncio.to_thread の既定エグゼキュータ(CPU数+4スレッド)へ投げると、同時に
+# 走るブログ生成リクエストの数だけ Pixmap が並んで載り、1枚あたりの上限を設けた意味が
+# なくなる。溢れた分はキューで待つので、常駐するのは常に1枚分。
+_RENDER_EXECUTOR: Final[ThreadPoolExecutor] = ThreadPoolExecutor(
+	max_workers=1, thread_name_prefix='figure-render'
+)
+
+
+@contextmanager
+def temporary_png_path() -> Iterator[Path]:
+	"""Yield a path for a temporary PNG and delete it on exit.
+
+	``with`` で括ることで、アップロード成否だけでなく SSE 切断による
+	``CancelledError`` (``except Exception`` を素通りする) でも確実に消える。
+	図1枚のPNGは数MBになりうるため、残すとコンテナのディスクを食い潰す。
+	"""
+	tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+	tmp.close()
+	png_path = Path(tmp.name)
+	try:
+		yield png_path
+	finally:
+		png_path.unlink(missing_ok=True)
 
 
 def render_pdf_figure_to_png(pdf_path: Path, dest_path: Path) -> None:
@@ -105,55 +132,57 @@ class S3FigureStorageRepository(IFigureStorageRepository):
 
 		async with create_s3_client(self._config) as s3:
 			for figure_file in figure_files:
-				upload_file = figure_file
-				storage_filename = figure_file.name
-				is_tmp = False
+				# 一時PNGの後始末を ExitStack に預ける。continue でも例外でも
+				# CancelledError でも、この with を抜ける時点で必ず削除される。
+				with ExitStack() as cleanup:
+					upload_file = figure_file
+					storage_filename = figure_file.name
 
-				if figure_file.suffix.lower() == '.pdf':
-					tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-					tmp.close()
-					upload_file = Path(tmp.name)
-					is_tmp = True
-					try:
-						# ラスタライズは数秒かかる CPU 処理なので、イベントループを
-						# 止めないようスレッドへ逃がす。逐次実行のままなので同時に
-						# 載る Pixmap は 1枚だけで、ピーク使用量は増えない。
-						await to_thread(render_pdf_figure_to_png, figure_file, upload_file)
+					if figure_file.suffix.lower() == '.pdf':
+						upload_file = cleanup.enter_context(temporary_png_path())
+						try:
+							# ラスタライズは数秒かかる CPU 処理なので、イベントループを
+							# 止めないよう専用ワーカーへ逃がす。max_workers=1 なので
+							# 同時に載る Pixmap はプロセス全体で常に1枚だけ。
+							await get_running_loop().run_in_executor(
+								_RENDER_EXECUTOR,
+								render_pdf_figure_to_png,
+								figure_file,
+								upload_file,
+							)
+						except Exception:
+							self._logger.warning(
+								'Failed to convert PDF figure %s; skipping',
+								figure_file,
+								exc_info=True,
+							)
+							continue
 						storage_filename = f'{figure_file.stem}.png'
+
+					storage_path = f'{paper_id}/{storage_filename}'
+					content_type = (
+						mimetypes.guess_type(upload_file.name)[0] or 'application/octet-stream'
+					)
+					try:
+						# ファイルオブジェクトを渡すと botocore/aiohttp が逐次読み出すため、
+						# 図の実体がメモリに丸ごと載らない。
+						with upload_file.open('rb') as body:
+							await s3.put_object(
+								Bucket=self._bucket_name,
+								Key=storage_path,
+								Body=body,
+								ContentType=content_type,
+								CacheControl='3600',
+							)
 					except Exception:
 						self._logger.warning(
-							'Failed to convert PDF figure %s; skipping',
-							figure_file,
-							exc_info=True,
+							'Failed to upload figure %s, skipping', figure_file.name, exc_info=True
 						)
-						upload_file.unlink(missing_ok=True)
 						continue
 
-				storage_path = f'{paper_id}/{storage_filename}'
-				content_type = (
-					mimetypes.guess_type(upload_file.name)[0] or 'application/octet-stream'
-				)
-				try:
-					# ファイルオブジェクトを渡すと botocore/aiohttp が逐次読み出すため、
-					# 図の実体がメモリに丸ごと載らない。
-					with upload_file.open('rb') as body:
-						await s3.put_object(
-							Bucket=self._bucket_name,
-							Key=storage_path,
-							Body=body,
-							ContentType=content_type,
-							CacheControl='3600',
-						)
 					public_url = build_public_url(self._public_base_url, storage_path)
 					figure_urls[storage_filename] = public_url
 					self._logger.info('Uploaded figure %s → %s', storage_filename, public_url)
-				except Exception:
-					self._logger.warning(
-						'Failed to upload figure %s, skipping', figure_file.name, exc_info=True
-					)
-				finally:
-					if is_tmp:
-						upload_file.unlink(missing_ok=True)
 
 		return figure_urls
 
