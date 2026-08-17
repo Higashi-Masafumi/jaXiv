@@ -36,7 +36,9 @@ _EMBED_EXTENSIONS: frozenset[str] = frozenset({'.png', '.jpg', '.jpeg', '.gif', 
 # 埋め込み対象にする画像の上限サイズ。base64 化した本体がリクエストボディとして
 # メモリに載るため、極端に大きな図はインデックスから外して OOM を避ける
 # (ストレージへのアップロードとブログ本文への掲載は従来どおり行われる)。
-_MAX_EMBED_IMAGE_BYTES: int = 8 * 1024 * 1024
+# HttpImageEmbedder はバイト数でバッチを区切るが、上限を単独で超える画像は必ず
+# 1枚だけのバッチになるので、そのときのピークを決めるのがこの値になる。
+_MAX_EMBED_IMAGE_BYTES: int = 4 * 1024 * 1024
 
 
 class GenerateBlogPostSSEUseCase:

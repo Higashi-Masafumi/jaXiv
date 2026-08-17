@@ -17,20 +17,33 @@ class HttpImageEmbedder(IImageEmbedder):
 	"""Calls the pdf_analysis service /embed/images to get image and caption embeddings."""
 
 	TIMEOUT: float = 300.0
-	# 1リクエストにまとめる画像数。base64 と JSON ボディが同時にメモリへ載るため、
-	# 論文1本分をまとめて送ると数百MBに達しうる。バッチごとに解放して上限を抑える。
-	BATCH_SIZE: int = 4
+	# 1リクエストにまとめる画像の合計バイト数の上限。base64 文字列と JSON ボディが
+	# それぞれ元画像の約1.4倍のサイズで同時に載るため、実測ピークはこの値の5倍前後になる。
+	# 枚数で区切ると1枚あたりのサイズ次第でピークが跳ね上がる (8MB x 4枚で +205MB を実測)
+	# ため、バイト数で区切って画像の大きさに依存しないようにする。
+	MAX_BATCH_BYTES: int = 4 * 1024 * 1024
 
 	def __init__(self) -> None:
 		self._logger = getLogger(__name__)
 		self._client = AsyncClient(base_url=pdf_config.layout_analysis_url, timeout=self.TIMEOUT)
 
 	async def embed_images(self, items: list[ImageEmbedItem]) -> list[ImageWithEmbedding]:
+		batches: list[list[ImageEmbedItem]] = []
+		batch_bytes = 0
+		for item in items:
+			size = item.image_path.stat().st_size
+			if batches and batch_bytes + size <= self.MAX_BATCH_BYTES:
+				batches[-1].append(item)
+				batch_bytes += size
+			else:
+				# 上限を単独で超える画像も、1枚だけのバッチとして必ず送る。
+				batches.append([item])
+				batch_bytes = size
+
 		embeddings: list[ImageWithEmbedding] = []
-		for start in range(0, len(items), self.BATCH_SIZE):
-			batch = items[start : start + self.BATCH_SIZE]
+		for index, batch in enumerate(batches, start=1):
 			self._logger.info(
-				'Embedding images %d-%d of %d', start + 1, start + len(batch), len(items)
+				'Embedding image batch %d/%d (%d images)', index, len(batches), len(batch)
 			)
 			try:
 				response = await self._client.post(
