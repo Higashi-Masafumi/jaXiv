@@ -69,6 +69,7 @@ from domain.repositories import (
 )
 from domain.value_objects.user_id import UserId
 from domain.value_objects.user_role import UserRole
+from infrastructure.anthropic import AnthropicChatLLM
 from infrastructure.arxiv_api import ArxivSourceFetcher
 from infrastructure.auth import (
 	get_auth_config,
@@ -528,12 +529,16 @@ def get_gemini_chat_llm() -> IChatLLMGateway:
 	return GeminiChatLLM()
 
 
+def get_anthropic_chat_llm() -> IChatLLMGateway:
+	return AnthropicChatLLM()
+
+
 def get_chat_thread_unit_of_work() -> ChatThreadUnitOfWork:
 	return PostgresChatThreadUnitOfWork(session_factory=create_async_session_factory())
 
 
 def get_chat_with_paper_use_case(
-	llm: Annotated[IChatLLMGateway, Depends(get_gemini_chat_llm)],
+	llm: Annotated[IChatLLMGateway, Depends(get_anthropic_chat_llm)],
 	thread_uow: Annotated[ChatThreadUnitOfWork, Depends(get_chat_thread_unit_of_work)],
 	rag_text: Annotated[RagSearchTextUseCase, Depends(get_rag_search_text_use_case)],
 	rag_image: Annotated[RagSearchImageUseCase, Depends(get_rag_search_image_use_case)],
