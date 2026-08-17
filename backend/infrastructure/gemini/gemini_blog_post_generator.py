@@ -21,6 +21,7 @@ from domain.entities.figure import UploadedFigure
 from domain.entities.pdf_paper import PdfPaperMetadata
 from domain.gateways import IBlogPostGenerator, IPdfBlogPostGenerator
 from infrastructure.gemini.config import get_gemini_config
+from infrastructure.latex import LatexPreprocessor
 
 
 class PdfBlogResponse(BaseModel):
@@ -42,13 +43,14 @@ class GeminiBlogPostGenerator(IBlogPostGenerator, IPdfBlogPostGenerator):
 
 	def __init__(
 		self,
-		model: str = 'gemini-3-flash-preview',
+		model: str | None = None,
 		max_latex_chars: int = 80_000,
 	):
 		self.client = genai.Client(api_key=gemini_config.gemini_api_key.get_secret_value())
 		self.logger = getLogger(__name__)
-		self.model: Final[str] = model
+		self.model: Final[str] = model or gemini_config.blog_model
 		self.max_latex_chars: Final[int] = max_latex_chars
+		self._latex = LatexPreprocessor()
 
 	@property
 	def system_prompt(self) -> str:
@@ -85,7 +87,8 @@ arXiv 論文情報をもとに Markdown 形式でブログ記事を執筆して�
 
 # 数式ルール（KaTeX）
 - インライン: `$...$` / ブロック: `$$...$$`（前後に空行必須）
-- `\\newcommand`/`\\def` のカスタムマクロは標準 KaTeX コマンドに展開すること
+- 「著者定義マクロ」セクションが与えられた場合、その定義に**厳密に従って**標準 KaTeX コマンドへ展開すること（マクロ名をそのまま出力してはならない）
+- セクションに無い `\\newcommand`/`\\def` マクロも標準 KaTeX に展開すること
 - 旧式コマンド（`\\tt`/`\\bf`/`\\it`/`\\rm` 等）禁止 → `\\texttt{}`/`\\textbf{}`/`\\textit{}`/`\\textrm{}`
 - 数式中のテキストは `\\text{}` を使用（`\\mbox{}` 禁止）
 - `\\label{}`/`\\ref{}` は使わず文脈で説明すること
@@ -142,20 +145,17 @@ arXiv 論文情報をもとに Markdown 形式でブログ記事を執筆して�
 		latex_source_dir: Path,
 		figure_urls: dict[str, str],
 	) -> str:
-		# LaTeX ソース読み込み
-		tex_parts: list[str] = []
-		total = 0
-		for tex_file in sorted(latex_source_dir.rglob('*.tex')):
-			try:
-				text = tex_file.read_text(encoding='utf-8', errors='ignore')
-				if total + len(text) > self.max_latex_chars:
-					tex_parts.append(text[: self.max_latex_chars - total])
-					break
-				tex_parts.append(text)
-				total += len(text)
-			except Exception:
-				self.logger.warning('Failed to read %s', tex_file, exc_info=True)
-		latex_content = '\n\n'.join(tex_parts)
+		# LaTeX ソースをドキュメント順に結合し、著者定義マクロを抽出
+		assembled = self._latex.assemble(latex_source_dir)
+		latex_content = assembled.body[: self.max_latex_chars]
+
+		macro_section = ''
+		if assembled.macros:
+			macro_lines = '\n'.join(assembled.macros)
+			macro_section = (
+				'# 著者定義マクロ（必ずこの定義に従って数式を展開すること）\n'
+				f'```latex\n{macro_lines}\n```\n\n'
+			)
 
 		# 図URL一覧セクション（プレースホルダを使用）
 		figure_section = ''
@@ -177,6 +177,7 @@ arXiv 論文情報をもとに Markdown 形式でブログ記事を執筆して�
 			f'- arXiv ID: {paper_metadata.paper_id.root}\n'
 			f'- 概要:\n{paper_metadata.summary}\n\n'
 			f'{figure_section}'
+			f'{macro_section}'
 			f'# LaTeX ソースコード（抜粋）\n'
 			f'```latex\n{latex_content}\n```\n\n'
 			'上記の情報をもとに、日本語のブログ記事を Markdown 形式で作成してください。'
